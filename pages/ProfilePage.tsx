@@ -1,110 +1,77 @@
-
-import React from 'react';
-import { useStories } from '../contexts/StoryContext.tsx';
-import { useUserPreferences } from '../contexts/UserPreferencesContext.tsx';
-import { Link } from 'react-router-dom';
-import { HeartIcon, BookOpenIcon, ArrowRightIcon } from '@heroicons/react/24/solid';
+import React, { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { toast } from 'react-hot-toast';
 
 const ProfilePage: React.FC = () => {
-  const { stories } = useStories();
-  const { favorites, bookmarks } = useUserPreferences();
+  const { user, token } = useAuth();
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const favoriteStories = stories.filter(story => favorites.includes(story.id));
-  const readingStories = Object.keys(bookmarks)
-    .map(storyId => {
-      const story = stories.find(s => s.id === storyId);
-      if (!story) return null;
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+        toast.error("Mật khẩu mới không khớp.");
+        return;
+    }
+    if (newPassword.length < 6) {
+        toast.error("Mật khẩu mới phải có ít nhất 6 ký tự.");
+        return;
+    }
+    setIsSubmitting(true);
+    try {
+        const response = await fetch('http://localhost:3001/api/auth/change-password', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ currentPassword, newPassword })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message);
+        
+        toast.success(data.message);
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
 
-      const chapterId = bookmarks[storyId];
-      const allChapters = story.volumes.flatMap(v => v.chapters);
-      const chapterIndex = allChapters.findIndex(c => c.id === chapterId);
-      
-      if (chapterIndex === -1) return null;
+    } catch (error: any) {
+        toast.error(error.message || "Đã có lỗi xảy ra.");
+    } finally {
+        setIsSubmitting(false);
+    }
+  }
 
-      const progress = allChapters.length > 0 ? Math.round(((chapterIndex + 1) / allChapters.length) * 100) : 0;
-      return {
-        ...story,
-        continueChapterId: chapterId,
-        progress,
-      };
-    })
-    .filter(Boolean)
-    // @ts-ignore
-    .sort((a,b) => new Date(b.lastUpdatedAt).getTime() - new Date(a.lastUpdatedAt).getTime());
+  if (!user) return <div>Đang tải...</div>;
 
   return (
-    <div className="animate-fade-in space-y-12">
-      <div>
-        <h1 className="text-4xl font-bold font-serif text-slate-900 dark:text-white">
-          Hồ sơ của bạn
-        </h1>
-        <p className="mt-2 text-slate-500 dark:text-slate-400">
-          Quản lý truyện đang đọc và danh sách yêu thích của bạn.
-        </p>
+    <div className="container mx-auto max-w-2xl px-4 py-8">
+      <h1 className="text-3xl font-bold mb-6">Trang cá nhân</h1>
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+        <p className="mb-4"><span className="font-semibold">Tên người dùng:</span> {user.username}</p>
+        <p className="mb-6"><span className="font-semibold">Vai trò:</span> {user.role}</p>
+
+        <h2 className="text-2xl font-bold mb-4 border-t pt-6">Đổi mật khẩu</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block mb-1 font-medium">Mật khẩu hiện tại</label>
+            <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="w-full p-2 border rounded-md dark:bg-gray-700" required />
+          </div>
+          <div>
+            <label className="block mb-1 font-medium">Mật khẩu mới</label>
+            <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full p-2 border rounded-md dark:bg-gray-700" required />
+          </div>
+          <div>
+            <label className="block mb-1 font-medium">Xác nhận mật khẩu mới</label>
+            <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="w-full p-2 border rounded-md dark:bg-gray-700" required />
+          </div>
+          <button type="submit" disabled={isSubmitting} className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400">
+            {isSubmitting ? 'Đang lưu...' : 'Lưu thay đổi'}
+          </button>
+        </form>
       </div>
-
-      {/* Currently Reading Section */}
-      <section>
-        <h2 className="text-2xl font-bold font-serif mb-4 flex items-center gap-2">
-            <BookOpenIcon className="h-6 w-6 text-cyan-500"/>
-            Truyện đang đọc
-        </h2>
-        {readingStories.length > 0 ? (
-          <div className="space-y-4">
-            {readingStories.map(story => story && (
-              <div key={story.id} className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-md flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                <img src={story.coverImage} alt={story.title} className="w-20 h-28 object-cover rounded-md flex-shrink-0" />
-                <div className="flex-grow w-full">
-                  <h3 className="font-bold text-lg">{story.title}</h3>
-                  <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5 my-2">
-                    <div className="bg-cyan-600 h-2.5 rounded-full" style={{ width: `${story.progress}%` }}></div>
-                  </div>
-                  <p className="text-sm text-slate-500">Đã đọc {story.progress}%</p>
-                </div>
-                <Link
-                  to={`/story/${story.id}/chapter/${story.continueChapterId}`}
-                  className="flex-shrink-0 w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 text-sm"
-                >
-                  <span>Đọc tiếp</span>
-                  <ArrowRightIcon className="h-4 w-4" />
-                </Link>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-center py-8 text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 rounded-lg">Bạn chưa bắt đầu đọc truyện nào.</p>
-        )}
-      </section>
-
-      {/* Favorites Section */}
-      <section>
-        <h2 className="text-2xl font-bold font-serif mb-4 flex items-center gap-2">
-            <HeartIcon className="h-6 w-6 text-red-500"/>
-            Truyện Yêu Thích
-        </h2>
-        {favoriteStories.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-4 gap-y-6">
-            {favoriteStories.map(story => (
-              <div key={story.id} className="bg-white dark:bg-slate-800 rounded-lg shadow-md overflow-hidden transform hover:-translate-y-1 transition-transform duration-200 group">
-                <Link to={`/story/${story.id}`}>
-                    <div className="aspect-[2/3] overflow-hidden">
-                      <img src={story.coverImage} alt={story.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"/>
-                    </div>
-                    <div className="p-3">
-                        <h3 className="font-bold truncate text-base">{story.title}</h3>
-                        <p className="text-sm text-slate-500 truncate">{story.author}</p>
-                    </div>
-                </Link>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
-            <p className="text-slate-500">Bạn chưa có truyện yêu thích nào.</p>
-            <Link to="/" className="mt-4 inline-block text-indigo-600 hover:underline">Khám phá truyện mới</Link>
-          </div>
-        )}
-      </section>
     </div>
   );
 };

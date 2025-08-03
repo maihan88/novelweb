@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useStories } from '../../contexts/StoryContext.tsx';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChartBarIcon, EyeIcon, DocumentTextIcon, PencilIcon, TrashIcon, PlusIcon } from '@heroicons/react/24/solid';
+import { toast } from 'react-hot-toast'; // Import toast
 
 const AdminDashboardPage: React.FC = () => {
   const { stories, deleteStory } = useStories();
@@ -17,10 +18,43 @@ const AdminDashboardPage: React.FC = () => {
     };
   }, [stories]);
 
+  const showConfirm = (message: string, onConfirm: () => void) => {
+    toast((t) => (
+      <div className="flex flex-col items-center gap-3">
+        <span className="text-center">{message}</span>
+        <div className="flex gap-4">
+          <button
+            className="px-4 py-1 bg-red-600 text-white rounded-md hover:bg-red-700"
+            onClick={() => {
+              onConfirm();
+              toast.dismiss(t.id);
+            }}
+          >
+            Xóa
+          </button>
+          <button
+            className="px-4 py-1 bg-gray-200 text-black rounded-md hover:bg-gray-300"
+            onClick={() => toast.dismiss(t.id)}
+          >
+            Hủy
+          </button>
+        </div>
+      </div>
+    ), {
+      duration: 6000, // Tăng thời gian hiển thị để người dùng quyết định
+    });
+  };
+
   const handleDelete = (storyId: string, storyTitle: string) => {
-    if (window.confirm(`Bạn có chắc chắn muốn xóa truyện "${storyTitle}" không? Hành động này không thể hoàn tác.`)) {
-      deleteStory(storyId);
-    }
+    showConfirm(`Bạn có chắc chắn muốn xóa truyện "${storyTitle}"?`, async () => {
+      try {
+        await deleteStory(storyId);
+        toast.success(`Đã xóa truyện "${storyTitle}"!`);
+      } catch (error) {
+        toast.error('Xóa truyện thất bại.');
+        console.error(error);
+      }
+    });
   };
 
   return (

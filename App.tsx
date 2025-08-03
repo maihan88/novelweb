@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 import { HashRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext.tsx';
@@ -7,6 +5,7 @@ import { AuthProvider } from './contexts/AuthContext.tsx';
 import { StoryProvider } from './contexts/StoryContext.tsx';
 import { UserPreferencesProvider } from './contexts/UserPreferencesContext.tsx';
 import { CommentProvider } from './contexts/CommentContext.tsx';
+import { Toaster, toast } from 'react-hot-toast';
 
 import Header from './components/Header.tsx';
 import Footer from './components/Footer.tsx';
@@ -77,6 +76,18 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <ThemeProvider>
+      {/* Component để hiển thị thông báo */}
+      <Toaster 
+        position="top-center"
+        reverseOrder={false}
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+        }}
+      />
       <AuthProvider>
         <StoryProvider>
           <UserPreferencesProvider>

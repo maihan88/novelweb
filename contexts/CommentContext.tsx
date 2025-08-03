@@ -1,46 +1,68 @@
-
-import React, { createContext, useContext, ReactNode, useCallback } from 'react';
-import { useLocalStorage } from '../hooks/useLocalStorage.tsx';
+import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { Comment } from '../types';
-
-type CommentsStore = Record<string, Comment[]>; // Key: `${storyId}-${chapterId}`
+import { useAuth } from './AuthContext'; // Cần AuthContext để lấy token
 
 interface CommentContextType {
-  getCommentsForChapter: (storyId: string, chapterId: string) => Comment[];
-  addCommentToChapter: (storyId: string, chapterId: string, comment: Omit<Comment, 'id' | 'timestamp'>) => void;
+  comments: Comment[];
+  loading: boolean;
+  fetchComments: (chapterId: string) => Promise<void>;
+  addComment: (chapterId: string, content: string) => Promise<void>;
+  deleteComment: (commentId: string) => Promise<void>;
 }
 
 const CommentContext = createContext<CommentContextType | undefined>(undefined);
 
+const API_BASE_URL = 'http://localhost:3001/api';
+
 export const CommentProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [comments, setComments] = useLocalStorage<CommentsStore>('comments', {});
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loading, setLoading] = useState(false);
+  const { token } = useAuth(); // Lấy token từ AuthContext
 
-  const getCommentsForChapter = useCallback((storyId: string, chapterId: string) => {
-    const key = `${storyId}-${chapterId}`;
-    return comments[key] || [];
-  }, [comments]);
+  const fetchComments = useCallback(async (chapterId: string) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/chapters/${chapterId}/comments`);
+      if (!response.ok) throw new Error('Failed to fetch comments');
+      const data: Comment[] = await response.json();
+      setComments(data);
+    } catch (error) {
+      console.error(error);
+      setComments([]); // Xóa comment cũ nếu fetch lỗi
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const addCommentToChapter = useCallback((storyId: string, chapterId: string, commentData: Omit<Comment, 'id' | 'timestamp'>) => {
-    const key = `${storyId}-${chapterId}`;
-    const newComment: Comment = {
-      ...commentData,
-      id: `comment-${Date.now()}`,
-      timestamp: new Date().toISOString(),
-    };
+  const addComment = useCallback(async (chapterId: string, content: string) => {
+    if (!token) throw new Error('You must be logged in to comment.');
     
-    setComments(prev => {
-      const existingComments = prev[key] || [];
-      return {
-        ...prev,
-        [key]: [...existingComments, newComment]
-      };
+    const response = await fetch(`${API_BASE_URL}/chapters/${chapterId}/comments`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ content })
     });
-  }, [setComments]);
+    if (!response.ok) throw new Error('Failed to post comment');
+    const newComment: Comment = await response.json();
+    setComments(prev => [newComment, ...prev]);
+  }, [token]);
 
-  const value = { getCommentsForChapter, addCommentToChapter };
+  const deleteComment = useCallback(async (commentId: string) => {
+    if (!token) throw new Error('You must be logged in to delete comments.');
+
+    const response = await fetch(`${API_BASE_URL}/comments/${commentId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Failed to delete comment');
+    setComments(prev => prev.filter(c => c.id !== commentId));
+  }, [token]);
 
   return (
-    <CommentContext.Provider value={value}>
+    <CommentContext.Provider value={{ comments, loading, fetchComments, addComment, deleteComment }}>
       {children}
     </CommentContext.Provider>
   );

@@ -1,237 +1,212 @@
-
-
-
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useStories } from '../../contexts/StoryContext.tsx';
-import { Story, Volume } from '../../types.ts';
-import { PlusIcon, TrashIcon, PencilIcon } from '@heroicons/react/24/solid';
+import { useStories } from '../../contexts/StoryContext';
+import { Story, Volume } from '../../types';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import { toast } from 'react-hot-toast';
+import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 const StoryEditPage: React.FC = () => {
   const { storyId } = useParams<{ storyId: string }>();
+  const isNewStory = !storyId;
   const navigate = useNavigate();
-  const { stories, addStory, updateStory, addVolume, deleteVolume, updateVolume, deleteChapterFromVolume } = useStories();
+  const { getStory, addStory, updateStory, addVolume, deleteVolume } = useStories();
 
-  const [storyData, setStoryData] = useState<Partial<Story>>({});
-  const [tagsInput, setTagsInput] = useState('');
-  const [isNewStory, setIsNewStory] = useState(false);
+  const [storyData, setStoryData] = useState<Partial<Story>>({
+    title: '',
+    author: '',
+    alias: [],
+    description: '',
+    coverImage: '',
+    status: 'ongoing',
+    tags: [],
+    volumes: [],
+    isHot: false,
+    isInBanner: false,
+  });
+  const [loading, setLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
   const [newVolumeTitle, setNewVolumeTitle] = useState('');
 
+  const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+  const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+
   useEffect(() => {
-    if (storyId) {
-      const existingStory = stories.find(s => s.id === storyId);
-      if (existingStory) {
-        setStoryData(existingStory);
-        setTagsInput(existingStory.tags?.join(', ') || '');
-        setIsNewStory(false);
-      } else {
-        navigate('/admin'); // Story not found
+    if (!isNewStory) {
+      const story = getStory(storyId);
+      if (story) {
+        setStoryData(story);
       }
-    } else {
-      setIsNewStory(true);
-      setStoryData({
-        title: '',
-        author: '',
-        alias: '',
-        description: '',
-        coverImage: '',
-        tags: [],
-        status: 'Đang dịch',
-        isHot: false,
-        isInBanner: false,
-      });
-      setTagsInput('');
     }
-  }, [storyId, stories, navigate]);
+    setLoading(false);
+  }, [storyId, getStory, isNewStory]);
 
-  const handleStoryChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    if (type === 'checkbox') {
-        const { checked } = e.target as HTMLInputElement;
-        setStoryData(prev => ({ ...prev, [name]: checked }));
-    } else {
-        setStoryData(prev => ({ ...prev, [name]: value }));
-    }
+    const isCheckbox = type === 'checkbox';
+    const checked = (e.target as HTMLInputElement).checked;
+    setStoryData(prev => ({ ...prev, [name]: isCheckbox ? checked : value }));
   };
-  
-  const handleTagsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setTagsInput(value);
-    setStoryData(prev => ({...prev, tags: value.split(',').map(t => t.trim()).filter(Boolean)}));
-  }
 
-  const handleCoverImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleArrayChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setStoryData(prev => ({ ...prev, [name]: value.split(',').map(item => item.trim()) }));
+  };
+
+  const handleCoverImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setStoryData(prev => ({ ...prev, coverImage: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
+        toast.error("Lỗi cấu hình Cloudinary.");
+        return;
+    }
+    setIsUploading(true);
+    const uploadToastId = toast.loading('Đang tải ảnh lên...');
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+    try {
+        const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+            method: 'POST',
+            body: formData,
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error?.message || 'Tải ảnh thất bại.');
+        setStoryData(prev => ({ ...prev, coverImage: result.secure_url }));
+        toast.success('Tải ảnh thành công!', { id: uploadToastId });
+    } catch (error: any) {
+        toast.error(error.message, { id: uploadToastId });
+    } finally {
+        setIsUploading(false);
     }
   };
 
-  const handleStorySubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!storyData.title || !storyData.author) {
-        alert("Vui lòng điền tên truyện và tác giả.");
-        return;
+      toast.error("Tiêu đề và tác giả là bắt buộc.");
+      return;
     }
-    
-    if (isNewStory) {
-      if (!storyData.coverImage) {
-        alert("Vui lòng tải lên ảnh bìa.");
-        return;
-      }
-      const newStory = addStory(storyData as Omit<Story, 'id'|'volumes'|'views'|'createdAt'|'lastUpdatedAt'|'rating'|'ratingsCount'>);
-      navigate(`/admin/story/edit/${newStory.id}`);
-    } else if(storyId) {
-      updateStory(storyId, storyData);
-      alert('Đã cập nhật truyện thành công!');
+    // Đảm bảo storyId được truyền đúng
+    if (!isNewStory && storyId) {
+        const promise = updateStory(storyId, storyData);
+        toast.promise(promise, {
+            loading: 'Đang cập nhật...',
+            success: 'Cập nhật thành công!',
+            error: 'Cập nhật thất bại.',
+        });
+    } else {
+        const promise = addStory(storyData as any);
+        toast.promise(promise, {
+            loading: 'Đang thêm truyện...',
+            success: (result) => {
+                navigate(`/admin/story/edit/${result.id}`);
+                return 'Thêm truyện thành công!';
+            },
+            error: 'Thêm truyện thất bại.',
+        });
     }
   };
-    
-  const handleChapterDelete = useCallback((volumeId: string, chapterId: string) => {
-      if(storyId && window.confirm("Bạn có chắc muốn xóa chương này?")) {
-          deleteChapterFromVolume(storyId, volumeId, chapterId);
-      }
-  }, [storyId, deleteChapterFromVolume]);
 
-  const handleAddVolume = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (storyId && newVolumeTitle.trim()) {
-        addVolume(storyId, newVolumeTitle.trim());
-        setNewVolumeTitle('');
-    }
-  }
-
-  const handleVolumeDelete = useCallback((volumeId: string) => {
-      if(storyId && window.confirm("Bạn có chắc muốn xóa tập này và tất cả các chương bên trong?")) {
-          deleteVolume(storyId, volumeId);
-      }
-  }, [storyId, deleteVolume]);
-
-  const handleVolumeTitleChange = (volumeId: string) => {
-    const currentVolume = volumes.find(v => v.id === volumeId);
-    const newTitle = prompt("Nhập tên tập mới:", currentVolume?.title || '');
-    if (storyId && newTitle !== null && newTitle.trim() !== '') {
-        updateVolume(storyId, volumeId, newTitle.trim());
-    }
-  }
+  const handleAddVolume = async () => {
+    if (!newVolumeTitle.trim() || !storyId) return;
+    const promise = addVolume(storyId, newVolumeTitle);
+    toast.promise(promise, {
+        loading: 'Đang thêm tập...',
+        success: () => { setNewVolumeTitle(''); return 'Thêm tập thành công!'; },
+        error: 'Thêm tập thất bại.',
+    });
+  };
   
-  const inputStyles = "w-full p-2 border rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-white border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-indigo-500 transition";
+  const handleVolumeDelete = (volumeId: string) => {
+    if (!storyId) return;
+    if (window.confirm('Bạn có chắc muốn xóa tập này?')) {
+        const promise = deleteVolume(storyId, volumeId);
+        toast.promise(promise, {
+            loading: 'Đang xóa...',
+            success: 'Xóa tập thành công!',
+            error: 'Xóa tập thất bại.'
+        });
+    }
+  }
 
-  const storyForRender = !isNewStory && storyId ? stories.find(s => s.id === storyId) : undefined;
-  const volumes = storyForRender?.volumes ?? [];
+  if (loading) return <LoadingSpinner />;
+
+  const inputStyles = "w-full p-2 border rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-white border-slate-300 dark:border-slate-600";
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
+    <div className="max-w-4xl mx-auto space-y-8 p-4">
       <h1 className="text-3xl font-bold font-serif">{isNewStory ? 'Thêm Truyện Mới' : `Chỉnh Sửa: ${storyData.title}`}</h1>
-
-      {/* Story Details Form */}
-      <form onSubmit={handleStorySubmit} className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-lg space-y-6">
-        <h2 className="text-xl font-semibold border-b border-slate-200 dark:border-slate-700 pb-3 mb-4">Thông tin truyện</h2>
-        
+      <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-lg space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-1">
+                {/* Image Upload UI */}
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Ảnh bìa</label>
-                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 dark:border-slate-600 border-dashed rounded-md">
-                    <div className="space-y-1 text-center">
-                        {storyData.coverImage ? (
-                             <img src={storyData.coverImage} alt="Preview" className="mx-auto h-32 w-auto object-contain rounded-md"/>
-                        ) : (
-                            <svg className="mx-auto h-12 w-12 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                        )}
-                        <div className="flex text-sm text-slate-600 dark:text-slate-400">
-                            <label htmlFor="coverImage" className="relative cursor-pointer bg-white dark:bg-slate-800 rounded-md font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 dark:ring-offset-slate-800 focus-within:ring-indigo-500">
-                                <span>Tải ảnh lên</span>
-                                <input id="coverImage" name="coverImage" type="file" className="sr-only" onChange={handleCoverImageChange} accept="image/*" />
-                            </label>
-                            <p className="pl-1">hoặc kéo và thả</p>
-                        </div>
-                        <p className="text-xs text-slate-500 dark:text-slate-500">PNG, JPG, GIF up to 10MB</p>
-                    </div>
+                <div className="mt-1 flex flex-col items-center justify-center p-4 border-2 border-slate-300 dark:border-slate-600 border-dashed rounded-md text-center">
+                    {storyData.coverImage && <img src={storyData.coverImage} alt="Preview" className="mb-4 h-48 w-auto object-contain rounded-md"/>}
+                    <label htmlFor="coverImage" className="relative cursor-pointer bg-white dark:bg-slate-700 rounded-md font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 p-2">
+                        <span>{isUploading ? 'Đang tải...' : 'Tải ảnh lên'}</span>
+                        <input id="coverImage" name="coverImage" type="file" className="sr-only" onChange={handleCoverImageChange} accept="image/*" disabled={isUploading} />
+                    </label>
+                    <p className="text-xs text-slate-500 mt-1">Hoặc dán link vào ô dưới</p>
                 </div>
+                <input type="text" name="coverImage" placeholder="Dán link ảnh vào đây" value={storyData.coverImage || ''} onChange={handleChange} className={`mt-2 ${inputStyles}`} disabled={isUploading} />
             </div>
             <div className="md:col-span-2 space-y-4">
-                <input name="title" value={storyData.title || ''} onChange={handleStoryChange} placeholder="Tên truyện" required className={inputStyles} />
-                <input name="author" value={storyData.author || ''} onChange={handleStoryChange} placeholder="Tác giả" required className={inputStyles} />
-                <input name="alias" value={storyData.alias || ''} onChange={handleStoryChange} placeholder="Tên khác (bí danh, tên gốc,...)" className={inputStyles} />
-                <input name="tags" value={tagsInput} onChange={handleTagsChange} placeholder="Tags (cách nhau bằng dấu phẩy)" className={inputStyles} />
-                <div className="flex flex-col sm:flex-row gap-4">
-                    <select name="status" value={storyData.status} onChange={handleStoryChange} className={inputStyles + " flex-grow"}>
-                        <option value="Đang dịch">Đang dịch</option>
-                        <option value="Hoàn thành">Hoàn thành</option>
+                <input name="title" value={storyData.title || ''} onChange={handleChange} placeholder="Tên truyện" required className={inputStyles} />
+                <input name="author" value={storyData.author || ''} onChange={handleChange} placeholder="Tác giả" required className={inputStyles} />
+                <input name="alias" value={storyData.alias?.join(', ')} onChange={handleArrayChange} placeholder="Tên khác (cách nhau bởi dấu phẩy)" className={inputStyles} />
+                <input name="tags" value={storyData.tags?.join(', ')} onChange={handleArrayChange} placeholder="Tags (cách nhau bằng dấu phẩy)" className={inputStyles} />
+                <div className="flex items-center gap-4">
+                    <select name="status" value={storyData.status} onChange={handleChange} className={`${inputStyles} flex-grow`}>
+                        <option value="ongoing">Đang tiến hành</option>
+                        <option value="completed">Hoàn thành</option>
+                        <option value="dropped">Tạm ngưng</option>
                     </select>
-                    <div className="flex items-center gap-4 pt-2 sm:pt-0">
-                      <div className="flex items-center space-x-2">
-                          <input type="checkbox" id="isHot" name="isHot" checked={!!storyData.isHot} onChange={handleStoryChange} className="h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500" />
-                          <label htmlFor="isHot" className="text-sm text-slate-700 dark:text-slate-300">Đánh dấu "Hot"</label>
-                      </div>
-                       <div className="flex items-center space-x-2">
-                          <input type="checkbox" id="isInBanner" name="isInBanner" checked={!!storyData.isInBanner} onChange={handleStoryChange} className="h-4 w-4 text-purple-600 border-slate-300 rounded focus:ring-purple-500" />
-                          <label htmlFor="isInBanner" className="text-sm text-slate-700 dark:text-slate-300">Hiển thị trong banner</label>
-                      </div>
-                    </div>
+                    <div className="flex items-center space-x-2"><input type="checkbox" id="isHot" name="isHot" checked={!!storyData.isHot} onChange={handleChange} /><label htmlFor="isHot">"Hot"</label></div>
+                    <div className="flex items-center space-x-2"><input type="checkbox" id="isInBanner" name="isInBanner" checked={!!storyData.isInBanner} onChange={handleChange} /><label htmlFor="isInBanner">Banner</label></div>
                 </div>
             </div>
         </div>
-        <textarea name="description" value={storyData.description || ''} onChange={handleStoryChange} placeholder="Mô tả" rows={4} className={inputStyles}></textarea>
-        <button type="submit" className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-md hover:opacity-90 transition-opacity shadow">
+        <textarea name="description" value={storyData.description || ''} onChange={handleChange} placeholder="Mô tả" rows={4} className={inputStyles}></textarea>
+        <button type="submit" className="w-full px-6 py-3 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition-opacity">
             {isNewStory ? 'Lưu Truyện' : 'Cập nhật thông tin'}
         </button>
       </form>
-      
-      {/* Chapters Management */}
-      {!isNewStory && storyId && (
-        <div className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-lg space-y-4">
-            <h2 className="text-xl font-semibold border-b border-slate-200 dark:border-slate-700 pb-3 mb-4">Quản lý Tập & Chương</h2>
-            
-            {/* Add Volume Form */}
-            <form onSubmit={handleAddVolume} className="flex gap-2 mb-6 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                <input
-                    type="text"
-                    value={newVolumeTitle}
-                    onChange={(e) => setNewVolumeTitle(e.target.value)}
-                    placeholder="Tên tập mới (ví dụ: Tập 1)"
-                    className={inputStyles}
-                    required
-                />
-                <button type="submit" className="flex-shrink-0 flex items-center gap-1 px-3 py-2 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 text-sm transition-colors">
-                    <PlusIcon className="h-4 w-4"/> Thêm Tập
-                </button>
-            </form>
-
-            {/* Volumes List */}
-            <div className="space-y-6">
-                {volumes.map((vol) => (
-                    <div key={vol.id} className="border border-slate-200 dark:border-slate-700 rounded-lg">
-                        <div className="flex justify-between items-center p-3 bg-slate-100 dark:bg-slate-900/50 rounded-t-lg">
-                            <span className="font-bold text-lg">{vol.title}</span>
-                            <div className="space-x-2">
-                                <Link to={`/admin/story/${storyId}/volume/${vol.id}/chapter/new`} className="inline-flex items-center gap-1 px-2 py-1 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600 text-xs transition-colors">
-                                    <PlusIcon className="h-3 w-3"/> Thêm chương
-                                </Link>
-                                <button onClick={() => handleVolumeTitleChange(vol.id)} className="p-1 rounded-full text-indigo-600 hover:bg-indigo-100 dark:hover:bg-slate-600"><PencilIcon className="h-5 w-5"/></button>
-                                <button onClick={() => handleVolumeDelete(vol.id)} className="p-1 rounded-full text-red-600 hover:bg-red-100 dark:hover:bg-slate-600"><TrashIcon className="h-5 w-5"/></button>
+      {!isNewStory && (
+        <div className="mt-8 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+            <h2 className="text-2xl font-bold mb-4">Quản lý Tập & Chương</h2>
+            {/* Add new volume */}
+            <div className="flex gap-2 mb-4">
+                <input type="text" value={newVolumeTitle} onChange={(e) => setNewVolumeTitle(e.target.value)} placeholder="Tên tập mới" className={`flex-grow ${inputStyles}`} />
+                <button type="button" onClick={handleAddVolume} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center gap-1"><PlusIcon className="h-5 w-5"/>Thêm</button>
+            </div>
+            {/* List volumes */}
+            <div className="space-y-4">
+                {storyData.volumes?.map((volume: Volume) => (
+                    <div key={volume.id} className="p-4 border rounded-md dark:border-gray-600">
+                        <div className="flex justify-between items-center mb-2">
+                            <h3 className="text-lg font-semibold">{volume.title}</h3>
+                            <div className="flex gap-2">
+                                <Link to={`/admin/story/${storyId}/chapter/new?volumeId=${volume.id}`} className="p-2 text-blue-500 hover:text-blue-700"><PlusIcon className="h-5 w-5"/></Link>
+                                <button onClick={() => alert('Chức năng sửa tên tập sẽ được thêm sau!')} className="p-2 text-gray-500 hover:text-gray-700"><PencilIcon className="h-5 w-5"/></button>
+                                <button onClick={() => handleVolumeDelete(volume.id)} className="p-2 text-red-500 hover:text-red-700"><TrashIcon className="h-5 w-5"/></button>
                             </div>
                         </div>
-
-                        <div className="space-y-2 p-3">
-                             {vol.chapters.map((chap, index) => (
-                                <div key={chap.id} className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-700/50 rounded-md">
-                                    <span className="font-medium">{chap.title}</span>
-                                    <div className="space-x-2">
-                                        <Link to={`/admin/story/${storyId}/volume/${vol.id}/chapter/edit/${chap.id}`} className="inline-block p-1 rounded-full text-indigo-600 hover:bg-indigo-100 dark:hover:bg-slate-600"><PencilIcon className="h-5 w-5"/></Link>
-                                        <button onClick={() => handleChapterDelete(vol.id, chap.id)} className="p-1 rounded-full text-red-600 hover:bg-red-100 dark:hover:bg-slate-600"><TrashIcon className="h-5 w-5"/></button>
+                        {/* List chapters */}
+                        <ul className="space-y-2 pl-4">
+                            {volume.chapters.map(chapter => (
+                                <li key={chapter.id} className="flex justify-between items-center">
+                                    <span>{chapter.title}</span>
+                                    <div className="flex gap-2">
+                                        <Link to={`/admin/story/${storyId}/chapter/${chapter.id}/edit?volumeId=${volume.id}`} className="p-1 text-gray-500 hover:text-gray-700"><PencilIcon className="h-5 w-5"/></Link>
+                                        <button onClick={() => alert('Chức năng xóa chương sẽ được thêm sau!')} className="p-1 text-red-500 hover:text-red-700"><TrashIcon className="h-5 w-5"/></button>
                                     </div>
-                                </div>
+                                </li>
                             ))}
-                            {vol.chapters.length === 0 && <p className="text-center text-slate-500 dark:text-slate-400 py-4">Chưa có chương nào trong tập này.</p>}
-                        </div>
+                        </ul>
                     </div>
                 ))}
-                {volumes.length === 0 && <p className="text-center text-slate-500 dark:text-slate-400 py-4">Chưa có tập nào.</p>}
             </div>
         </div>
       )}
