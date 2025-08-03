@@ -1,5 +1,15 @@
+// contexts/StoryContext.tsx
+
 import React, { createContext, useContext, ReactNode, useCallback, useState, useEffect } from 'react';
 import { Story, Chapter, Volume } from '../types.ts';
+import { useAuth } from './AuthContext.tsx';
+
+// --- (Cải thiện) Định nghĩa kiểu dữ liệu cho response từ API phân trang ---
+interface PaginatedStoriesResponse {
+  stories: Story[];
+  currentPage: number;
+  totalPages: number;
+}
 
 // --- Interface định nghĩa các hàm sẽ có trong context ---
 interface StoryContextType {
@@ -19,21 +29,22 @@ interface StoryContextType {
 
   // Chapter CRUD
   addChapterToVolume: (storyId: string, volumeId: string, chapterData: Omit<Chapter, 'id' | 'createdAt' | 'views'>) => Promise<void>;
-  updateChapterInVolume: (storyId: string, volumeId: string, chapterId: string, chapterData: Partial<Omit<Chapter, 'id' | 'createdAt' | 'views'>>) => Promise<void>;
+  updateChapterInVolume: (storyId: string, volumeId: string, chapterId: string, chapterData: Partial<Chapter>) => Promise<void>;
   deleteChapterFromVolume: (storyId: string, volumeId: string, chapterId: string) => Promise<void>;
   
-  // Các hàm tương tác khác (sẽ làm ở bước sau)
+  // Các hàm tương tác khác
   incrementView: (storyId: string) => void;
   rateStory: (storyId: string, newRating: number, previousRating?: number) => void;
   incrementChapterView: (storyId: string, chapterId: string) => void;
 }
 
-const StoryContext = createContext<StoryContextType | undefined>(undefined);
+export const StoryContext = createContext<StoryContextType | undefined>(undefined);
 
 export const StoryProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const { token } = useAuth();
 
   const API_BASE_URL = 'http://localhost:3001/api';
 
@@ -44,8 +55,10 @@ export const StoryProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         setLoading(true);
         const response = await fetch(`${API_BASE_URL}/stories`);
         if (!response.ok) throw new Error('Failed to fetch stories');
-        const data: Story[] = await response.json();
-        setStories(data);
+        
+        const result: PaginatedStoriesResponse = await response.json();
+        setStories(result.stories);
+
         setError(null);
       } catch (err: any) {
         setError(err.message);
@@ -58,59 +71,74 @@ export const StoryProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const getStory = useCallback((id: string) => stories.find(s => s.id === id), [stories]);
 
+  // --- HÀM TẠO HEADERS CÓ TOKEN ---
+  const getAuthHeaders = useCallback(() => {
+    if (!token) return { 'Content-Type': 'application/json' };
+    return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+    };
+  }, [token]);
+
   // --- Story CRUD Functions ---
   const addStory = useCallback(async (storyData) => {
     const response = await fetch(`${API_BASE_URL}/stories`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify(storyData),
     });
     if (!response.ok) throw new Error('Failed to add story');
     const newStoryFromServer: Story = await response.json();
     setStories(prev => [...prev, newStoryFromServer]);
     return newStoryFromServer;
-  }, []);
+  }, [getAuthHeaders]);
 
   const updateStory = useCallback(async (storyId, storyData) => {
     const response = await fetch(`${API_BASE_URL}/stories/${storyId}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify(storyData),
     });
     if (!response.ok) throw new Error('Failed to update story');
     const updatedStory: Story = await response.json();
     setStories(prev => prev.map(s => s.id === storyId ? updatedStory : s));
-  }, []);
+  }, [getAuthHeaders]);
 
   const deleteStory = useCallback(async (storyId) => {
-    const response = await fetch(`${API_BASE_URL}/stories/${storyId}`, { method: 'DELETE' });
+    const response = await fetch(`${API_BASE_URL}/stories/${storyId}`, { 
+        method: 'DELETE',
+        headers: getAuthHeaders()
+    });
     if (!response.ok) throw new Error('Failed to delete story');
     setStories(prev => prev.filter(s => s.id !== storyId));
-  }, []);
+  }, [getAuthHeaders]);
 
   // --- Volume CRUD Functions ---
   const addVolume = useCallback(async (storyId, volumeTitle) => {
     const response = await fetch(`${API_BASE_URL}/stories/${storyId}/volumes`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ title: volumeTitle }),
     });
     if (!response.ok) throw new Error('Failed to add volume');
     const newVolume: Volume = await response.json();
     setStories(prev => prev.map(s => s.id === storyId ? { ...s, volumes: [...s.volumes, newVolume] } : s));
-  }, []);
+  }, [getAuthHeaders]);
 
   const deleteVolume = useCallback(async (storyId, volumeId) => {
-    const response = await fetch(`${API_BASE_URL}/stories/${storyId}/volumes/${volumeId}`, { method: 'DELETE' });
+    const response = await fetch(`${API_BASE_URL}/stories/${storyId}/volumes/${volumeId}`, { 
+        method: 'DELETE',
+        headers: getAuthHeaders()
+    });
     if (!response.ok) throw new Error('Failed to delete volume');
     setStories(prev => prev.map(s => s.id === storyId ? { ...s, volumes: s.volumes.filter(v => v.id !== volumeId) } : s));
-  }, []);
+  }, [getAuthHeaders]);
 
   // --- Chapter CRUD Functions ---
   const addChapterToVolume = useCallback(async (storyId, volumeId, chapterData) => {
     const response = await fetch(`${API_BASE_URL}/stories/${storyId}/volumes/${volumeId}/chapters`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(chapterData),
     });
     if (!response.ok) throw new Error('Failed to add chapter');
@@ -119,12 +147,12 @@ export const StoryProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         ...s,
         volumes: s.volumes.map(v => v.id === volumeId ? { ...v, chapters: [...v.chapters, newChapter] } : v)
     } : s));
-  }, []);
+  }, [getAuthHeaders]);
 
   const updateChapterInVolume = useCallback(async (storyId, volumeId, chapterId, chapterData) => {
     const response = await fetch(`${API_BASE_URL}/stories/${storyId}/volumes/${volumeId}/chapters/${chapterId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(chapterData),
     });
     if (!response.ok) throw new Error('Failed to update chapter');
@@ -136,10 +164,13 @@ export const StoryProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             chapters: v.chapters.map(c => c.id === chapterId ? updatedChapter : c)
         } : v)
     } : s));
-  }, []);
+  }, [getAuthHeaders]);
 
   const deleteChapterFromVolume = useCallback(async (storyId, volumeId, chapterId) => {
-    const response = await fetch(`${API_BASE_URL}/stories/${storyId}/volumes/${volumeId}/chapters/${chapterId}`, { method: 'DELETE' });
+    const response = await fetch(`${API_BASE_URL}/stories/${storyId}/volumes/${volumeId}/chapters/${chapterId}`, { 
+        method: 'DELETE',
+        headers: getAuthHeaders()
+    });
     if (!response.ok) throw new Error('Failed to delete chapter');
     setStories(prev => prev.map(s => s.id === storyId ? {
         ...s,
@@ -148,22 +179,19 @@ export const StoryProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             chapters: v.chapters.filter(c => c.id !== chapterId)
         } : v)
     } : s));
-  }, []);
+  }, [getAuthHeaders]);
 
    const incrementView = useCallback(async (storyId: string) => {
-    // Cập nhật giao diện ngay lập tức (Optimistic Update)
     setStories(prev => prev.map(s => s.id === storyId ? { ...s, views: (s.views || 0) + 1 } : s));
     try {
       await fetch(`${API_BASE_URL}/stories/${storyId}/view`, { method: 'POST' });
     } catch (err) {
       console.error("Failed to increment story view on server:", err);
-      // Optional: Rollback on error
       setStories(prev => prev.map(s => s.id === storyId ? { ...s, views: (s.views || 1) - 1 } : s));
     }
   }, []);
   
   const incrementChapterView = useCallback(async (storyId: string, chapterId: string) => {
-    // Cập nhật giao diện ngay lập tức
     setStories(prev => prev.map(s => s.id === storyId ? {
       ...s,
       volumes: s.volumes.map(v => ({
@@ -175,7 +203,6 @@ export const StoryProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       await fetch(`${API_BASE_URL}/stories/${storyId}/chapters/${chapterId}/view`, { method: 'POST' });
     } catch (err) {
       console.error("Failed to increment chapter view on server:", err);
-      // Optional: Rollback on error
     }
   }, []);
 
@@ -183,21 +210,18 @@ export const StoryProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     try {
       const response = await fetch(`${API_BASE_URL}/stories/${storyId}/rate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ newRating, previousRating }),
       });
       if (!response.ok) throw new Error('Failed to rate story');
       const updatedRating: { rating: number, ratingsCount: number } = await response.json();
-      
-      // Cập nhật state với dữ liệu chính xác từ server
       setStories(prev => prev.map(s => s.id === storyId ? { ...s, ...updatedRating } : s));
     } catch (err: any) {
       setError(err.message);
       console.error(err);
       throw err;
     }
-  }, []);
-
+  }, [getAuthHeaders]);
 
   const value = {
     stories, loading, error, getStory,

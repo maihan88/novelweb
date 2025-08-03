@@ -5,6 +5,14 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { nanoid } from 'nanoid';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load biến môi trường từ file .env ở thư mục gốc
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 // Load biến môi trường từ file .env
 dotenv.config();
@@ -137,12 +145,44 @@ app.get('/api/stories', async (req, res) => {
 });
 
 app.post('/api/stories', authMiddleware, async (req, res) => {
+    console.log('--- DỮ LIỆU FRONTEND GỬI LÊN --->', req.body);
     try {
-        const newStory = new Story({ ...req.body, id: nanoid(10) });
+        const { title, author, description, coverImage, status, tags, isHot, isInBanner, alias } = req.body;
+
+        if (!title || !author) {
+            return res.status(400).json({ message: 'Tiêu đề và tác giả là bắt buộc.' });
+        }
+
+        const newStoryData = {
+            id: nanoid(10),
+            title,
+            author,
+            description: description || '',
+            coverImage: coverImage || '',
+            status: status || 'ongoing',
+            tags: tags || [],
+            alias: alias || '', // Chấp nhận trường alias
+            isHot: !!isHot,
+            isInBanner: !!isInBanner,
+            volumes: [],
+            views: 0,
+            rating: 0,
+            ratingsCount: 0,
+            lastUpdatedAt: new Date(),
+        };
+
+        const newStory = new Story(newStoryData);
         await newStory.save();
         res.status(201).json(newStory);
-    } catch (error) { res.status(400).json({ message: error.message }); }
+
+    } catch (error) {
+        console.error('!!! ERROR CREATING STORY:', error);
+        res.status(400).json({ message: `Lỗi từ server: ${error.message}` });
+    }
 });
+// ===================================================================
+// === KẾT THÚC PHẦN SỬA LỖI ===
+// ============================
 
 app.put('/api/stories/:storyId', authMiddleware, async (req, res) => {
     const updatedStory = await Story.findOneAndUpdate({ id: req.params.storyId }, { ...req.body, lastUpdatedAt: new Date() }, { new: true });

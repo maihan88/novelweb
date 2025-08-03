@@ -12,27 +12,26 @@ const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
   const auth = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError('');
+  setSuccess('');
 
-    if (password !== confirmPassword) {
-      setError('Mật khẩu xác nhận không khớp.');
-      return;
-    }
-    
-    const result = auth.register(username, password);
+  if (password !== confirmPassword) {
+    setError('Mật khẩu xác nhận không khớp.');
+    return;
+  }
 
-    if (result.success) {
-      setSuccess(result.message + ' Bạn sẽ được chuyển đến trang đăng nhập sau 2 giây.');
-      setTimeout(() => {
-        navigate('/login');
-      }, 2000);
-    } else {
-      setError(result.message);
-    }
-  };
+  try {
+    await auth.register(username, password);
+    setSuccess('Đăng ký thành công! Bạn sẽ được chuyển đến trang đăng nhập sau 2 giây.');
+    setTimeout(() => {
+      navigate('/login');
+    }, 2000);
+  } catch (err: any) {
+    setError(err.message || 'Đăng ký thất bại.');
+  }
+};
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-slate-100 dark:bg-slate-900 p-4 animate-fade-in">

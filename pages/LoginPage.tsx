@@ -13,15 +13,16 @@ const LoginPage: React.FC = () => {
 
   const from = location.state?.from?.pathname || '/';
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    if (auth.login(username, password)) {
-      navigate(from, { replace: true });
-    } else {
-      setError('Tên đăng nhập hoặc mật khẩu không đúng.');
-    }
-  };
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError('');
+  try {
+    await auth.login(username, password);
+    navigate(from, { replace: true });
+  } catch (err: any) {
+    setError(err.message || 'Tên đăng nhập hoặc mật khẩu không đúng.');
+  }
+};
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-slate-100 dark:bg-slate-900 p-4 animate-fade-in">

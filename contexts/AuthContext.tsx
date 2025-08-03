@@ -2,7 +2,7 @@ import React, { createContext, useState, useContext, ReactNode, useEffect } from
 import { User } from '../types';
 
 interface AuthContextType {
-  user: User | null;
+  currentUser: User | null;
   token: string | null;
   isAuthenticated: boolean;
   loading: boolean;
@@ -79,7 +79,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const value = {
-    user,
+    currentUser: user, // Sửa 'user' thành 'currentUser: user'
     token,
     isAuthenticated: !!token,
     loading,

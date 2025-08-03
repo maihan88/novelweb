@@ -17,12 +17,12 @@ export interface Volume {
 export interface Story {
   id:string;
   title: string;
-  alias?: string;
+  alias?: string[];
   author: string;
   description: string;
   coverImage: string;
   tags: string[];
-  status: 'Đang dịch' | 'Hoàn thành';
+  status: 'ongoing' | 'completed' | 'dropped';
   volumes: Volume[];
   views: number;
   rating: number;

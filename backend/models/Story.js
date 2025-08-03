@@ -18,6 +18,7 @@ const storySchema = new mongoose.Schema({
     id: { type: String, required: true, unique: true },
     title: { type: String, required: true, index: true },
     author: { type: String, required: true, index: true },
+    alias: { type: String, default: '' }, // <-- THÊM DÒNG NÀY VÀO ĐÂY
     description: { type: String, default: '' },
     coverImage: { type: String, default: '' },
     status: { type: String, enum: ['ongoing', 'completed', 'dropped'], default: 'ongoing' },
