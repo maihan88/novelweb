@@ -1,4 +1,3 @@
-// components/HeroBanner.tsx
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
@@ -12,7 +11,6 @@ interface HeroBannerProps {
 const HeroBanner: React.FC<HeroBannerProps> = ({ stories, interval = 5000 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // --- TẤT CẢ HOOKS ĐƯỢC GOM LÊN ĐẦU ---
   const nextSlide = React.useCallback(() => {
     if (stories.length > 1) {
         const isLastSlide = currentIndex === stories.length - 1;
@@ -21,6 +19,10 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ stories, interval = 5000 }) => 
     }
   }, [currentIndex, stories.length]);
   
+  const goToSlide = (slideIndex: number) => {
+      setCurrentIndex(slideIndex);
+  }
+
   useEffect(() => {
     if (stories.length > 1) {
       const slideInterval = setInterval(nextSlide, interval);
@@ -28,25 +30,8 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ stories, interval = 5000 }) => 
     }
   }, [currentIndex, stories.length, interval, nextSlide]);
 
-  const currentStory = stories[currentIndex];
-
-  // Hook useMemo cũng được đưa lên đây, đảm bảo nó luôn được gọi
-  const { totalChapters, firstChapterId } = useMemo(() => {
-     if (!currentStory) return { totalChapters: 0, firstChapterId: null };
-     
-     const total = currentStory.volumes.reduce((acc, vol) => acc + vol.chapters.length, 0);
-     const firstId = currentStory.volumes?.[0]?.chapters?.[0]?.id;
-
-     return { totalChapters: total, firstChapterId: firstId };
-  }, [currentStory]);
-
-  // --- LOGIC HIỂN THỊ ĐƯỢC ĐẶT SAU KHI TẤT CẢ HOOKS ĐÃ ĐƯỢC GỌI ---
-  const goToSlide = (slideIndex: number) => {
-      setCurrentIndex(slideIndex);
-  }
-
-  // Nếu không có truyện, hiển thị banner tĩnh
   if (stories.length === 0) {
+    // Fallback static banner if no stories are marked for the banner
     return (
         <div className="text-center rounded-lg p-10 md:p-16 bg-gradient-to-br from-indigo-600 via-purple-600 to-cyan-600 shadow-2xl shadow-indigo-500/30">
             <h1 className="text-4xl font-extrabold font-serif tracking-tight text-white sm:text-5xl md:text-6xl drop-shadow-lg">
@@ -59,7 +44,18 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ stories, interval = 5000 }) => 
     );
   }
 
-  // Nếu có truyện, hiển thị banner động
+  const currentStory = stories[currentIndex];
+
+  const { totalChapters, firstChapterId } = useMemo(() => {
+     if (!currentStory) return { totalChapters: 0, firstChapterId: null };
+     
+     const total = currentStory.volumes.reduce((acc, vol) => acc + vol.chapters.length, 0);
+     const firstId = currentStory.volumes?.[0]?.chapters?.[0]?.id;
+
+     return { totalChapters: total, firstChapterId: firstId };
+  }, [currentStory]);
+
+
   return (
     <div className="relative h-[75vh] md:h-[70vh] max-h-[550px] min-h-[450px] w-full overflow-hidden rounded-lg group shadow-2xl bg-slate-900">
       {/* Background Image with Transition */}
@@ -108,11 +104,7 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ stories, interval = 5000 }) => 
           <button
             key={index}
             onClick={() => goToSlide(index)}
-            className={`h-2.5 rounded-full transition-all duration-300 ${
-              currentIndex === index 
-                ? 'w-8 bg-white' 
-                : 'w-2.5 bg-white/50 hover:bg-white/75'
-            }`}
+            className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${currentIndex === index ? 'bg-white w-6' : 'bg-white/50 hover:bg-white/75'}`}
             aria-label={`Go to slide ${index + 1}`}
             disabled={stories.length <= 1}
           />

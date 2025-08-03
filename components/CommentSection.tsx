@@ -1,99 +1,127 @@
-import React, { useEffect, useState } from 'react';
-import { useComments } from '../contexts/CommentContext';
-import { useAuth } from '../contexts/AuthContext';
-import LoadingSpinner from './LoadingSpinner';
+
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { useComments } from '../contexts/CommentContext.tsx';
+import { useAuth } from '../contexts/AuthContext.tsx';
+import LoadingSpinner from './LoadingSpinner.tsx';
+import { Comment } from '../types.ts';
+import { Link } from 'react-router-dom';
 
 interface CommentSectionProps {
+  storyId: string;
   chapterId: string;
 }
 
-const CommentSection: React.FC<CommentSectionProps> = ({ chapterId }) => {
-  const { comments, loading, fetchComments, addComment, deleteComment } = useComments();
-  const { isAuthenticated, user } = useAuth();
-  const [newComment, setNewComment] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+const CommentSection: React.FC<CommentSectionProps> = ({ storyId, chapterId }) => {
+  const { getCommentsForChapter, addCommentToChapter, error: contextError } = useComments();
+  const { currentUser } = useAuth();
+  
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [commentText, setCommentText] = useState('');
+  const [formError, setFormError] = useState('');
+  const [isPosting, setIsPosting] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+
+  const fetchComments = useCallback(async () => {
+    setInitialLoading(true);
+    const fetchedComments = await getCommentsForChapter(storyId, chapterId);
+    setComments(fetchedComments);
+    setInitialLoading(false);
+  }, [getCommentsForChapter, storyId, chapterId]);
 
   useEffect(() => {
-    if (chapterId) {
-      fetchComments(chapterId);
-    }
-  }, [chapterId, fetchComments]);
+    fetchComments();
+  }, [fetchComments]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newComment.trim()) return;
-    setIsSubmitting(true);
+    if (!currentUser) {
+      setFormError('Bạn cần đăng nhập để bình luận.');
+      return;
+    }
+    if (!commentText.trim()) {
+      setFormError('Vui lòng nhập nội dung bình luận.');
+      return;
+    }
+    setFormError('');
+    setIsPosting(true);
+    
     try {
-      await addComment(chapterId, newComment);
-      setNewComment('');
-    } catch (error) {
-      console.error(error);
-      alert('Đã có lỗi xảy ra khi đăng bình luận.');
+      const newComment = await addCommentToChapter({ 
+        storyId, 
+        chapterId, 
+        userId: currentUser.id,
+        username: currentUser.username,
+        text: commentText.trim() 
+      });
+      setComments(prev => [...prev, newComment]);
+      setCommentText('');
+    } catch (err) {
+      setFormError('Gửi bình luận thất bại. Vui lòng thử lại.');
     } finally {
-      setIsSubmitting(false);
+      setIsPosting(false);
     }
   };
 
-  const handleDelete = async (commentId: string) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa bình luận này?')) {
-        try {
-            await deleteComment(commentId);
-        } catch (error) {
-            console.error(error);
-            alert('Đã có lỗi xảy ra khi xóa bình luận.');
-        }
-    }
-  }
-
   return (
-    <div className="mt-8">
-      <h3 className="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-200">Bình luận</h3>
-      {isAuthenticated ? (
-        <form onSubmit={handleSubmit} className="mb-6">
-          <textarea
-            className="w-full p-3 border rounded-md bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-            rows={3}
-            placeholder="Viết bình luận của bạn..."
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            disabled={isSubmitting}
-          />
-          <button
-            type="submit"
-            className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed"
-            disabled={isSubmitting || !newComment.trim()}
-          >
-            {isSubmitting ? 'Đang gửi...' : 'Gửi bình luận'}
-          </button>
-        </form>
-      ) : (
-        <p className="text-center p-4 border-dashed border-2 rounded-md bg-gray-100 dark:bg-gray-800">
-          Vui lòng <a href="/login" className="text-blue-500 hover:underline">đăng nhập</a> để bình luận.
-        </p>
-      )}
+    <div className="mt-12 pt-8 border-t border-slate-200 dark:border-slate-700">
+      <h2 className="text-2xl font-bold font-serif mb-6 text-slate-900 dark:text-white">Bình luận</h2>
+      
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-md mb-8">
+        {currentUser ? (
+          <form onSubmit={handleAddComment} className="space-y-4">
+            <h3 className="font-semibold text-lg">Để lại bình luận với tư cách {currentUser.username}</h3>
+            <div>
+              <label htmlFor="comment-text" className="sr-only">Bình luận</label>
+              <textarea
+                id="comment-text"
+                value={commentText}
+                onChange={e => setCommentText(e.target.value)}
+                placeholder="Viết bình luận của bạn ở đây..."
+                rows={4}
+                required
+                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 focus:ring-2 focus:ring-cyan-500 transition"
+              ></textarea>
+            </div>
+            {formError && <p className="text-sm text-red-500">{formError}</p>}
+            <div className="text-right">
+              <button
+                type="submit"
+                disabled={isPosting}
+                className="px-6 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {isPosting ? 'Đang gửi...' : 'Gửi bình luận'}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div className="text-center p-4">
+            <p className="text-slate-600 dark:text-slate-300">
+              Vui lòng <Link to="/login" className="text-cyan-500 font-semibold hover:underline">đăng nhập</Link> hoặc <Link to="/register" className="text-cyan-500 font-semibold hover:underline">đăng ký</Link> để để lại bình luận.
+            </p>
+          </div>
+        )}
+      </div>
 
-      <div className="space-y-4">
-        {loading ? (
-          <LoadingSpinner />
+      <div className="space-y-6">
+        {initialLoading ? (
+          <div className="text-center py-4"><LoadingSpinner /></div>
+        ) : contextError && comments.length === 0 ? (
+          <div className="text-center py-4 text-red-500">{contextError}</div>
         ) : comments.length > 0 ? (
-          comments.map((comment) => (
-            <div key={comment.id} className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg shadow">
-              <div className="flex justify-between items-start">
-                <div>
-                    <p className="font-semibold text-blue-600 dark:text-blue-400">{comment.author.username}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                        {new Date(comment.createdAt).toLocaleString()}
-                    </p>
-                </div>
-                {isAuthenticated && user?.id === comment.author.userId && (
-                    <button onClick={() => handleDelete(comment.id)} className="text-red-500 hover:text-red-700 text-sm">Xóa</button>
-                )}
+          comments.map(comment => (
+            <div key={comment.id} className="p-4 bg-white dark:bg-slate-800 rounded-lg shadow-sm animate-fade-in">
+              <div className="flex items-center justify-between mb-2">
+                <p className="font-bold text-slate-800 dark:text-slate-100">{comment.username}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {new Date(comment.timestamp).toLocaleString('vi-VN')}
+                </p>
               </div>
-              <p className="mt-2 text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{comment.content}</p>
+              <p className="text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{comment.text}</p>
             </div>
           ))
         ) : (
-          <p className="text-gray-500">Chưa có bình luận nào. Hãy là người đầu tiên!</p>
+          <p className="text-center text-slate-500 dark:text-slate-400 py-4">Chưa có bình luận nào. Hãy là người đầu tiên!</p>
         )}
       </div>
     </div>

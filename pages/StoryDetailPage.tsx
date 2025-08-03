@@ -1,90 +1,112 @@
 
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, Link, Navigate, useNavigate } from 'react-router-dom';
 import { useStories } from '../contexts/StoryContext.tsx';
-import { useUserPreferences } from '../contexts/UserPreferencesContext.tsx';
 import { useAuth } from '../contexts/AuthContext.tsx';
+import { useUserPreferences } from '../contexts/UserPreferencesContext.tsx';
 import LoadingSpinner from '../components/LoadingSpinner.tsx';
 import StarRating from '../components/StarRating.tsx';
-import { HeartIcon as HeartSolid, PencilIcon, BookOpenIcon, EyeIcon } from '@heroicons/react/24/solid';
-import { HeartIcon as HeartOutline } from '@heroicons/react/24/outline';
+import { Story } from '../types.ts';
+import { PencilIcon, BookOpenIcon, EyeIcon, HeartIcon } from '@heroicons/react/24/solid';
 
 const StoryDetailPage: React.FC = () => {
   const { storyId } = useParams<{ storyId: string }>();
   const navigate = useNavigate();
-  const { getStory, incrementView, rateStory } = useStories();
-  const { isFavorite, toggleFavorite, getBookmark, getUserRating, addRating } = useUserPreferences();
+  const { getStoryById, incrementView, addRatingToStory } = useStories();
   const { currentUser } = useAuth();
+  const { isFavorite, toggleFavorite, getUserRating, addRating } = useUserPreferences();
   
-  useEffect(() => {
-    if (storyId) {
-      incrementView(storyId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storyId]);
-
-  const story = storyId ? getStory(storyId) : undefined;
-  const bookmarkedChapterId = storyId ? getBookmark(storyId) : undefined;
+  const [story, setStory] = useState<Story | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  
+  const isUserFavorite = storyId ? isFavorite(storyId) : false;
   const userRating = storyId ? getUserRating(storyId) : undefined;
-  
-  const handleRating = useCallback((newRating: number) => {
-    if (!storyId || !currentUser) {
-      alert("Bạn phải đăng nhập để đánh giá.");
-      return;
+
+  const fetchStory = useCallback(async () => {
+    if (!storyId) return;
+    setLoading(true);
+    setError('');
+    try {
+      const fetchedStory = await getStoryById(storyId);
+      if (fetchedStory) {
+        setStory(fetchedStory);
+        incrementView(storyId);
+      } else {
+        setError('Không tìm thấy truyện này.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Đã xảy ra lỗi khi tải truyện.');
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
-    const previousRating = getUserRating(storyId);
-    rateStory(storyId, newRating, previousRating);
-    addRating(storyId, newRating);
-  }, [storyId, rateStory, addRating, getUserRating, currentUser]);
+  }, [storyId, getStoryById, incrementView]);
+
+  useEffect(() => {
+    fetchStory();
+  }, [fetchStory]);
   
+  const handleRating = async (rating: number) => {
+    if (!currentUser || !storyId) {
+        alert("Bạn cần đăng nhập để đánh giá.");
+        return;
+    }
+    if (userRating !== undefined) {
+        alert("Bạn đã đánh giá truyện này rồi.");
+        return;
+    }
+    await addRatingToStory(storyId, rating);
+    addRating(storyId, rating); // Update preference context
+  };
+
   if (!storyId) {
     return <Navigate to="/" replace />;
   }
 
-  if (!story) {
+  if (loading) {
     return <div className="text-center py-20"><LoadingSpinner /></div>;
   }
-  
-  const handleFavoriteClick = () => {
-    toggleFavorite(story.id);
-  };
+
+  if (error || !story) {
+    return <div className="text-center py-20 text-red-500">{error || 'Không thể tải thông tin truyện.'}</div>;
+  }
 
   const statusColor = story.status === 'Hoàn thành' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-300';
-  const isFavorited = isFavorite(story.id);
   
   const firstChapterId = story.volumes[0]?.chapters[0]?.id;
-  const continueReadingId = bookmarkedChapterId || firstChapterId;
 
   return (
     <div className="max-w-6xl mx-auto animate-fade-in">
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl overflow-hidden">
-        {/* Responsive Layout Container */}
         <div className="flex flex-col md:flex-row gap-6 p-4 sm:p-6 md:gap-8 md:p-8">
           
-          {/* Left Side: Cover Image & Actions */}
           <div className="w-full md:w-1/3 flex-shrink-0">
             <img className="h-auto w-full rounded-lg shadow-lg aspect-[2/3] object-cover" src={story.coverImage} alt={`Bìa truyện ${story.title}`} />
-            <div className="mt-6 flex flex-col sm:flex-row md:flex-col gap-3">
-              {continueReadingId && (
+            <div className="mt-6 flex flex-col gap-3">
+              {firstChapterId ? (
                 <Link 
-                  to={`/story/${story.id}/chapter/${continueReadingId}`}
+                  to={`/story/${story.id}/chapter/${firstChapterId}`}
                   className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-lg shadow-lg hover:opacity-90 transition-all duration-300 hover:scale-105"
                 >
                   <BookOpenIcon className="h-5 w-5"/>
-                  <span>{bookmarkedChapterId ? 'Đọc tiếp' : 'Đọc từ đầu'}</span>
+                  <span>Đọc từ đầu</span>
                 </Link>
+              ) : (
+                <div className="text-center p-3 bg-slate-100 dark:bg-slate-700 rounded-md">Truyện chưa có chương.</div>
               )}
-               <button 
-                onClick={handleFavoriteClick} 
-                className={`flex items-center justify-center gap-2 w-full px-4 py-2 rounded-md font-semibold text-sm transition-colors ${isFavorited ? 'bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-300' : 'bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600'}`}
-               >
-                {isFavorited ? <HeartSolid className="h-5 w-5"/> : <HeartOutline className="h-5 w-5"/>}
-                 {isFavorited ? 'Đã yêu thích' : 'Yêu thích'}
-               </button>
+               {currentUser && (
+                <button 
+                  onClick={() => toggleFavorite(storyId)}
+                  className={`flex items-center justify-center gap-2 w-full px-4 py-3 font-bold rounded-lg shadow-md transition-all duration-300 ${isUserFavorite ? 'bg-red-500 text-white' : 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 hover:bg-red-100 dark:hover:bg-red-900/50'}`}
+                >
+                  <HeartIcon className="h-5 w-5"/>
+                  <span>{isUserFavorite ? 'Bỏ yêu thích' : 'Thêm vào yêu thích'}</span>
+                </button>
+              )}
             </div>
           </div>
           
-          {/* Right Side: Story Details */}
           <div className="w-full md:w-2/3">
             <div className="flex justify-between items-start">
               <div>
@@ -95,11 +117,12 @@ const StoryDetailPage: React.FC = () => {
                  {story.alias && <p className="mt-1 text-md text-slate-500 dark:text-slate-400 italic">{story.alias}</p>}
                 <p className="mt-2 text-md text-slate-600 dark:text-slate-400">Tác giả: {story.author}</p>
               </div>
+              
               {currentUser?.role === 'admin' && (
                 <button onClick={() => navigate(`/admin/story/edit/${story.id}`)} className="flex-shrink-0 ml-4 p-2 rounded-md font-semibold text-sm bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors flex items-center gap-2">
                   <PencilIcon className="h-4 w-4" /> <span className="hidden sm:inline">Chỉnh sửa</span>
                 </button>
-               )}
+              )}
             </div>
              <div className="mt-4">
                 <StarRating 
@@ -125,7 +148,6 @@ const StoryDetailPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Chapter List (Full Width) */}
         <div className="p-4 sm:p-6 md:p-8 pt-0 md:pt-4">
           <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700">
             <h2 className="text-xl font-semibold mb-4 font-serif">Danh sách chương</h2>
@@ -138,7 +160,7 @@ const StoryDetailPage: React.FC = () => {
                       <Link
                           key={chapter.id}
                           to={`/story/${story.id}/chapter/${chapter.id}`}
-                          className={`block p-4 rounded-md transition-colors duration-200 ${bookmarkedChapterId === chapter.id ? 'bg-indigo-50 dark:bg-indigo-900/50 border border-indigo-400 dark:border-indigo-600 ring-2 ring-indigo-300 dark:ring-indigo-700' : 'bg-slate-50 dark:bg-slate-900/20 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                          className='block p-4 rounded-md transition-colors duration-200 bg-slate-50 dark:bg-slate-900/20 hover:bg-slate-100 dark:hover:bg-slate-700'
                       >
                           <div className="flex justify-between items-center gap-4">
                             <span className="flex-grow text-slate-800 dark:text-slate-200">{chapter.title}</span>
@@ -147,9 +169,6 @@ const StoryDetailPage: React.FC = () => {
                                     <EyeIcon className="h-4 w-4"/>
                                     {chapter.views.toLocaleString('vi-VN')}
                                 </span>
-                                {bookmarkedChapterId === chapter.id && (
-                                    <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900 px-2 py-0.5 rounded-full">Đang đọc</span>
-                                )}
                             </div>
                           </div>
                       </Link>

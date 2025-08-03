@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useStories } from '../../contexts/StoryContext.tsx';
 import { Story, Chapter } from '../../types.ts';
-import { CheckIcon } from '@heroicons/react/24/solid';
+import { CheckIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
 import { ArrowUturnLeftIcon } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner.tsx';
 import CustomEditor from '../../components/CustomEditor.tsx';
@@ -13,70 +13,88 @@ import CustomEditor from '../../components/CustomEditor.tsx';
 const ChapterEditPage: React.FC = () => {
   const { storyId, volumeId, chapterId } = useParams<{ storyId: string; volumeId: string; chapterId?: string }>();
   const navigate = useNavigate();
-  const { getStory, addChapterToVolume, updateChapterInVolume } = useStories();
+  const { getStoryById, addChapterToVolume, updateChapterInVolume } = useStories();
 
   const [story, setStory] = useState<Story | null>(null);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [isNew, setIsNew] = useState(false);
 
   useEffect(() => {
-    if (!storyId || !volumeId) {
-      navigate('/admin');
-      return;
-    }
+    const loadData = async () => {
+        if (!storyId || !volumeId) {
+            navigate('/admin');
+            return;
+        }
 
-    const currentStory = getStory(storyId);
-    if (!currentStory) {
-      alert('Không tìm thấy truyện!');
-      navigate('/admin');
-      return;
-    }
-    setStory(currentStory);
+        try {
+            const currentStory = await getStoryById(storyId);
+            if (!currentStory) {
+              alert('Không tìm thấy truyện!');
+              navigate('/admin');
+              return;
+            }
+            setStory(currentStory);
 
-    const currentVolume = currentStory.volumes.find(v => v.id === volumeId);
-    if (!currentVolume) {
-        alert('Không tìm thấy tập!');
-        navigate(`/admin/story/edit/${storyId}`);
-        return;
-    }
+            const currentVolume = currentStory.volumes.find(v => v.id === volumeId);
+            if (!currentVolume) {
+                alert('Không tìm thấy tập!');
+                navigate(`/admin/story/edit/${storyId}`);
+                return;
+            }
 
-    if (chapterId) {
-      // Editing existing chapter
-      const currentChapter = currentVolume.chapters.find(c => c.id === chapterId);
-      if (currentChapter) {
-        setTitle(currentChapter.title);
-        setContent(currentChapter.content);
-        setIsNew(false);
-      } else {
-        alert('Không tìm thấy chương!');
-        navigate(`/admin/story/edit/${storyId}`);
-        return;
-      }
-    } else {
-      // Adding new chapter
-      setIsNew(true);
-      setContent('<p>Viết nội dung chương ở đây...</p>');
+            if (chapterId) {
+              // Editing existing chapter
+              const currentChapter = currentVolume.chapters.find(c => c.id === chapterId);
+              if (currentChapter) {
+                setTitle(currentChapter.title);
+                setContent(currentChapter.content);
+                setIsNew(false);
+              } else {
+                alert('Không tìm thấy chương!');
+                navigate(`/admin/story/edit/${storyId}`);
+                return;
+              }
+            } else {
+              // Adding new chapter
+              setIsNew(true);
+              setContent('<p>Viết nội dung chương ở đây...</p>');
+            }
+        } catch (error) {
+            alert('Lỗi tải dữ liệu.');
+            navigate('/admin');
+        } finally {
+            setIsLoading(false);
+        }
     }
-    setIsLoading(false);
-  }, [storyId, volumeId, chapterId, getStory, navigate]);
+    loadData();
+  }, [storyId, volumeId, chapterId, getStoryById, navigate]);
 
-  const handleSave = () => {
-    if (!storyId || !volumeId) {
-      alert('Lỗi: Không tìm thấy ID truyện hoặc tập.');
+  const handleSave = async () => {
+    if (!storyId || !volumeId || !title.trim()) {
+      alert('Lỗi: Vui lòng điền đầy đủ thông tin.');
       return;
     }
     
-    if (isNew) {
-      addChapterToVolume(storyId, volumeId, { title, content });
-    } else if(chapterId) {
-      const chapterToUpdate: Omit<Chapter, 'createdAt' | 'views'> = { id: chapterId, title, content };
-      updateChapterInVolume(storyId, volumeId, chapterToUpdate);
+    setIsSaving(true);
+    try {
+        if (isNew) {
+          await addChapterToVolume(storyId, volumeId, { title, content });
+        } else if(chapterId) {
+          const chapterToUpdate: Omit<Chapter, 'createdAt' | 'views' | '_id'> = { id: chapterId, title, content };
+          await updateChapterInVolume(storyId, volumeId, chapterToUpdate);
+        }
+        
+        alert(`Đã ${isNew ? 'thêm' : 'cập nhật'} chương thành công!`);
+        navigate(`/admin/story/edit/${storyId}`);
+    } catch(err) {
+        alert('Lưu chương thất bại!');
+        console.error(err);
+    } finally {
+        setIsSaving(false);
     }
-    
-    alert(`Đã ${isNew ? 'thêm' : 'cập nhật'} chương thành công!`);
-    navigate(`/admin/story/edit/${storyId}`);
   };
 
   if (isLoading) {
@@ -123,9 +141,10 @@ const ChapterEditPage: React.FC = () => {
         <div className="flex justify-end pt-4">
             <button
                 onClick={handleSave}
-                className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-md hover:opacity-90 transition-opacity shadow"
+                disabled={isSaving}
+                className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-md hover:opacity-90 transition-opacity shadow disabled:opacity-70"
             >
-                <CheckIcon className="h-5 w-5" />
+                {isSaving ? <ArrowPathIcon className="h-5 w-5 animate-spin" /> : <CheckIcon className="h-5 w-5" />}
                 Lưu Chương
             </button>
         </div>

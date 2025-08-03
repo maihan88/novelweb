@@ -1,15 +1,17 @@
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+
+import React, { useState, useEffect, useRef, useMemo, useLayoutEffect } from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
 import { ReaderPreferences } from '../types';
 import { useStories } from '../contexts/StoryContext.tsx';
 import { useUserPreferences } from '../contexts/UserPreferencesContext.tsx';
 import ReaderControls from '../components/ReaderControls.tsx';
 import CommentSection from '../components/CommentSection.tsx';
+import LoadingSpinner from '../components/LoadingSpinner.tsx';
 
 const ReaderPage: React.FC = () => {
   const { storyId, chapterId } = useParams<{ storyId: string, chapterId: string }>();
-  const { getStory, incrementChapterView } = useStories();
+  const { getStoryById, incrementChapterView } = useStories();
   const { updateBookmark } = useUserPreferences();
   
   const [preferences, setPreferences] = useState<ReaderPreferences>({
@@ -20,15 +22,32 @@ const ReaderPage: React.FC = () => {
 
   const [isAutoScrolling, setIsAutoScrolling] = useState(false);
   const scrollInterval = useRef<number | null>(null);
+  
+  const storyRef = useRef<any>(null); 
+  const [loading, setLoading] = useState(true);
 
-  const story = storyId ? getStory(storyId) : undefined;
+  useEffect(() => {
+    const fetchStoryData = async () => {
+      if (storyId && (!storyRef.current || storyRef.current.id !== storyId)) {
+        setLoading(true);
+        const fetchedStory = await getStoryById(storyId);
+        storyRef.current = fetchedStory;
+        setLoading(false);
+      } else {
+        setLoading(false);
+      }
+    };
+    fetchStoryData();
+  }, [storyId, getStoryById]);
+
 
   const { chapter, prevChapter, nextChapter } = useMemo(() => {
+    const story = storyRef.current;
     if (!story || !chapterId) {
         return { chapter: undefined, prevChapter: null, nextChapter: null };
     }
-    const allChapters = story.volumes.flatMap(v => v.chapters);
-    const currentChapterIndex = allChapters.findIndex(c => c.id === chapterId);
+    const allChapters = story.volumes.flatMap((v: any) => v.chapters);
+    const currentChapterIndex = allChapters.findIndex((c: any) => c.id === chapterId);
     
     if (currentChapterIndex === -1) {
         return { chapter: undefined, prevChapter: null, nextChapter: null };
@@ -39,9 +58,8 @@ const ReaderPage: React.FC = () => {
     const nextChapter = currentChapterIndex < allChapters.length - 1 ? allChapters[currentChapterIndex + 1] : null;
 
     return { chapter, prevChapter, nextChapter };
-  }, [story, chapterId]);
+  }, [chapterId]);
   
-
   const stopAutoScroll = () => {
     if (scrollInterval.current) {
       clearInterval(scrollInterval.current);
@@ -54,11 +72,11 @@ const ReaderPage: React.FC = () => {
     setIsAutoScrolling(true);
     scrollInterval.current = window.setInterval(() => {
       if ((window.innerHeight + window.scrollY) >= document.body.scrollHeight) {
-        stopAutoScroll(); // Stop at the bottom
+        stopAutoScroll();
       } else {
         window.scrollBy(0, 1);
       }
-    }, 50); // Adjust scroll speed here
+    }, 50);
   };
   
   const toggleAutoScroll = () => {
@@ -69,19 +87,24 @@ const ReaderPage: React.FC = () => {
     }
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     window.scrollTo(0, 0);
     if (storyId && chapterId) {
-      updateBookmark(storyId, chapterId);
       incrementChapterView(storyId, chapterId);
+      updateBookmark(storyId, chapterId);
     }
-    // Cleanup scroll on component unmount or chapter change
     return () => stopAutoScroll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storyId, chapterId]);
+  }, [storyId, chapterId, incrementChapterView, updateBookmark]);
+
+  if (loading) {
+    return <div className="flex justify-center items-center h-screen bg-white dark:bg-slate-950"><LoadingSpinner /></div>;
+  }
+
+  const story = storyRef.current;
 
   if (!story || !chapter) {
-    return <Navigate to="/" replace />;
+    if (!loading) return <Navigate to="/" replace />;
+    return null;
   }
 
   const contentStyle = {

@@ -1,6 +1,7 @@
 
 
 export interface Chapter {
+  _id: string;
   id: string;
   title: string;
   content: string;
@@ -9,20 +10,22 @@ export interface Chapter {
 }
 
 export interface Volume {
-  id: string;
+  _id: string;
+  id:string;
   title: string;
   chapters: Chapter[];
 }
 
 export interface Story {
+  _id: string;
   id:string;
   title: string;
-  alias?: string[];
+  alias?: string;
   author: string;
   description: string;
   coverImage: string;
   tags: string[];
-  status: 'ongoing' | 'completed' | 'dropped';
+  status: 'Đang dịch' | 'Hoàn thành';
   volumes: Volume[];
   views: number;
   rating: number;
@@ -42,6 +45,7 @@ export interface ReaderPreferences {
 }
 
 export interface User {
+  _id: string;
   id: string;
   username: string;
   password?: string; // Should not be stored in plain text in a real app
@@ -49,7 +53,10 @@ export interface User {
 }
 
 export interface Comment {
+  _id: string;
   id: string;
+  storyId: string;
+  chapterId: string;
   userId: string;
   username: string;
   text: string;

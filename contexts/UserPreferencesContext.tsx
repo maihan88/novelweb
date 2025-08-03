@@ -1,6 +1,7 @@
 
+
 import React, { createContext, useContext, ReactNode, useCallback } from 'react';
-import { useLocalStorage } from '../hooks/useLocalStorage.tsx';
+import { useLocalStorage } from '../hooks/useLocalStorage.ts';
 
 interface UserPreferencesContextType {
     favorites: string[]; // array of story IDs
@@ -17,6 +18,7 @@ interface UserPreferencesContextType {
 const UserPreferencesContext = createContext<UserPreferencesContextType | undefined>(undefined);
 
 export const UserPreferencesProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    // TODO: When backend is ready, this data should be fetched and managed via API calls tied to the current user.
     const [favorites, setFavorites] = useLocalStorage<string[]>('user:favorites', []);
     const [bookmarks, setBookmarks] = useLocalStorage<Record<string, string>>('user:bookmarks', {});
     const [ratedStories, setRatedStories] = useLocalStorage<Record<string, number>>('user:ratings', {});
