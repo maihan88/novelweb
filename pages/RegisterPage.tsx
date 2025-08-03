@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.tsx';
@@ -12,29 +13,30 @@ const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
   const auth = useAuth();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setError('');
-  setSuccess('');
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
 
-  if (password !== confirmPassword) {
-    setError('Mật khẩu xác nhận không khớp.');
-    return;
-  }
+    if (password !== confirmPassword) {
+      setError('Mật khẩu xác nhận không khớp.');
+      return;
+    }
+    
+    const result = auth.register(username, password);
 
-  try {
-    await auth.register(username, password);
-    setSuccess('Đăng ký thành công! Bạn sẽ được chuyển đến trang đăng nhập sau 2 giây.');
-    setTimeout(() => {
-      navigate('/login');
-    }, 2000);
-  } catch (err: any) {
-    setError(err.message || 'Đăng ký thất bại.');
-  }
-};
+    if (result.success) {
+      setSuccess(result.message + ' Bạn sẽ được chuyển đến trang đăng nhập sau 2 giây.');
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000);
+    } else {
+      setError(result.message);
+    }
+  };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-slate-100 dark:bg-slate-900 p-4 animate-fade-in">
+    <div className="min-h-full w-full flex items-center justify-center p-4 animate-fade-in">
       <div className="w-full max-w-4xl relative">
           <Link to="/" className="absolute -top-12 left-0 flex items-center gap-2 text-slate-600 dark:text-slate-300 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors">
               <ArrowLeftIcon className="h-4 w-4" />

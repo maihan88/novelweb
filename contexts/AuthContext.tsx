@@ -1,94 +1,72 @@
-import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
+
+import React, { createContext, useContext, ReactNode } from 'react';
+import { useLocalStorage } from '../hooks/useLocalStorage.ts';
 import { User } from '../types';
 
 interface AuthContextType {
   currentUser: User | null;
-  token: string | null;
-  isAuthenticated: boolean;
-  loading: boolean;
-  login: (username: string, password: string) => Promise<void>;
-  register: (username: string, password: string) => Promise<void>;
+  login: (username: string, pass: string) => boolean;
+  register: (username: string, pass: string) => { success: boolean, message: string };
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const API_BASE_URL = 'http://localhost:3001/api/auth';
+// Initialize with a default admin user if none exist
+const defaultUsers: User[] = [{
+  _id: 'user-admin-0',
+  id: 'user-admin-0',
+  username: 'admin',
+  password: 'password', // In a real app, this should be a hashed password.
+  role: 'admin'
+}];
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [users, setUsers] = useLocalStorage<User[]>('users', defaultUsers);
+  const [currentUser, setCurrentUser] = useLocalStorage<User | null>('currentUser', null);
 
-  useEffect(() => {
-    // Khi app khởi động, kiểm tra xem có token trong localStorage không
-    try {
-      const storedToken = localStorage.getItem('token');
-      const storedUser = localStorage.getItem('user');
-      if (storedToken && storedUser) {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
-      }
-    } catch (error) {
-      console.error("Failed to parse auth data from localStorage", error);
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+  // TODO: Replace with API call to POST /api/auth/login
+  const login = (username: string, pass: string): boolean => {
+    const user = users.find(u => u.username.toLowerCase() === username.toLowerCase() && u.password === pass);
+    if (user) {
+      setCurrentUser(user);
+      return true;
     }
-    setLoading(false);
-  }, []);
-
-  const login = async (username: string, password: string) => {
-    const response = await fetch(`${API_BASE_URL}/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
-    });
-
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Login failed');
-    }
-
-    const { token: receivedToken, user: receivedUser } = await response.json();
-    setToken(receivedToken);
-    setUser(receivedUser);
-    localStorage.setItem('token', receivedToken);
-    localStorage.setItem('user', JSON.stringify(receivedUser));
+    return false;
   };
 
-  const register = async (username: string, password: string) => {
-    const response = await fetch(`${API_BASE_URL}/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-    });
-
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Registration failed');
+  // TODO: Replace with API call to POST /api/auth/register
+  const register = (username: string, pass: string): { success: boolean, message: string } => {
+    if (users.some(u => u.username.toLowerCase() === username.toLowerCase())) {
+        return { success: false, message: "Tên đăng nhập đã tồn tại." };
     }
-    // Sau khi đăng ký thành công, có thể tự động đăng nhập hoặc yêu cầu người dùng đăng nhập lại
-    // Ở đây, chúng ta sẽ yêu cầu họ đăng nhập.
-  };
+    if (pass.length < 6) {
+        return { success: false, message: "Mật khẩu phải có ít nhất 6 ký tự." };
+    }
+
+    const newId = `user-${Date.now()}`;
+    const newUser: User = {
+        _id: newId,
+        id: newId,
+        username,
+        password: pass,
+        role: 'user'
+    };
+    setUsers(prev => [...prev, newUser]);
+    // Also log in the new user immediately
+    // setCurrentUser(newUser); 
+    return { success: true, message: "Đăng ký thành công!" };
+  }
 
   const logout = () => {
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    setCurrentUser(null);
   };
 
-  const value = {
-    currentUser: user, // Sửa 'user' thành 'currentUser: user'
-    token,
-    isAuthenticated: !!token,
-    loading,
-    login,
-    register,
-    logout,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ currentUser, login, register, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 export const useAuth = () => {

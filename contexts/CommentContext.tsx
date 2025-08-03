@@ -1,68 +1,69 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+
+
+import React, { createContext, useContext, ReactNode, useCallback, useState } from 'react';
 import { Comment } from '../types';
-import { useAuth } from './AuthContext'; // Cần AuthContext để lấy token
+import * as commentService from '../services/commentService.ts';
 
 interface CommentContextType {
-  comments: Comment[];
+  getCommentsForChapter: (storyId: string, chapterId: string) => Promise<Comment[]>;
+  addCommentToChapter: (commentData: Omit<Comment, 'id' | '_id' | 'timestamp'>) => Promise<Comment>;
   loading: boolean;
-  fetchComments: (chapterId: string) => Promise<void>;
-  addComment: (chapterId: string, content: string) => Promise<void>;
-  deleteComment: (commentId: string) => Promise<void>;
+  error: string | null;
 }
 
 const CommentContext = createContext<CommentContextType | undefined>(undefined);
 
-const API_BASE_URL = 'http://localhost:3001/api';
-
 export const CommentProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(false);
-  const { token } = useAuth(); // Lấy token từ AuthContext
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchComments = useCallback(async (chapterId: string) => {
+  const getCommentsForChapter = useCallback(async (storyId: string, chapterId: string) => {
     setLoading(true);
+    setError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/chapters/${chapterId}/comments`);
-      if (!response.ok) throw new Error('Failed to fetch comments');
-      const data: Comment[] = await response.json();
-      setComments(data);
-    } catch (error) {
-      console.error(error);
-      setComments([]); // Xóa comment cũ nếu fetch lỗi
+      // TODO: Replace with API call when backend is ready
+      // const comments = await commentService.getComments(storyId, chapterId);
+      // return comments;
+      console.warn(`[CommentContext] Bỏ qua gọi API, trả về mảng rỗng cho bình luận của chương ${chapterId}.`);
+      return [];
+    } catch (err: any) {
+      console.error(`[CommentContext] Lỗi khi lấy bình luận cho chương ${chapterId}.`, err);
+      setError(err.message || 'Failed to fetch comments');
+      return [];
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const addComment = useCallback(async (chapterId: string, content: string) => {
-    if (!token) throw new Error('You must be logged in to comment.');
-    
-    const response = await fetch(`${API_BASE_URL}/chapters/${chapterId}/comments`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ content })
-    });
-    if (!response.ok) throw new Error('Failed to post comment');
-    const newComment: Comment = await response.json();
-    setComments(prev => [newComment, ...prev]);
-  }, [token]);
+  const addCommentToChapter = useCallback(async (commentData: Omit<Comment, 'id' | '_id' | 'timestamp'>) => {
+    setLoading(true);
+    setError(null);
+    try {
+      // TODO: Replace with API call when backend is ready
+      // const newComment = await commentService.addComment(commentData);
+      
+      // Mock implementation
+      const newComment: Comment = {
+        ...commentData,
+        id: `comment-${Date.now()}`,
+        _id: `comment-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+      };
+      console.warn(`[CommentContext] Bỏ qua gọi API, giả lập thêm bình luận.`, newComment);
+      return newComment;
+    } catch (err: any) {
+      setError(err.message || 'Failed to post comment');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  
 
-  const deleteComment = useCallback(async (commentId: string) => {
-    if (!token) throw new Error('You must be logged in to delete comments.');
-
-    const response = await fetch(`${API_BASE_URL}/comments/${commentId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (!response.ok) throw new Error('Failed to delete comment');
-    setComments(prev => prev.filter(c => c.id !== commentId));
-  }, [token]);
+  const value = { getCommentsForChapter, addCommentToChapter, loading, error };
 
   return (
-    <CommentContext.Provider value={{ comments, loading, fetchComments, addComment, deleteComment }}>
+    <CommentContext.Provider value={value}>
       {children}
     </CommentContext.Provider>
   );
