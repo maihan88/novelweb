@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useStories } from '../contexts/StoryContext.tsx';
 import { useUserPreferences } from '../contexts/UserPreferencesContext.tsx';
@@ -16,31 +15,28 @@ const ProfilePage: React.FC = () => {
     return <Navigate to="/login" replace />;
   }
 
-  // Ensure stories is always an array
   const safeStories = Array.isArray(stories) ? stories : [];
-
   const favoriteStories = safeStories.filter(story => favorites.includes(story.id));
-  const readingStories = Object.keys(bookmarks)
-    .map(storyId => {
+  
+  const readingStories = Object.entries(bookmarks)
+    .map(([storyId, bookmark]) => {
       const story = safeStories.find(s => s.id === storyId);
-      if (!story) return null;
+      if (!story || !bookmark || !bookmark.chapterId) return null;
 
-      const chapterId = bookmarks[storyId];
-      const allChapters = story.volumes.flatMap(v => v.chapters);
-      const chapterIndex = allChapters.findIndex(c => c.id === chapterId);
-      
-      if (chapterIndex === -1) return null;
+      const lastReadChapter = story.volumes
+        .flatMap(v => v.chapters)
+        .find(c => c.id === bookmark.chapterId);
 
-      const progress = allChapters.length > 0 ? Math.round(((chapterIndex + 1) / allChapters.length) * 100) : 0;
       return {
         ...story,
-        continueChapterId: chapterId,
-        progress,
+        continueChapterId: bookmark.chapterId,
+        lastReadChapterTitle: lastReadChapter?.title || 'Chương đã đọc',
+        progress: bookmark.progress, // Đọc tiến độ cuộn trang đã lưu
+        lastReadDate: bookmark.lastRead,
       };
     })
-    .filter(Boolean)
-    // @ts-ignore
-    .sort((a,b) => new Date(b.lastUpdatedAt).getTime() - new Date(a.lastUpdatedAt).getTime());
+    .filter((story): story is NonNullable<typeof story> => story !== null)
+    .sort((a,b) => new Date(b.lastReadDate).getTime() - new Date(a.lastReadDate).getTime());
 
   return (
     <div className="animate-fade-in space-y-12">
@@ -60,15 +56,18 @@ const ProfilePage: React.FC = () => {
         </h2>
         {readingStories.length > 0 ? (
           <div className="space-y-4">
-            {readingStories.map(story => story && (
+            {readingStories.map(story => (
               <div key={story.id} className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-md flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 <img src={story.coverImage} alt={story.title} className="w-20 h-28 object-cover rounded-md flex-shrink-0" />
                 <div className="flex-grow w-full">
                   <h3 className="font-bold text-lg">{story.title}</h3>
-                  <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5 my-2">
+                  <p className="text-sm text-cyan-600 dark:text-cyan-400 font-medium my-1">
+                    Đang đọc: {story.lastReadChapterTitle}
+                  </p>
+                  <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5">
                     <div className="bg-cyan-600 h-2.5 rounded-full" style={{ width: `${story.progress}%` }}></div>
                   </div>
-                  <p className="text-sm text-slate-500">Đã đọc {story.progress}%</p>
+                  <p className="text-xs text-slate-500 mt-1">Hoàn thành: {story.progress}%</p>
                 </div>
                 <Link
                   to={`/story/${story.id}/chapter/${story.continueChapterId}`}

@@ -78,7 +78,9 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ stories, interval = 5000 }) => 
             {currentStory.title}
           </h1>
           <p className="mt-3 text-sm sm:text-base text-slate-300 drop-shadow max-w-2xl mx-auto line-clamp-2">
-             {currentStory.alias ? currentStory.alias : currentStory.description}
+             {currentStory.alias && currentStory.alias.length > 0
+        ? (Array.isArray(currentStory.alias) ? currentStory.alias.join(' · ') : currentStory.alias)
+        : currentStory.description}
           </p>
           <div className="flex flex-wrap gap-2 mt-4 sm:mt-5 justify-center">
               {currentStory.tags.slice(0, 5).map(tag => (

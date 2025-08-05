@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 import { HashRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext.tsx';
@@ -7,6 +5,8 @@ import { AuthProvider } from './contexts/AuthContext.tsx';
 import { UserPreferencesProvider } from './contexts/UserPreferencesContext.tsx';
 import { StoryProvider } from './contexts/StoryContext.tsx';
 import { CommentProvider } from './contexts/CommentContext.tsx';
+import UserRoute from './components/UserRoute.tsx';
+import AdminRoutes from './components/AdminRoutes.tsx';
 
 import Header from './components/Header.tsx';
 import Footer from './components/Footer.tsx';
@@ -20,6 +20,7 @@ import LoginPage from './pages/LoginPage.tsx';
 import RegisterPage from './pages/RegisterPage.tsx';
 import ProfilePage from './pages/ProfilePage.tsx';
 import ProtectedRoute from './components/ProtectedRoute.tsx';
+import DonatePage from './pages/DonatePage.tsx';
 
 const AppContent: React.FC = () => {
   const location = useLocation();
@@ -42,15 +43,20 @@ const AppContent: React.FC = () => {
           <Route path="/story/:storyId/chapter/:chapterId" element={<ReaderPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/donate" element={<DonatePage />} />
           
-          {/* User Routes */}
-           <Route path="/profile" element={<ProfilePage />} />
+            {/* User Routes */}
+          <Route 
+              path="/profile" 
+              element={<UserRoute><ProfilePage /></UserRoute>} 
+          />
 
           {/* Admin Routes */}
           <Route
-            path="/admin"
-            element={<ProtectedRoute><AdminDashboardPage /></ProtectedRoute>}
+              path="/admin/*" // Dùng * để bảo vệ tất cả các route con của admin
+              element={<ProtectedRoute><AdminRoutes /></ProtectedRoute>}
           />
+
           <Route
             path="/admin/story/edit/:storyId"
             element={<ProtectedRoute><StoryEditPage /></ProtectedRoute>}

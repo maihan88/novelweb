@@ -1,12 +1,14 @@
-
-
 import React, { createContext, useContext, ReactNode, useCallback, useState } from 'react';
 import { Comment } from '../types';
 import * as commentService from '../services/commentService.ts';
 
+// Định nghĩa kiểu dữ liệu cho việc tạo bình luận mới, khớp với commentService
+type AddCommentData = Parameters<typeof commentService.addComment>[0];
+
 interface CommentContextType {
   getCommentsForChapter: (storyId: string, chapterId: string) => Promise<Comment[]>;
-  addCommentToChapter: (commentData: Omit<Comment, 'id' | '_id' | 'timestamp'>) => Promise<Comment>;
+  addCommentToChapter: (commentData: AddCommentData) => Promise<Comment>;
+  deleteCommentFromChapter: (commentId: string) => Promise<void>;
   loading: boolean;
   error: string | null;
 }
@@ -21,46 +23,45 @@ export const CommentProvider: React.FC<{ children: ReactNode }> = ({ children })
     setLoading(true);
     setError(null);
     try {
-      // TODO: Replace with API call when backend is ready
-      // const comments = await commentService.getComments(storyId, chapterId);
-      // return comments;
-      console.warn(`[CommentContext] Bỏ qua gọi API, trả về mảng rỗng cho bình luận của chương ${chapterId}.`);
-      return [];
+      const comments = await commentService.getComments(storyId, chapterId);
+      return comments;
     } catch (err: any) {
       console.error(`[CommentContext] Lỗi khi lấy bình luận cho chương ${chapterId}.`, err);
-      setError(err.message || 'Failed to fetch comments');
+      setError(err.message || 'Không thể tải bình luận');
       return [];
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const addCommentToChapter = useCallback(async (commentData: Omit<Comment, 'id' | '_id' | 'timestamp'>) => {
+  const addCommentToChapter = useCallback(async (commentData: AddCommentData) => {
     setLoading(true);
     setError(null);
     try {
-      // TODO: Replace with API call when backend is ready
-      // const newComment = await commentService.addComment(commentData);
-      
-      // Mock implementation
-      const newComment: Comment = {
-        ...commentData,
-        id: `comment-${Date.now()}`,
-        _id: `comment-${Date.now()}`,
-        timestamp: new Date().toISOString(),
-      };
-      console.warn(`[CommentContext] Bỏ qua gọi API, giả lập thêm bình luận.`, newComment);
+      const newComment = await commentService.addComment(commentData);
       return newComment;
     } catch (err: any) {
-      setError(err.message || 'Failed to post comment');
+      setError(err.message || 'Không thể gửi bình luận');
       throw err;
     } finally {
       setLoading(false);
     }
   }, []);
   
+  const deleteCommentFromChapter = useCallback(async (commentId: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      await commentService.deleteComment(commentId);
+    } catch (err: any) {
+      setError(err.message || 'Không thể xóa bình luận');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const value = { getCommentsForChapter, addCommentToChapter, loading, error };
+  const value = { getCommentsForChapter, addCommentToChapter, deleteCommentFromChapter, loading, error };
 
   return (
     <CommentContext.Provider value={value}>
