@@ -20,7 +20,7 @@ export interface Story {
   _id: string;
   id:string;
   title: string;
-  alias?: string;
+  alias: string[];
   author: string;
   description: string;
   coverImage: string;
@@ -57,8 +57,10 @@ export interface Comment {
   id: string;
   storyId: string;
   chapterId: string;
-  userId: string;
+  user: string;
   username: string;
+  parentId: string | null;
   text: string;
   timestamp: string;
+  replies?: Comment[]; // Mảng chứa các bình luận trả lời
 }

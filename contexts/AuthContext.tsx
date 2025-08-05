@@ -1,65 +1,62 @@
-
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useLocalStorage } from '../hooks/useLocalStorage.ts';
 import { User } from '../types';
+import api from '../services/api.ts';
+
+// Định nghĩa kiểu dữ liệu cho người dùng có token
+interface AuthenticatedUser extends User {
+  token: string;
+}
 
 interface AuthContextType {
-  currentUser: User | null;
-  login: (username: string, pass: string) => boolean;
-  register: (username: string, pass: string) => { success: boolean, message: string };
+  currentUser: AuthenticatedUser | null;
+  login: (username: string, pass: string) => Promise<{ success: boolean, message: string }>;
+  register: (username: string, pass: string) => Promise<{ success: boolean, message: string }>;
   logout: () => void;
+  // Bỏ hàm updateCurrentUser
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Initialize with a default admin user if none exist
-const defaultUsers: User[] = [{
-  _id: 'user-admin-0',
-  id: 'user-admin-0',
-  username: 'admin',
-  password: 'password', // In a real app, this should be a hashed password.
-  role: 'admin'
-}];
-
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [users, setUsers] = useLocalStorage<User[]>('users', defaultUsers);
-  const [currentUser, setCurrentUser] = useLocalStorage<User | null>('currentUser', null);
+  const [currentUser, setCurrentUser] = useLocalStorage<AuthenticatedUser | null>('currentUser', null);
 
-  // TODO: Replace with API call to POST /api/auth/login
-  const login = (username: string, pass: string): boolean => {
-    const user = users.find(u => u.username.toLowerCase() === username.toLowerCase() && u.password === pass);
-    if (user) {
-      setCurrentUser(user);
-      return true;
+  // Hàm đăng nhập bằng cách gọi API
+  const login = async (username: string, pass: string): Promise<{ success: boolean, message: string }> => {
+    try {
+      const response = await api.post('/users/login', { username, password: pass });
+      if (response.data && response.data.token) {
+        setCurrentUser(response.data);
+        return { success: true, message: 'Đăng nhập thành công!' };
+      }
+      return { success: false, message: 'Dữ liệu trả về không hợp lệ.' };
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Tên đăng nhập hoặc mật khẩu không đúng.';
+      return { success: false, message };
     }
-    return false;
   };
 
-  // TODO: Replace with API call to POST /api/auth/register
-  const register = (username: string, pass: string): { success: boolean, message: string } => {
-    if (users.some(u => u.username.toLowerCase() === username.toLowerCase())) {
-        return { success: false, message: "Tên đăng nhập đã tồn tại." };
+  // Hàm đăng ký bằng cách gọi API
+  const register = async (username: string, pass: string): Promise<{ success: boolean, message: string }> => {
+    try {
+      const response = await api.post('/users/register', { username, password: pass });
+      if (response.status === 201) {
+        return { success: true, message: 'Đăng ký thành công! Vui lòng đăng nhập.' };
+      }
+      return { success: false, message: 'Đăng ký thất bại.' };
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Đăng ký thất bại, vui lòng thử lại.';
+      return { success: false, message };
     }
-    if (pass.length < 6) {
-        return { success: false, message: "Mật khẩu phải có ít nhất 6 ký tự." };
-    }
-
-    const newId = `user-${Date.now()}`;
-    const newUser: User = {
-        _id: newId,
-        id: newId,
-        username,
-        password: pass,
-        role: 'user'
-    };
-    setUsers(prev => [...prev, newUser]);
-    // Also log in the new user immediately
-    // setCurrentUser(newUser); 
-    return { success: true, message: "Đăng ký thành công!" };
   }
 
+  // Hàm đăng xuất
   const logout = () => {
     setCurrentUser(null);
+  };
+
+    const updateCurrentUser = (userData: Partial<AuthenticatedUser>) => {
+    setCurrentUser(prev => prev ? { ...prev, ...userData } : null);
   };
 
   return (

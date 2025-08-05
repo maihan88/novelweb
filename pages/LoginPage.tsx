@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.tsx';
@@ -8,20 +7,26 @@ const LoginPage: React.FC = () => {
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('password');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false); // Thêm trạng thái loading
   const navigate = useNavigate();
   const location = useLocation();
   const auth = useAuth();
 
   const from = location.state?.from?.pathname || '/';
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (auth.login(username, password)) {
+    setLoading(true);
+
+    const result = await auth.login(username, password);
+
+    if (result.success) {
       navigate(from, { replace: true });
     } else {
-      setError('Tên đăng nhập hoặc mật khẩu không đúng.');
+      setError(result.message);
     }
+    setLoading(false);
   };
 
   return (
@@ -45,7 +50,7 @@ const LoginPage: React.FC = () => {
                 <div className="space-y-4">
                   <div>
                     <label htmlFor="username" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                      Tên đăng nhập (mặc định: admin)
+                      Tên đăng nhập
                     </label>
                     <input
                       id="username"
@@ -56,12 +61,12 @@ const LoginPage: React.FC = () => {
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       className="appearance-none block w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm placeholder-slate-400 dark:placeholder-slate-500 bg-white dark:bg-slate-700 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                      placeholder="user"
+                      placeholder="Nhập tên đăng nhập"
                     />
                   </div>
                   <div>
                     <label htmlFor="password-input" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                      Mật khẩu (mặc định: password)
+                      Mật khẩu
                     </label>
                     <input
                       id="password-input"
@@ -82,9 +87,10 @@ const LoginPage: React.FC = () => {
                 <div>
                   <button
                     type="submit"
-                    className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                    disabled={loading}
+                    className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors disabled:opacity-50"
                   >
-                    Đăng nhập
+                    {loading ? 'Đang xử lý...' : 'Đăng nhập'}
                   </button>
                 </div>
               </form>

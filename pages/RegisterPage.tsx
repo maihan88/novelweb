@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.tsx';
@@ -10,10 +9,11 @@ const RegisterPage: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false); // Thêm trạng thái loading
   const navigate = useNavigate();
   const auth = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
@@ -23,7 +23,9 @@ const RegisterPage: React.FC = () => {
       return;
     }
     
-    const result = auth.register(username, password);
+    setLoading(true);
+    const result = await auth.register(username, password);
+    setLoading(false);
 
     if (result.success) {
       setSuccess(result.message + ' Bạn sẽ được chuyển đến trang đăng nhập sau 2 giây.');
@@ -101,10 +103,10 @@ const RegisterPage: React.FC = () => {
                   <div>
                     <button
                       type="submit"
-                      disabled={!!success}
-                      className="w-full flex justify-center mt-4 py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 disabled:bg-cyan-400 transition-colors"
+                      disabled={!!success || loading}
+                      className="w-full flex justify-center mt-4 py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 disabled:opacity-50 transition-colors"
                     >
-                      Đăng ký
+                      {loading ? 'Đang xử lý...' : 'Đăng ký'}
                     </button>
                   </div>
                 </form>

@@ -1,16 +1,22 @@
-
-
 import React, { createContext, useContext, ReactNode, useCallback } from 'react';
 import { useLocalStorage } from '../hooks/useLocalStorage.ts';
+import { useAuth } from './AuthContext.tsx';
+
+export interface Bookmark {
+  chapterId: string;
+  progress: number;
+  lastRead: string;
+}
 
 interface UserPreferencesContextType {
-    favorites: string[]; // array of story IDs
+    favorites: string[];
     toggleFavorite: (storyId: string) => void;
     isFavorite: (storyId: string) => boolean;
-    bookmarks: Record<string, string>; // { storyId: chapterId }
-    updateBookmark: (storyId: string, chapterId: string) => void;
-    getBookmark: (storyId: string) => string | undefined;
-    ratedStories: Record<string, number>; // { storyId: rating }
+    bookmarks: Record<string, Bookmark>;
+    updateBookmark: (storyId: string, chapterId: string, progress: number) => void;
+    removeBookmark: (storyId: string) => void;
+    getBookmark: (storyId: string) => Bookmark | undefined;
+    ratedStories: Record<string, number>;
     addRating: (storyId: string, rating: number) => void;
     getUserRating: (storyId: string) => number | undefined;
 }
@@ -18,11 +24,18 @@ interface UserPreferencesContextType {
 const UserPreferencesContext = createContext<UserPreferencesContextType | undefined>(undefined);
 
 export const UserPreferencesProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    // TODO: When backend is ready, this data should be fetched and managed via API calls tied to the current user.
-    const [favorites, setFavorites] = useLocalStorage<string[]>('user:favorites', []);
-    const [bookmarks, setBookmarks] = useLocalStorage<Record<string, string>>('user:bookmarks', {});
-    const [ratedStories, setRatedStories] = useLocalStorage<Record<string, number>>('user:ratings', {});
-
+    const { currentUser } = useAuth();
+    
+    // Tạo key động dựa trên ID của người dùng
+    const userId = currentUser?._id;
+    const favoritesKey = userId ? `user:${userId}:favorites` : 'guest:favorites';
+    const bookmarksKey = userId ? `user:${userId}:bookmarks` : 'guest:bookmarks';
+    const ratingsKey = userId ? `user:${userId}:ratings` : 'guest:ratings';
+    
+    const [favorites, setFavorites] = useLocalStorage<string[]>(favoritesKey, []);
+    const [bookmarks, setBookmarks] = useLocalStorage<Record<string, Bookmark>>(bookmarksKey, {});
+    const [ratedStories, setRatedStories] = useLocalStorage<Record<string, number>>(ratingsKey, {});
+    
     const toggleFavorite = useCallback((storyId: string) => {
         setFavorites(prev => 
             prev.includes(storyId) 
@@ -35,8 +48,15 @@ export const UserPreferencesProvider: React.FC<{ children: ReactNode }> = ({ chi
         return favorites.includes(storyId);
     }, [favorites]);
 
-    const updateBookmark = useCallback((storyId: string, chapterId: string) => {
-        setBookmarks(prev => ({ ...prev, [storyId]: chapterId }));
+    const updateBookmark = useCallback((storyId: string, chapterId: string, progress: number) => {
+        setBookmarks(prev => ({
+            ...prev,
+            [storyId]: {
+                chapterId,
+                progress: Math.round(progress),
+                lastRead: new Date().toISOString()
+            }
+        }));
     }, [setBookmarks]);
 
     const getBookmark = useCallback((storyId: string) => {
@@ -51,7 +71,15 @@ export const UserPreferencesProvider: React.FC<{ children: ReactNode }> = ({ chi
         return ratedStories[storyId];
     }, [ratedStories]);
 
-    const value = { favorites, toggleFavorite, isFavorite, bookmarks, updateBookmark, getBookmark, ratedStories, addRating, getUserRating };
+    const removeBookmark = useCallback((storyId: string) => {
+        setBookmarks(prev => {
+            const newBookmarks = { ...prev };
+            delete newBookmarks[storyId];
+            return newBookmarks;
+        });
+    }, [setBookmarks]);
+
+    const value = { favorites, toggleFavorite, isFavorite, removeBookmark, bookmarks, updateBookmark, getBookmark, ratedStories, addRating, getUserRating };
 
     return (
         <UserPreferencesContext.Provider value={value}>

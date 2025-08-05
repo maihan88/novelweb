@@ -6,18 +6,18 @@ const chapterSchema = new mongoose.Schema({
     content: { type: String, required: true },
     createdAt: { type: Date, default: Date.now },
     views: { type: Number, default: 0 },
-});
+}, { _id: false }); // Thêm dòng này để Mongoose không tự tạo _id cho chapter
 
 const volumeSchema = new mongoose.Schema({
     id: { type: String, required: true, unique: true },
     title: { type: String, required: true },
     chapters: [chapterSchema],
-});
+}, { _id: false }); // Thêm dòng này để Mongoose không tự tạo _id cho volume
 
 const storySchema = new mongoose.Schema({
     id: { type: String, required: true, unique: true },
     title: { type: String, required: true },
-    alias: String,
+    alias: [String], // SỬA TỪ `String` THÀNH `[String]` (một mảng các chuỗi)
     author: { type: String, required: true },
     description: String,
     coverImage: { type: String, required: true },
@@ -35,34 +35,12 @@ const storySchema = new mongoose.Schema({
 
 // Update lastUpdatedAt when story is modified
 storySchema.pre('save', function(next) {
-    this.lastUpdatedAt = new Date();
+    if (this.isModified()) {
+        this.lastUpdatedAt = new Date();
+    }
     next();
 });
 
-// Transform _id to id for frontend compatibility
-storySchema.set('toJSON', {
-    transform: (document, returnedObject) => {
-        returnedObject.id = returnedObject._id.toString();
-        delete returnedObject._id;
-        delete returnedObject.__v;
-    }
-});
+// --- CHÚNG TA ĐÃ XÓA HOÀN TOÀN CÁC ĐOẠN .set('toJSON', ...) GÂY LỖI Ở ĐÂY ---
 
-// Apply the same transformation to nested schemas
-volumeSchema.set('toJSON', {
-    transform: (document, returnedObject) => {
-        returnedObject.id = returnedObject._id.toString();
-        delete returnedObject._id;
-        delete returnedObject.__v;
-    }
-});
-
-chapterSchema.set('toJSON', {
-    transform: (document, returnedObject) => {
-        returnedObject.id = returnedObject._id.toString();
-        delete returnedObject._id;
-        delete returnedObject.__v;
-    }
-});
-
-module.exports = mongoose.model('Story', storySchema); 
+module.exports = mongoose.model('Story', storySchema);

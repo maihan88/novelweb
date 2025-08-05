@@ -1,5 +1,4 @@
-
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, Link, Navigate, useNavigate } from 'react-router-dom';
 import { useStories } from '../contexts/StoryContext.tsx';
 import { useAuth } from '../contexts/AuthContext.tsx';
@@ -14,14 +13,19 @@ const StoryDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { getStoryById, incrementView, addRatingToStory } = useStories();
   const { currentUser } = useAuth();
-  const { isFavorite, toggleFavorite, getUserRating, addRating } = useUserPreferences();
+  // Lấy đầy đủ các hàm cần thiết từ context
+  const { isFavorite, toggleFavorite, getUserRating, addRating, bookmarks, removeBookmark } = useUserPreferences();
   
   const [story, setStory] = useState<Story | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  // State cho chức năng tìm kiếm
+  const [chapterSearchTerm, setChapterSearchTerm] = useState('');
   
   const isUserFavorite = storyId ? isFavorite(storyId) : false;
   const userRating = storyId ? getUserRating(storyId) : undefined;
+  // Lấy bookmark hiện tại cho truyện này
+  const currentBookmark = storyId ? bookmarks[storyId] : null;
 
   const fetchStory = useCallback(async () => {
     if (!storyId) return;
@@ -57,44 +61,91 @@ const StoryDetailPage: React.FC = () => {
         return;
     }
     await addRatingToStory(storyId, rating);
-    addRating(storyId, rating); // Update preference context
+    addRating(storyId, rating);
   };
 
-  if (!storyId) {
-    return <Navigate to="/" replace />;
-  }
+  const firstChapter = story?.volumes[0]?.chapters[0];
 
-  if (loading) {
-    return <div className="text-center py-20"><LoadingSpinner /></div>;
-  }
+   // Hàm này bây giờ chỉ dành cho nút "Đọc từ đầu" (khi đang đọc dở)
+  const handleReadFromBeginning = () => {
+    if (storyId) {
+      removeBookmark(storyId);
+    }
+    if (firstChapter) {
+      navigate(`/story/${story.id}/chapter/${firstChapter.id}`);
+    }
+  };
 
-  if (error || !story) {
-    return <div className="text-center py-20 text-red-500">{error || 'Không thể tải thông tin truyện.'}</div>;
-  }
+  // Logic lọc chương dựa trên từ khóa tìm kiếm
+  const filteredVolumes = useMemo(() => {
+    if (!story) return [];
+    if (!chapterSearchTerm) {
+        return story.volumes;
+    }
+    return story.volumes.map(volume => ({
+        ...volume,
+        chapters: volume.chapters.filter(chapter => 
+            chapter.title.toLowerCase().includes(chapterSearchTerm.toLowerCase())
+        )
+    })).filter(volume => volume.chapters.length > 0);
+  }, [story, chapterSearchTerm]);
+
+  if (!storyId) return <Navigate to="/" replace />;
+  if (loading) return <div className="text-center py-20"><LoadingSpinner /></div>;
+  if (error || !story) return <div className="text-center py-20 text-red-500">{error || 'Không thể tải thông tin truyện.'}</div>;
 
   const statusColor = story.status === 'Hoàn thành' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-300';
   
-  const firstChapterId = story.volumes[0]?.chapters[0]?.id;
-
   return (
     <div className="max-w-6xl mx-auto animate-fade-in">
+      {/* --- THÊM LIÊN KẾT VỀ TRANG CHỦ --- */}
+      <div className="mb-4 md:block hidden">
+        <Link to="/" className="text-cyan-600 dark:text-cyan-400 hover:underline text-sm font-medium">
+            &larr; Về trang chủ
+        </Link>
+      </div>
+      {/* --- KẾT THÚC --- */}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl overflow-hidden">
         <div className="flex flex-col md:flex-row gap-6 p-4 sm:p-6 md:gap-8 md:p-8">
           
           <div className="w-full md:w-1/3 flex-shrink-0">
             <img className="h-auto w-full rounded-lg shadow-lg aspect-[2/3] object-cover" src={story.coverImage} alt={`Bìa truyện ${story.title}`} />
             <div className="mt-6 flex flex-col gap-3">
-              {firstChapterId ? (
+{/* --- LOGIC NÚT ĐỌC MỚI --- */}
+              {currentBookmark ? (
+                // Nếu đang đọc dở, hiện cả hai nút
+                <>
+                  <Link 
+                    to={`/story/${story.id}/chapter/${currentBookmark.chapterId}`}
+                    className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-lg shadow-lg hover:opacity-90 transition-all duration-300 hover:scale-105"
+                  >
+                    <BookOpenIcon className="h-5 w-5"/>
+                    <span>Đọc tiếp</span>
+                  </Link>
+                  <button 
+                    onClick={handleReadFromBeginning}
+                    className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-slate-600 text-white font-semibold rounded-lg hover:bg-slate-500 transition"
+                  >
+                    <BookOpenIcon className="h-5 w-5"/>
+                    <span>Đọc từ đầu</span>
+                  </button>
+                </>
+              ) : ( // Nếu chưa đọc
+                firstChapter ? (
+                // và có chương, chỉ hiện nút "Đọc từ đầu"
                 <Link 
-                  to={`/story/${story.id}/chapter/${firstChapterId}`}
+                  to={`/story/${story.id}/chapter/${firstChapter.id}`}
                   className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-lg shadow-lg hover:opacity-90 transition-all duration-300 hover:scale-105"
                 >
                   <BookOpenIcon className="h-5 w-5"/>
                   <span>Đọc từ đầu</span>
                 </Link>
               ) : (
+                // Nếu chưa có chương nào, hiện thông báo
                 <div className="text-center p-3 bg-slate-100 dark:bg-slate-700 rounded-md">Truyện chưa có chương.</div>
-              )}
+              ))}
+              {/* --- KẾT THÚC SỬA --- */}
+
                {currentUser && (
                 <button 
                   onClick={() => toggleFavorite(storyId)}
@@ -114,7 +165,7 @@ const StoryDetailPage: React.FC = () => {
                   {story.status}
                 </span>
                 <h1 className="text-3xl md:text-4xl font-bold font-serif text-slate-900 dark:text-white">{story.title}</h1>
-                 {story.alias && <p className="mt-1 text-md text-slate-500 dark:text-slate-400 italic">{story.alias}</p>}
+                 {story.alias && story.alias.length > 0 && <p className="mt-1 text-md text-slate-500 dark:text-slate-400 italic">{Array.isArray(story.alias) ? story.alias.join(' · ') : story.alias}</p>}
                 <p className="mt-2 text-md text-slate-600 dark:text-slate-400">Tác giả: {story.author}</p>
               </div>
               
@@ -150,9 +201,21 @@ const StoryDetailPage: React.FC = () => {
 
         <div className="p-4 sm:p-6 md:p-8 pt-0 md:pt-4">
           <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700">
-            <h2 className="text-xl font-semibold mb-4 font-serif">Danh sách chương</h2>
+            {/* --- THÊM Ô TÌM KIẾM --- */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+                <h2 className="text-xl font-semibold font-serif whitespace-nowrap">Danh sách chương</h2>
+                <input
+                    type="text"
+                    placeholder="Tìm chương..."
+                    value={chapterSearchTerm}
+                    onChange={e => setChapterSearchTerm(e.target.value)}
+                    className="w-full sm:w-auto px-3 py-2 border rounded-md bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-indigo-500"
+                />
+            </div>
+            {/* --- KẾT THÚC --- */}
             <div className="space-y-4 max-h-[40rem] overflow-y-auto pr-2">
-              {story.volumes.length > 0 ? story.volumes.map(volume => (
+              {/* SỬ DỤNG filteredVolumes ĐỂ RENDER */}
+              {filteredVolumes.length > 0 ? filteredVolumes.map(volume => (
                 <div key={volume.id}>
                   <h3 className="text-lg font-semibold font-serif text-slate-800 dark:text-slate-200 p-3 bg-slate-100 dark:bg-slate-700/50 rounded-t-md sticky top-0">{volume.title}</h3>
                   <div className="space-y-2 border border-t-0 border-slate-100 dark:border-slate-700/50 rounded-b-md p-2">
@@ -173,6 +236,7 @@ const StoryDetailPage: React.FC = () => {
                           </div>
                       </Link>
                       ))}
+                      {volume.chapters.length === 0 && <p className="text-sm p-4 text-center text-slate-500">Không tìm thấy chương nào khớp.</p>}
                   </div>
                 </div>
               )) : (

@@ -1,5 +1,18 @@
 const Story = require('../models/storyModel');
 
+// Hàm trợ giúp để tạo slug từ tiêu đề
+const slugify = (text) => {
+  return text
+    .toString()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^\w-]+/g, '')
+    .replace(/--+/g, '-');
+};
+
 // @desc    Fetch all stories
 // @route   GET /api/stories
 // @access  Public
@@ -35,7 +48,44 @@ exports.getStoryById = async (req, res) => {
 // @access  Private/Admin
 exports.createStory = async (req, res) => {
     try {
-        const story = new Story(req.body);
+        // --- PHẦN SỬA LỖI BẮT ĐẦU TỪ ĐÂY ---
+        const { title, author, description, coverImage, tags, status, isHot, isInBanner } = req.body;
+
+        // Thêm logic xử lý cho alias và tags
+        const tagsArray = tags && typeof tags === 'string' ? tags.split(',').map(tag => tag.trim()).filter(Boolean) : [];
+        const aliasArray = alias && typeof alias === 'string' ? alias.split(',').map(name => name.trim()).filter(Boolean) : [];
+
+        if (!title || !author || !coverImage) {
+            return res.status(400).json({ message: 'Vui lòng cung cấp đủ Tên truyện, Tác giả và Ảnh bìa' });
+        }
+        
+        // 1. Tạo một ID duy nhất từ tiêu đề và một hậu tố ngẫu nhiên
+        const baseId = slugify(title);
+        let storyId = baseId;
+        let counter = 1;
+        // Kiểm tra xem ID đã tồn tại chưa, nếu có thì thêm số vào cuối
+        while (await Story.findOne({ id: storyId })) {
+            storyId = `${baseId}-${counter}`;
+            counter++;
+        }
+
+        // 2. Tạo đối tượng truyện mới với ID đã được sinh ra
+        const story = new Story({
+            id: storyId,
+            title,
+            author,
+            description,
+            coverImage,
+            tags: tagsArray, // Sử dụng mảng đã xử lý
+            status,
+            isHot,
+            isInBanner,
+            alias: aliasArray, // Sử dụng mảng đã xử lý
+            volumes: [],
+        });
+
+        // --- KẾT THÚC PHẦN SỬA LỖI ---
+
         const createdStory = await story.save();
         res.status(201).json(createdStory);
     } catch (error) {
@@ -49,9 +99,20 @@ exports.createStory = async (req, res) => {
 // @access  Private/Admin
 exports.updateStory = async (req, res) => {
     try {
+        // Loại bỏ trường `id` ra khỏi req.body để tránh việc cố gắng cập nhật nó
+        const { id, ...updateData } = req.body;
+
+        // Thêm logic xử lý cho alias và tags
+        if (updateData.tags && typeof updateData.tags === 'string') {
+            updateData.tags = updateData.tags.split(',').map(tag => tag.trim()).filter(Boolean);
+        }
+        if (updateData.alias && typeof updateData.alias === 'string') {
+            updateData.alias = updateData.alias.split(',').map(name => name.trim()).filter(Boolean);
+        }
+
         const story = await Story.findOneAndUpdate(
             { id: req.params.id },
-            req.body,
+            updateData,
             { new: true, runValidators: true }
         );
         
@@ -84,6 +145,7 @@ exports.deleteStory = async (req, res) => {
     }
 };
 
+// ... (Các hàm còn lại giữ nguyên không đổi)
 // @desc    Increment story views
 // @route   POST /api/stories/:id/view
 // @access  Public
@@ -244,32 +306,44 @@ exports.addChapter = async (req, res) => {
 // @access  Private/Admin
 exports.updateChapter = async (req, res) => {
     try {
+        const { id, volumeId, chapterId } = req.params;
         const { title, content } = req.body;
-        const story = await Story.findOne({ id: req.params.id });
-        
-        if (story) {
-            const volume = story.volumes.find(v => v.id === req.params.volumeId);
-            if (volume) {
-                const chapter = volume.chapters.find(c => c.id === req.params.chapterId);
-                if (chapter) {
-                    chapter.title = title;
-                    chapter.content = content;
-                    await story.save();
-                    res.json(chapter);
-                } else {
-                    res.status(404).json({ message: 'Chapter not found' });
-                }
-            } else {
-                res.status(404).json({ message: 'Volume not found' });
+
+        // Sử dụng updateOne với arrayFilters để cập nhật trực tiếp trong DB
+        // Thao tác này sẽ không kích hoạt 'pre-save' hook, do đó không cập nhật `lastUpdatedAt`
+        const result = await Story.updateOne(
+            { 
+                "id": id, 
+                "volumes.id": volumeId,
+                "volumes.chapters.id": chapterId 
+            },
+            { 
+                $set: { 
+                    "volumes.$[v].chapters.$[c].title": title,
+                    "volumes.$[v].chapters.$[c].content": content,
+                } 
+            },
+            {
+                arrayFilters: [
+                    { "v.id": volumeId },
+                    { "c.id": chapterId }
+                ],
             }
+        );
+
+        if (result.modifiedCount > 0) {
+            // Để trả về chapter đã cập nhật, ta cần query lại nó, nhưng để đơn giản,
+            // ta có thể chỉ trả về một thông báo thành công hoặc dữ liệu mới
+            res.json({ id: chapterId, title, content });
         } else {
-            res.status(404).json({ message: 'Story not found' });
+            res.status(404).json({ message: 'Không tìm thấy truyện, tập hoặc chương' });
         }
     } catch (error) {
-        console.error('Error updating chapter:', error);
+        console.error('Lỗi khi cập nhật chương:', error);
         res.status(500).json({ message: "Server Error" });
     }
 };
+
 
 // @desc    Delete chapter
 // @route   DELETE /api/stories/:id/volumes/:volumeId/chapters/:chapterId
@@ -301,30 +375,25 @@ exports.deleteChapter = async (req, res) => {
 // @access  Public
 exports.incrementChapterView = async (req, res) => {
     try {
-        const story = await Story.findOne({ id: req.params.id });
-        
-        if (story) {
-            let chapterFound = false;
-            for (const volume of story.volumes) {
-                const chapter = volume.chapters.find(c => c.id === req.params.chapterId);
-                if (chapter) {
-                    chapter.views += 1;
-                    chapterFound = true;
-                    break;
-                }
+        const { id, chapterId } = req.params;
+
+        // Sử dụng findOneAndUpdate với arrayFilters để cập nhật trực tiếp trong DB
+        // Thao tác này hiệu quả hơn và sẽ KHÔNG kích hoạt 'pre-save' hook
+        const result = await Story.updateOne(
+            { "id": id, "volumes.chapters.id": chapterId },
+            { $inc: { "volumes.$[v].chapters.$[c].views": 1 } },
+            {
+                arrayFilters: [{ "v.chapters.id": chapterId }, { "c.id": chapterId }],
             }
-            
-            if (chapterFound) {
-                await story.save();
-                res.json({ message: 'Chapter view incremented' });
-            } else {
-                res.status(404).json({ message: 'Chapter not found' });
-            }
+        );
+
+        if (result.modifiedCount > 0) {
+            res.json({ message: 'Chapter view incremented' });
         } else {
-            res.status(404).json({ message: 'Story not found' });
+            res.status(404).json({ message: 'Story or Chapter not found' });
         }
     } catch (error) {
         console.error('Error incrementing chapter view:', error);
         res.status(500).json({ message: "Server Error" });
     }
-}; 
+};

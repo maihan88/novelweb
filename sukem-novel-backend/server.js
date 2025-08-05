@@ -24,9 +24,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use('/api/stories', require('./routes/storyRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/upload', require('./routes/uploadRoutes'));
-
-// Serve static files from uploads directory
-app.use('/uploads', express.static('uploads'));
+app.use('/api/comments', require('./routes/commentRoutes'));// Để phục vụ file tĩnh như ảnh avatar
 
 // Basic route
 app.get('/', (req, res) => {

@@ -1,37 +1,46 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import ThemeToggle from './ThemeToggle.tsx';
 import { useAuth } from '../contexts/AuthContext.tsx';
-import { Bars3Icon, XMarkIcon, UserCircleIcon, ArrowRightEndOnRectangleIcon } from '@heroicons/react/24/solid';
+import { Bars3Icon, XMarkIcon, HeartIcon, ArrowRightEndOnRectangleIcon } from '@heroicons/react/24/solid';
 
 const Header: React.FC = () => {
   const location = useLocation();
   const { currentUser, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
+  // Đóng menu mobile mỗi khi chuyển trang
   useEffect(() => {
     setIsMenuOpen(false);
   }, [location.pathname]);
 
+  // Hàm tạo class cho link, đã được bạn tối ưu
   const getLinkClass = (path: string, isMobile: boolean = false) => {
     const isActive = location.pathname === path || (path === '/admin' && location.pathname.startsWith('/admin'));
-    const baseClasses = 'transition-colors duration-200';
-    const activeClasses = 'text-cyan-500 font-bold';
-    const inactiveClasses = 'hover:text-cyan-500 dark:hover:text-cyan-400';
-
+    const baseMobile = `block py-3 text-lg text-center w-full rounded-md transition-colors`;
+    const baseDesktop = `px-3 py-2 text-sm font-medium rounded-md transition-colors`;
+    
     if (isMobile) {
-      return `block py-3 text-lg text-center w-full rounded-md ${baseClasses} ${isActive ? 'bg-cyan-50 dark:bg-slate-800 ' + activeClasses : inactiveClasses}`;
+      return `${baseMobile} ${isActive ? 'bg-slate-100 dark:bg-slate-700 font-semibold' : 'hover:bg-slate-100 dark:hover:bg-slate-700'}`;
     }
-    return `${baseClasses} ${isActive ? activeClasses : inactiveClasses}`;
+    return `${baseDesktop} ${isActive ? 'font-semibold text-cyan-600 dark:text-cyan-400' : 'hover:bg-slate-200 dark:hover:bg-slate-700'}`;
   };
 
-  const NavLinks = ({ isMobile = false }: { isMobile?: boolean}) => (
+  // Component NavLinks đã được bạn tối ưu
+  const NavLinks: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }) => (
     <>
       <Link to="/" className={getLinkClass('/', isMobile)}>Trang Chủ</Link>
       {currentUser?.role === 'admin' && (
         <Link to="/admin" className={getLinkClass('/admin', isMobile)}>Quản Trị</Link>
       )}
+      <Link to="/donate" className={
+        isMobile 
+        ? `${getLinkClass('/donate', isMobile)} text-red-600 dark:text-red-400`
+        : "flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/50 hover:bg-red-200 dark:hover:bg-red-900 transition-colors"
+      }>
+        <HeartIcon className="h-4 w-4 inline-block mr-1" />
+        Ủng hộ
+      </Link>
     </>
   );
 
@@ -43,52 +52,49 @@ const Header: React.FC = () => {
             Truyện Chữ
           </Link>
           
-          <nav className="hidden md:flex items-center space-x-4 md:space-x-6 text-sm font-medium">
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center space-x-1 text-slate-700 dark:text-slate-300">
             <NavLinks />
+          </nav>
+          
+          <div className="hidden md:flex items-center gap-2">
             {currentUser ? (
-              <>
-                <Link to="/profile" className="flex items-center gap-2 hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors">
-                  <UserCircleIcon className="h-5 w-5" />
-                  <span>{currentUser.username}</span>
+              <div className="flex items-center gap-4">
+                <Link to="/profile" className="font-semibold text-slate-700 dark:text-slate-200 hover:text-cyan-500">
+                  {currentUser.username}
                 </Link>
-                <button onClick={logout} className="flex items-center gap-2 hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors">
-                  <ArrowRightEndOnRectangleIcon className="h-5 w-5" />
-                   <span>Đăng xuất</span>
-                </button>
-              </>
+                <button onClick={logout} className={getLinkClass('')}>Đăng xuất</button>
+              </div>
             ) : (
-              <>
+              <div className="flex items-center gap-2">
                 <Link to="/login" className={getLinkClass('/login')}>Đăng Nhập</Link>
                 <Link to="/register" className="px-4 py-1.5 text-sm font-semibold text-cyan-600 border border-cyan-600 rounded-full hover:bg-cyan-50 dark:text-cyan-400 dark:border-cyan-400 dark:hover:bg-cyan-900/50 transition-colors">
                   Đăng Ký
                 </Link>
-              </>
+              </div>
             )}
             <ThemeToggle />
-          </nav>
+          </div>
 
+          {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center">
             <ThemeToggle />
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="ml-2 p-2 rounded-md text-slate-700 dark:text-slate-200"
-              aria-label="Toggle menu"
-            >
+            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="ml-2 p-2" aria-label="Mở menu">
               {isMenuOpen ? <XMarkIcon className="h-6 w-6" /> : <Bars3Icon className="h-6 w-6" />}
             </button>
           </div>
         </div>
       </div>
       
+      {/* Mobile Menu Panel */}
       {isMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 w-full bg-white dark:bg-slate-900 shadow-xl border-t border-slate-200 dark:border-slate-700">
-           <nav className="flex flex-col items-center space-y-2 p-4">
+        <nav className="md:hidden absolute top-full left-0 w-full bg-white dark:bg-slate-800 shadow-lg p-4 space-y-2 border-t border-slate-200 dark:border-slate-700">
             <NavLinks isMobile={true}/>
-             <div className="w-full border-t border-slate-200 dark:border-slate-700 my-2" />
-             {currentUser ? (
+            <div className="border-t border-slate-200 dark:border-slate-700 !my-3"></div>
+            {currentUser ? (
               <>
-                <Link to="/profile" className={getLinkClass('/profile', true)}>Hồ sơ</Link>
-                <button onClick={logout} className="block py-3 text-lg text-center w-full rounded-md hover:text-cyan-500">Đăng xuất</button>
+                <Link to="/profile" className={getLinkClass('/profile', true)}>Hồ sơ của bạn</Link>
+                <button onClick={logout} className={`${getLinkClass('', true)} text-red-500 w-full`}>Đăng xuất</button>
               </>
             ) : (
               <>
@@ -96,8 +102,7 @@ const Header: React.FC = () => {
                 <Link to="/register" className={getLinkClass('/register', true)}>Đăng Ký</Link>
               </>
             )}
-           </nav>
-        </div>
+        </nav>
       )}
     </header>
   );
