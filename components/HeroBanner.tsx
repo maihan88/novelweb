@@ -33,12 +33,12 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ stories, interval = 5000 }) => 
   if (stories.length === 0) {
     // Fallback static banner if no stories are marked for the banner
     return (
-        <div className="text-center rounded-lg p-10 md:p-16 bg-gradient-to-br from-indigo-600 via-purple-600 to-cyan-600 shadow-2xl shadow-indigo-500/30">
+        <div className="text-center rounded-lg p-10 md:p-16 bg-gradient-to-br from-orange-500 via-amber-500 to-orange-400 shadow-2xl shadow-orange-500/30">
             <h1 className="text-4xl font-extrabold font-serif tracking-tight text-white sm:text-5xl md:text-6xl drop-shadow-lg">
-            Khám Phá Thế Giới Truyện Dịch
+            Khám Phá Thế Giới SukemNovel
             </h1>
-            <p className="mt-4 max-w-md mx-auto text-base text-indigo-100 sm:text-lg md:mt-6 md:text-xl md:max-w-3xl">
-            Đắm chìm trong những câu chuyện hấp dẫn được cộng đồng tâm huyết dịch thuật.
+            <p className="mt-4 max-w-md mx-auto text-base text-orange-100 sm:text-lg md:mt-6 md:text-xl md:max-w-3xl">
+            Đắm chìm trong những câu chuyện hấp dẫn được Sukem đăng tải
             </p>
         </div>
     );
@@ -92,7 +92,8 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ stories, interval = 5000 }) => 
           {firstChapterId && (
             <Link
                 to={`/story/${currentStory.id}/chapter/${firstChapterId}`}
-                className="mt-6 sm:mt-8 inline-block px-8 py-2.5 sm:px-10 sm:py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-md shadow-lg hover:opacity-90 transition-all duration-300 hover:scale-105"
+
+                className="mt-6 sm:mt-8 inline-block px-8 py-2.5 sm:px-10 sm:py-3 bg-orange-900 dark:bg-amber-100 dark:text-stone-900 text-orange-100 font-bold rounded-3xl shadow-lg hover:opacity-90 transition-all duration-300 hover:scale-105"
             >
                 Đọc Ngay &rarr;
             </Link>

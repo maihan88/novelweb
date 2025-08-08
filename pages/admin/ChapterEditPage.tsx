@@ -1,17 +1,16 @@
-
-
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useStories } from '../../contexts/StoryContext.tsx';
 import { Story, Chapter } from '../../types.ts';
 import { CheckIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
 import { ArrowUturnLeftIcon } from '@heroicons/react/24/outline';
+import { InformationCircleIcon } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner.tsx';
 import CustomEditor from '../../components/CustomEditor.tsx';
 
 const ChapterEditPage: React.FC = () => {
   const { storyId, volumeId, chapterId } = useParams<{ storyId: string; volumeId: string; chapterId?: string }>();
+  const [isRaw, setIsRaw] = useState(false);
   const navigate = useNavigate();
   const { getStoryById, addChapterToVolume, updateChapterInVolume } = useStories();
 
@@ -51,6 +50,7 @@ const ChapterEditPage: React.FC = () => {
               if (currentChapter) {
                 setTitle(currentChapter.title);
                 setContent(currentChapter.content);
+                setIsRaw(!!currentChapter.isRaw);
                 setIsNew(false);
               } else {
                 alert('Không tìm thấy chương!');
@@ -60,6 +60,7 @@ const ChapterEditPage: React.FC = () => {
             } else {
               // Adding new chapter
               setIsNew(true);
+              setIsRaw(true);
               setContent('<p>Viết nội dung chương ở đây...</p>');
             }
         } catch (error) {
@@ -76,14 +77,15 @@ const ChapterEditPage: React.FC = () => {
     if (!storyId || !volumeId || !title.trim()) {
       alert('Lỗi: Vui lòng điền đầy đủ thông tin.');
       return;
+
     }
     
     setIsSaving(true);
     try {
         if (isNew) {
-          await addChapterToVolume(storyId, volumeId, { title, content });
+          await addChapterToVolume(storyId, volumeId, { title, content, isRaw });
         } else if(chapterId) {
-          const chapterToUpdate: Omit<Chapter, 'createdAt' | 'views' | '_id'> = { id: chapterId, title, content };
+          const chapterToUpdate: Omit<Chapter, 'createdAt' | 'views' | '_id'> = { id: chapterId, title, content, isRaw };
           await updateChapterInVolume(storyId, volumeId, chapterToUpdate);
         }
         
@@ -106,9 +108,9 @@ const ChapterEditPage: React.FC = () => {
   }
 
   return (
-    <div className="animate-fade-in space-y-6">
+    <div className="max-w-4xl mx-auto animate-fade-in space-y-6">
       <div>
-        <button onClick={() => navigate(`/admin/story/edit/${storyId}`)} className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors mb-2">
+        <button onClick={() => navigate(`/admin/story/edit/${storyId}`)} className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors mb-2">
           <ArrowUturnLeftIcon className="h-4 w-4" />
           Quay lại trang chỉnh sửa truyện
         </button>
@@ -129,9 +131,33 @@ const ChapterEditPage: React.FC = () => {
             value={title}
             onChange={e => setTitle(e.target.value)}
             placeholder="Ví dụ: Chương 1: Khởi Đầu"
-            className="w-full p-3 border rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-indigo-500 transition"
+            className="w-full p-3 border rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-orange-500 transition"
           />
         </div>
+
+        {/* Thêm Checkbox isRaw */}
+        <div className="flex items-center gap-4 p-3 bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-400 rounded-r-lg">
+            <InformationCircleIcon className="h-6 w-6 text-amber-500 flex-shrink-0"/>
+            <div>
+                <div className="flex items-center space-x-2">
+                    <input
+                        type="checkbox"
+                        id="isRaw"
+                        name="isRaw"
+                        checked={isRaw}
+                        onChange={(e) => setIsRaw(e.target.checked)}
+                        className="h-4 w-4 text-orange-600 border-slate-300 rounded focus:ring-orange-500"
+                    />
+                    <label htmlFor="isRaw" className="font-medium text-slate-800 dark:text-slate-200">
+                        Đánh dấu là bản nháp (raw)
+                    </label>
+                </div>
+                <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                    Chương nháp sẽ không hiển thị ở mục "Mới cập nhật" cho đến khi bạn bỏ dấu tick này.
+                </p>
+            </div>
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
             Nội dung
@@ -142,7 +168,7 @@ const ChapterEditPage: React.FC = () => {
             <button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-md hover:opacity-90 transition-opacity shadow disabled:opacity-70"
+                className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-md hover:opacity-90 transition-opacity shadow disabled:opacity-70"
             >
                 {isSaving ? <ArrowPathIcon className="h-5 w-5 animate-spin" /> : <CheckIcon className="h-5 w-5" />}
                 Lưu Chương

@@ -40,16 +40,15 @@ const RegisterPage: React.FC = () => {
   return (
     <div className="min-h-full w-full flex items-center justify-center p-4 animate-fade-in">
       <div className="w-full max-w-4xl relative">
-          <Link to="/" className="absolute -top-12 left-0 flex items-center gap-2 text-slate-600 dark:text-slate-300 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors">
+          <Link to="/" className="absolute -top-12 left-0 flex items-center gap-2 text-slate-600 dark:text-stone-400 hover:text-orange-600 dark:hover:text-amber-400 transition-colors">
               <ArrowLeftIcon className="h-4 w-4" />
               Về trang chủ
           </Link>
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl flex flex-col md:flex-row-reverse overflow-hidden">
-              {/* Visual side */}
-              <div className="w-full md:w-1/2 p-8 sm:p-12 flex flex-col items-center justify-center text-center bg-gradient-to-br from-cyan-600 to-sky-600 text-white">
-                  <UserPlusIcon className="h-20 w-20 text-cyan-200" />
+          <div className="bg-white dark:bg-stone-800 rounded-2xl shadow-2xl flex flex-col md:flex-row-reverse overflow-hidden">
+              <div className="w-full md:w-1/2 p-8 sm:p-12 flex flex-col items-center justify-center text-center bg-gradient-to-br from-orange-400 to-amber-300 text-white">
+                  <UserPlusIcon className="h-20 w-20 text-orange-200" />
                   <h1 className="mt-6 text-3xl font-bold font-serif">Gia nhập cộng đồng</h1>
-                  <p className="mt-2 text-cyan-100">Tạo tài khoản để lưu truyện yêu thích, theo dõi tiến độ đọc và tham gia bình luận.</p>
+                  <p className="mt-2 text-orange-100">Tạo tài khoản để lưu truyện yêu thích, theo dõi tiến độ đọc và tham gia bình luận.</p>
               </div>
               {/* Form side */}
               <div className="w-full md:w-1/2 p-8 sm:p-12 flex flex-col justify-center">
@@ -58,7 +57,7 @@ const RegisterPage: React.FC = () => {
                 </h2>
                 <form className="space-y-4" onSubmit={handleSubmit}>
                   <div>
-                    <label htmlFor="username-register" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tên đăng nhập</label>
+                    <label htmlFor="username-register" className="block text-sm font-medium text-slate-700 dark:text-stone-300 mb-1">Tên đăng nhập</label>
                     <input
                       id="username-register"
                       name="username"
@@ -66,12 +65,12 @@ const RegisterPage: React.FC = () => {
                       required
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      className="appearance-none block w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm placeholder-slate-400 dark:placeholder-slate-500 bg-white dark:bg-slate-700 focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm"
+                      className="appearance-none block w-full px-3 py-2 border border-slate-300 dark:border-stone-600 rounded-md shadow-sm placeholder-slate-400 dark:placeholder-stone-500 bg-white dark:bg-stone-700 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
                       placeholder="Tên bạn muốn dùng"
                     />
                   </div>
                   <div>
-                    <label htmlFor="password-register" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Mật khẩu</label>
+                    <label htmlFor="password-register" className="block text-sm font-medium text-slate-700 dark:text-stone-300 mb-1">Mật khẩu</label>
                     <input
                       id="password-register"
                       name="password"
@@ -79,12 +78,12 @@ const RegisterPage: React.FC = () => {
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="appearance-none block w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm placeholder-slate-400 dark:placeholder-slate-500 bg-white dark:bg-slate-700 focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm"
+                      className="appearance-none block w-full px-3 py-2 border border-slate-300 dark:border-stone-600 rounded-md shadow-sm placeholder-slate-400 dark:placeholder-stone-500 bg-white dark:bg-stone-700 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
                       placeholder="Ít nhất 6 ký tự"
                     />
                   </div>
                   <div>
-                    <label htmlFor="confirm-password" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Xác nhận mật khẩu</label>
+                    <label htmlFor="confirm-password" className="block text-sm font-medium text-slate-700 dark:text-stone-300 mb-1">Xác nhận mật khẩu</label>
                     <input
                       id="confirm-password"
                       name="confirm-password"
@@ -92,7 +91,7 @@ const RegisterPage: React.FC = () => {
                       required
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="appearance-none block w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm placeholder-slate-400 dark:placeholder-slate-500 bg-white dark:bg-slate-700 focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm"
+                      className="appearance-none block w-full px-3 py-2 border border-slate-300 dark:border-stone-600 rounded-md shadow-sm placeholder-slate-400 dark:placeholder-stone-500 bg-white dark:bg-stone-700 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
                       placeholder="Nhập lại mật khẩu"
                     />
                   </div>
@@ -104,15 +103,15 @@ const RegisterPage: React.FC = () => {
                     <button
                       type="submit"
                       disabled={!!success || loading}
-                      className="w-full flex justify-center mt-4 py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 disabled:opacity-50 transition-colors"
+                      className="w-full flex justify-center mt-4 py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white dark:bg-yellow-600 dark:hover:bg-yellow-700 bg-orange-400 hover:bg-orange-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 transition-colors"
                     >
                       {loading ? 'Đang xử lý...' : 'Đăng ký'}
                     </button>
                   </div>
                 </form>
-                <p className="mt-6 text-center text-sm text-slate-600 dark:text-slate-400">
+                <p className="mt-6 text-center text-sm text-slate-600 dark:text-stone-400">
                     Đã có tài khoản?{' '}
-                    <Link to="/login" className="font-medium text-cyan-600 hover:text-cyan-500 dark:text-cyan-400 dark:hover:text-cyan-300">
+                    <Link to="/login" className="font-medium text-orange-600 hover:text-orange-500 dark:text-amber-400 dark:hover:text-amber-300">
                       Đăng nhập
                     </Link>
                   </p>

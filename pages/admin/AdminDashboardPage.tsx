@@ -44,7 +44,7 @@ const AdminDashboardPage: React.FC = () => {
         </div>
         <Link
           to="/admin/story/new"
-          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-md hover:opacity-90 transition-opacity shadow"
+          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-md hover:opacity-90 transition-opacity shadow"
         >
           <PlusIcon className="h-5 w-5"/>
           Thêm truyện mới
@@ -54,14 +54,14 @@ const AdminDashboardPage: React.FC = () => {
       {/* Stats Section */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-md flex items-center gap-4">
-            <div className="p-3 bg-indigo-100 dark:bg-indigo-900/50 rounded-full"><DocumentTextIcon className="h-6 w-6 text-indigo-600 dark:text-indigo-300"/></div>
+            <div className="p-3 bg-orange-100 dark:bg-orange-900/50 rounded-full"><DocumentTextIcon className="h-6 w-6 text-orange-600 dark:text-orange-300"/></div>
             <div>
                 <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Tổng số truyện</h3>
                 <p className="mt-1 text-3xl font-semibold text-slate-900 dark:text-white">{stats.totalStories}</p>
             </div>
         </div>
         <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-md flex items-center gap-4">
-            <div className="p-3 bg-cyan-100 dark:bg-cyan-900/50 rounded-full"><EyeIcon className="h-6 w-6 text-cyan-600 dark:text-cyan-300"/></div>
+            <div className="p-3 bg-amber-100 dark:bg-amber-900/50 rounded-full"><EyeIcon className="h-6 w-6 text-amber-600 dark:text-amber-300"/></div>
             <div>
                 <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Tổng lượt xem</h3>
                 <p className="mt-1 text-3xl font-semibold text-slate-900 dark:text-white">{stats.totalViews.toLocaleString('vi-VN')}</p>
@@ -110,7 +110,7 @@ const AdminDashboardPage: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${story.status === 'Hoàn thành' ? 'bg-green-100 text-green-800' : 'bg-cyan-100 text-cyan-800'}`}>
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${story.status === 'Hoàn thành' ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'}`}>
                         {story.status}
                       </span>
                     </td>
@@ -118,7 +118,7 @@ const AdminDashboardPage: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                       <button 
                         onClick={() => navigate(`/admin/story/edit/${story.id}`)} 
-                        className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
+                        className="text-orange-600 hover:text-orange-900 dark:text-orange-400 dark:hover:text-orange-200 p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700"
                         title="Chỉnh sửa truyện"
                       >
                         <PencilIcon className="h-5 w-5"/>

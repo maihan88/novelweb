@@ -29,27 +29,27 @@ const ReaderControls: React.FC<ReaderControlsProps> = ({ preferences, setPrefere
       {/* Font Size */}
       <div className="flex items-center justify-between">
         <span className="font-medium text-sm text-slate-800 dark:text-slate-200">Cỡ chữ</span>
-        <div className="flex items-center gap-1 p-1 bg-slate-200/70 dark:bg-slate-700/70 rounded-full">
-            <button onClick={() => handleFontSizeChange(-1)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors" aria-label="Giảm cỡ chữ">A-</button>
+        <div className="flex items-center gap-1 p-1 bg-orange-200/70 dark:bg-amber-400/50 rounded-full">
+            <button onClick={() => handleFontSizeChange(-1)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-amber-50 dark:hover:bg-stone-600 transition-colors" aria-label="Giảm cỡ chữ">A-</button>
             <span className="text-sm w-10 text-center font-semibold">{preferences.fontSize}px</span>
-            <button onClick={() => handleFontSizeChange(1)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors" aria-label="Tăng cỡ chữ">A+</button>
+            <button onClick={() => handleFontSizeChange(1)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-amber-50 dark:hover:bg-stone-600 transition-colors" aria-label="Tăng cỡ chữ">A+</button>
         </div>
       </div>
       {/* Font Family */}
       <div className="flex items-center justify-between">
         <span className="font-medium text-sm text-slate-800 dark:text-slate-200">Phông chữ</span>
-        <div className="flex items-center gap-1 p-1 bg-slate-200/70 dark:bg-slate-700/70 rounded-full">
-            <button onClick={() => handleFontFamilyChange('font-serif')} className={`px-4 py-1.5 rounded-full text-sm transition-colors ${preferences.fontFamily === 'font-serif' ? 'bg-indigo-600 text-white shadow' : 'hover:bg-slate-300 dark:hover:bg-slate-600'}`} aria-label="Font Serif"><span className="font-serif">Serif</span></button>
-            <button onClick={() => handleFontFamilyChange('font-sans')} className={`px-4 py-1.5 rounded-full text-sm transition-colors ${preferences.fontFamily === 'font-sans' ? 'bg-indigo-600 text-white shadow' : 'hover:bg-slate-300 dark:hover:bg-slate-600'}`} aria-label="Font Sans-serif"><span className="font-sans">Sans</span></button>
+        <div className="flex items-center gap-1 p-1 bg-orange-200/70 dark:bg-stone-700/70 rounded-full">
+            <button onClick={() => handleFontFamilyChange('font-serif')} className={`px-4 py-1.5 rounded-full text-sm transition-colors ${preferences.fontFamily === 'font-serif' ? 'bg-orange-400 dark:bg-amber-300/50 text-white shadow' : 'hover:bg-amber-50 dark:hover:bg-stone-600'}`} aria-label="Font Serif"><span className="font-serif">Serif</span></button>
+            <button onClick={() => handleFontFamilyChange('font-sans')} className={`px-4 py-1.5 rounded-full text-sm transition-colors ${preferences.fontFamily === 'font-sans' ? 'bg-orange-400 dark:bg-amber-300/50 text-white shadow' : 'hover:bg-amber-50 dark:hover:bg-stone-600'}`} aria-label="Font Sans-serif"><span className="font-sans">Sans</span></button>
         </div>
       </div>
        {/* Line Height */}
       <div className="flex items-center justify-between">
         <span className="font-medium text-sm text-slate-800 dark:text-slate-200">Giãn dòng</span>
-        <div className="flex items-center gap-1 p-1 bg-slate-200/70 dark:bg-slate-700/70 rounded-full">
-            <button onClick={() => handleLineHeightChange(-0.1)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors" aria-label="Giảm giãn dòng">-</button>
+        <div className="flex items-center gap-1 p-1 bg-orange-200/70 dark:bg-stone-700/70 rounded-full">
+            <button onClick={() => handleLineHeightChange(-0.1)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-amber-50 dark:hover:bg-stone-600 transition-colors" aria-label="Giảm giãn dòng">-</button>
             <span className="text-sm w-10 text-center font-semibold">{preferences.lineHeight.toFixed(1)}</span>
-            <button onClick={() => handleLineHeightChange(0.1)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors" aria-label="Tăng giãn dòng">+</button>
+            <button onClick={() => handleLineHeightChange(0.1)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-amber-50 dark:hover:bg-stone-600 transition-colors" aria-label="Tăng giãn dòng">+</button>
         </div>
       </div>
        {/* Auto Scroll */}
@@ -57,7 +57,7 @@ const ReaderControls: React.FC<ReaderControlsProps> = ({ preferences, setPrefere
         <span className="font-medium text-sm text-slate-800 dark:text-slate-200">Tự động cuộn</span>
         <label className="relative inline-flex items-center cursor-pointer">
           <input type="checkbox" checked={isAutoScrolling} onChange={toggleAutoScroll} className="sr-only peer" />
-          <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+          <div className="w-11 h-6 bg-orange-200 peer-focus:outline-none rounded-full peer dark:bg-stone-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-orange-400 dark:peer-checked:bg-amber-300/50"></div>
         </label>
       </div>
     </div>
@@ -76,10 +76,10 @@ const ReaderControls: React.FC<ReaderControlsProps> = ({ preferences, setPrefere
 
         {/* Font Family */}
         <div className="flex items-center gap-1">
-          <button onClick={() => handleFontFamilyChange('font-serif')} className={`p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors ${preferences.fontFamily === 'font-serif' ? 'text-indigo-500' : ''}`} aria-label="Font Serif">
+          <button onClick={() => handleFontFamilyChange('font-serif')} className={`p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors ${preferences.fontFamily === 'font-serif' ? 'text-orange-500' : ''}`} aria-label="Font Serif">
             <span className="font-serif">Ag</span>
           </button>
-          <button onClick={() => handleFontFamilyChange('font-sans')} className={`p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors ${preferences.fontFamily === 'font-sans' ? 'text-indigo-500' : ''}`} aria-label="Font Sans-serif">
+          <button onClick={() => handleFontFamilyChange('font-sans')} className={`p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors ${preferences.fontFamily === 'font-sans' ? 'text-orange-500' : ''}`} aria-label="Font Sans-serif">
             <span className="font-sans">Ag</span>
           </button>
         </div>
@@ -100,7 +100,7 @@ const ReaderControls: React.FC<ReaderControlsProps> = ({ preferences, setPrefere
         <div className="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
         
         {/* Auto Scroll */}
-        <button onClick={toggleAutoScroll} className={`p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors ${isAutoScrolling ? 'text-indigo-500' : ''}`} aria-label="Tự động cuộn">
+        <button onClick={toggleAutoScroll} className={`p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors ${isAutoScrolling ? 'text-orange-500' : ''}`} aria-label="Tự động cuộn">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
           </svg>
@@ -122,7 +122,7 @@ const ReaderControls: React.FC<ReaderControlsProps> = ({ preferences, setPrefere
         <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-3">
              <div
                 className={`
-                    w-72 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md shadow-2xl rounded-2xl p-4
+                    w-72 bg-white/80 dark:bg-stone-800/80 backdrop-blur-md shadow-2xl rounded-2xl p-4
                     transition-all duration-300 ease-in-out origin-bottom-right
                     ${isControlsOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}
                 `}
@@ -131,7 +131,7 @@ const ReaderControls: React.FC<ReaderControlsProps> = ({ preferences, setPrefere
             </div>
             <button
                 onClick={() => setIsControlsOpen(p => !p)}
-                className="h-16 w-16 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg transition-transform duration-200 ease-in-out transform hover:scale-105 active:scale-95"
+                className="h-16 w-16 rounded-full bg-orange-400 text-white flex items-center justify-center shadow-lg transition-transform duration-200 ease-in-out transform hover:scale-105 active:scale-95"
                 aria-label={isControlsOpen ? 'Đóng cài đặt' : 'Mở cài đặt'}
             >
                 {isControlsOpen ? <XMarkIcon className="h-7 w-7" /> : <SparklesIcon className="h-7 w-7" />}
