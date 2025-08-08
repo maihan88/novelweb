@@ -1,8 +1,6 @@
-
 import React, { createContext, useContext, ReactNode, useCallback, useState, useEffect } from 'react';
 import { Story, Chapter, Volume } from '../types.ts';
 import * as storyService from '../services/storyService.ts';
-import { MOCK_STORIES } from '../data/stories.ts';
 
 interface StoryContextType {
   stories: Story[];
@@ -12,7 +10,6 @@ interface StoryContextType {
   addStory: (storyData: Omit<Story, 'id' | '_id' | 'volumes' | 'views' | 'createdAt' | 'lastUpdatedAt' | 'rating' | 'ratingsCount'>) => Promise<Story>;
   updateStory: (storyId: string, storyData: Partial<Omit<Story, 'id' | '_id' | 'volumes'>>) => Promise<Story>;
   deleteStory: (storyId: string) => Promise<void>;
-  incrementView: (storyId: string) => Promise<void>;
   addRatingToStory: (storyId: string, rating: number) => Promise<void>;
   
   // Volume Management
@@ -29,11 +26,9 @@ interface StoryContextType {
 
 const StoryContext = createContext<StoryContextType | undefined>(undefined);
 
-const useMockData = true; // Set to false to use real API calls
-
 export const StoryProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [stories, setStories] = useState<Story[]>(MOCK_STORIES);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [stories, setStories] = useState<Story[]>([]); // Khởi tạo với mảng rỗng
+  const [loading, setLoading] = useState<boolean>(true); // Bắt đầu với loading = true
   const [error, setError] = useState<string | null>(null);
 
   const fetchStories = useCallback(async () => {
@@ -43,9 +38,7 @@ export const StoryProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       const data = await storyService.getAllStories();
       setStories(data);
     } catch (err: any) {
-      console.warn("API call failed, falling back to mock data.", err.message);
-      setError("Không thể kết nối tới máy chủ, đang sử dụng dữ liệu mẫu.");
-      setStories(MOCK_STORIES);
+      setError("Không thể tải danh sách truyện. Vui lòng thử lại.");
     } finally {
       setLoading(false);
     }
@@ -58,6 +51,7 @@ export const StoryProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const getStoryById = useCallback(async (id: string): Promise<Story | undefined> => {
     try {
         const story = await storyService.getStoryById(id);
+        // Cập nhật lại danh sách truyện nếu truyện đó chưa có trong state
         setStories(prev => {
             const exists = prev.some(s => s.id === id);
             if (exists) {
@@ -67,32 +61,13 @@ export const StoryProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         });
         return story;
     } catch(err) {
-        console.warn(`API call failed for getStoryById(${id}), falling back to mock data.`, err);
-        const mockStory = MOCK_STORIES.find(s => s.id === id);
-        if (mockStory) {
-             setStories(prev => {
-                const exists = prev.some(s => s.id === id);
-                if (!exists) return [...prev, mockStory];
-                return prev;
-            });
-        }
-        return mockStory;
-    }
-  }, []);
-
-  const incrementView = useCallback(async (storyId: string) => {
-    try {
-        await storyService.incrementView(storyId);
-        setStories(prev => prev.map(s => s.id === storyId ? { ...s, views: s.views + 1 } : s));
-    } catch(err) {
-        console.warn(`API call failed for incrementView(${storyId}), faking update.`, err);
-        setStories(prev => prev.map(s => s.id === storyId ? { ...s, views: s.views + 1 } : s));
+        console.error(`Lỗi khi lấy truyện có id ${id}:`, err);
+        setError(`Không thể tải chi tiết truyện.`);
+        return undefined;
     }
   }, []);
   
-    const addRatingToStory = useCallback(async (storyId: string, rating: number) => {
-    // In a real app, this would also be an API call.
-    // For now, we just update the local state to show the change.
+  const addRatingToStory = useCallback(async (storyId: string, rating: number) => {
     setStories(prevStories => prevStories.map(story => {
       if (story.id === storyId) {
         const newRatingsCount = story.ratingsCount + 1;
@@ -136,51 +111,44 @@ export const StoryProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                }))
            } : s));
       } catch (err) {
-          console.warn(`API call failed for incrementChapterView(${chapterId}), faking update.`, err);
-           setStories(prev => prev.map(s => s.id === storyId ? {
-               ...s,
-               volumes: s.volumes.map(v => ({
-                   ...v,
-                   chapters: v.chapters.map(c => c.id === chapterId ? {...c, views: c.views + 1} : c)
-               }))
-           } : s));
+          console.warn(`API call failed for incrementChapterView(${chapterId})`, err);
       }
   }, []);
 
+  // Các hàm quản lý Volume và Chapter không cần thay đổi
   const addVolume = useCallback(async (storyId: string, volumeTitle: string) => {
     const newVolume = await storyService.addVolume(storyId, { title: volumeTitle });
-    fetchStories();
+    await fetchStories(); // Tải lại để đảm bảo dữ liệu đồng bộ
     return newVolume;
   }, [fetchStories]);
 
   const updateVolume = useCallback(async (storyId: string, volumeId: string, newTitle: string) => {
     const updatedVolume = await storyService.updateVolume(storyId, volumeId, { title: newTitle });
-    fetchStories();
+    await fetchStories();
     return updatedVolume;
   }, [fetchStories]);
 
   const deleteVolume = useCallback(async (storyId: string, volumeId: string) => {
     await storyService.deleteVolume(storyId, volumeId);
-    fetchStories();
+    await fetchStories();
   }, [fetchStories]);
 
   const addChapterToVolume = useCallback(async (storyId: string, volumeId: string, chapterData: Omit<Chapter, 'id' | '_id' | 'createdAt' | 'views'>) => {
       const newChapter = await storyService.addChapter(storyId, volumeId, chapterData);
-      fetchStories();
+      await fetchStories();
       return newChapter;
   }, [fetchStories]);
   
   const updateChapterInVolume = useCallback(async (storyId: string, volumeId: string, updatedChapterData: Omit<Chapter, 'createdAt' | 'views' | '_id'>) => {
     const updatedChapter = await storyService.updateChapter(storyId, volumeId, updatedChapterData.id, updatedChapterData);
-    fetchStories();
+    await fetchStories();
     return updatedChapter;
   }, [fetchStories]);
 
   const deleteChapterFromVolume = useCallback(async (storyId: string, volumeId: string, chapterId: string) => {
     await storyService.deleteChapter(storyId, volumeId, chapterId);
-    fetchStories();
+    await fetchStories();
   }, [fetchStories]);
-
 
   const value = { 
     stories, 
@@ -190,7 +158,6 @@ export const StoryProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     addStory, 
     updateStory, 
     deleteStory, 
-    incrementView,
     addRatingToStory,
     incrementChapterView,
     addVolume, 

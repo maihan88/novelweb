@@ -1,7 +1,8 @@
 const Story = require('../models/storyModel');
 
-// Hàm trợ giúp để tạo slug từ tiêu đề
+// THÊM HÀM NÀY VÀO ĐẦU FILE
 const slugify = (text) => {
+  if (!text) return '';
   return text
     .toString()
     .normalize('NFD')
@@ -48,43 +49,36 @@ exports.getStoryById = async (req, res) => {
 // @access  Private/Admin
 exports.createStory = async (req, res) => {
     try {
-        // --- PHẦN SỬA LỖI BẮT ĐẦU TỪ ĐÂY ---
-        const { title, author, description, coverImage, tags, status, isHot, isInBanner } = req.body;
+        const { title, author, description, coverImage, tags, status, isHot, isInBanner, alias } = req.body;
 
-        // Thêm logic xử lý cho alias và tags
-        const tagsArray = tags && typeof tags === 'string' ? tags.split(',').map(tag => tag.trim()).filter(Boolean) : [];
-        const aliasArray = alias && typeof alias === 'string' ? alias.split(',').map(name => name.trim()).filter(Boolean) : [];
+        const tagsArray = tags && typeof tags === 'string' ? tags.split(',').map(tag => tag.trim()).filter(Boolean) : (Array.isArray(tags) ? tags : []);
+        const aliasArray = alias && typeof alias === 'string' ? alias.split(',').map(name => name.trim()).filter(Boolean) : (Array.isArray(alias) ? alias : []);
 
         if (!title || !author || !coverImage) {
             return res.status(400).json({ message: 'Vui lòng cung cấp đủ Tên truyện, Tác giả và Ảnh bìa' });
         }
         
-        // 1. Tạo một ID duy nhất từ tiêu đề và một hậu tố ngẫu nhiên
         const baseId = slugify(title);
         let storyId = baseId;
         let counter = 1;
-        // Kiểm tra xem ID đã tồn tại chưa, nếu có thì thêm số vào cuối
         while (await Story.findOne({ id: storyId })) {
             storyId = `${baseId}-${counter}`;
             counter++;
         }
 
-        // 2. Tạo đối tượng truyện mới với ID đã được sinh ra
         const story = new Story({
             id: storyId,
             title,
             author,
             description,
             coverImage,
-            tags: tagsArray, // Sử dụng mảng đã xử lý
+            tags: tagsArray,
             status,
             isHot,
             isInBanner,
-            alias: aliasArray, // Sử dụng mảng đã xử lý
+            alias: aliasArray,
             volumes: [],
         });
-
-        // --- KẾT THÚC PHẦN SỬA LỖI ---
 
         const createdStory = await story.save();
         res.status(201).json(createdStory);
@@ -141,29 +135,6 @@ exports.deleteStory = async (req, res) => {
         }
     } catch (error) {
         console.error('Error deleting story:', error);
-        res.status(500).json({ message: "Server Error" });
-    }
-};
-
-// ... (Các hàm còn lại giữ nguyên không đổi)
-// @desc    Increment story views
-// @route   POST /api/stories/:id/view
-// @access  Public
-exports.incrementView = async (req, res) => {
-    try {
-        const story = await Story.findOneAndUpdate(
-            { id: req.params.id },
-            { $inc: { views: 1 } },
-            { new: true }
-        );
-        
-        if (story) {
-            res.json({ message: 'View incremented' });
-        } else {
-            res.status(404).json({ message: 'Story not found' });
-        }
-    } catch (error) {
-        console.error('Error incrementing view:', error);
         res.status(500).json({ message: "Server Error" });
     }
 };
@@ -268,12 +239,12 @@ exports.deleteVolume = async (req, res) => {
     }
 };
 
-// @desc    Add chapter to volume
+/// @desc    Add chapter to volume
 // @route   POST /api/stories/:id/volumes/:volumeId/chapters
 // @access  Private/Admin
 exports.addChapter = async (req, res) => {
     try {
-        const { title, content } = req.body;
+        const { title, content, isRaw } = req.body; // Thêm isRaw
         const story = await Story.findOne({ id: req.params.id });
         
         if (story) {
@@ -283,10 +254,17 @@ exports.addChapter = async (req, res) => {
                     id: `ch-${Date.now()}`,
                     title,
                     content,
+                    isRaw: !!isRaw, // Chuyển đổi sang boolean
                     views: 0
                 };
                 
                 volume.chapters.push(newChapter);
+
+                // CHỈ cập nhật thời gian khi chương mới không phải là bản nháp
+                if (!newChapter.isRaw) {
+                    story.lastUpdatedAt = new Date();
+                }
+
                 await story.save();
                 res.json(newChapter);
             } else {
@@ -307,42 +285,46 @@ exports.addChapter = async (req, res) => {
 exports.updateChapter = async (req, res) => {
     try {
         const { id, volumeId, chapterId } = req.params;
-        const { title, content } = req.body;
+        const { title, content, isRaw } = req.body; // Thêm isRaw
 
-        // Sử dụng updateOne với arrayFilters để cập nhật trực tiếp trong DB
-        // Thao tác này sẽ không kích hoạt 'pre-save' hook, do đó không cập nhật `lastUpdatedAt`
-        const result = await Story.updateOne(
-            { 
-                "id": id, 
-                "volumes.id": volumeId,
-                "volumes.chapters.id": chapterId 
-            },
-            { 
-                $set: { 
-                    "volumes.$[v].chapters.$[c].title": title,
-                    "volumes.$[v].chapters.$[c].content": content,
-                } 
-            },
-            {
-                arrayFilters: [
-                    { "v.id": volumeId },
-                    { "c.id": chapterId }
-                ],
-            }
-        );
+        const story = await Story.findOne({ id: id });
 
-        if (result.modifiedCount > 0) {
-            // Để trả về chapter đã cập nhật, ta cần query lại nó, nhưng để đơn giản,
-            // ta có thể chỉ trả về một thông báo thành công hoặc dữ liệu mới
-            res.json({ id: chapterId, title, content });
-        } else {
-            res.status(404).json({ message: 'Không tìm thấy truyện, tập hoặc chương' });
+        if (!story) {
+            return res.status(404).json({ message: 'Không tìm thấy truyện' });
         }
+
+        const volume = story.volumes.find(v => v.id === volumeId);
+        if (!volume) {
+            return res.status(404).json({ message: 'Không tìm thấy tập' });
+        }
+
+        const chapter = volume.chapters.find(c => c.id === chapterId);
+        if (!chapter) {
+            return res.status(404).json({ message: 'Không tìm thấy chương' });
+        }
+        
+        const wasRaw = chapter.isRaw; // Lưu trạng thái cũ
+        
+        // Cập nhật thông tin chương
+        chapter.title = title;
+        chapter.content = content;
+        chapter.isRaw = !!isRaw;
+
+        // CHỈ cập nhật thời gian khi sửa một chương từ `raw` thành `không raw`
+        if (wasRaw && !chapter.isRaw) {
+            story.lastUpdatedAt = new Date();
+        }
+        
+        await story.save();
+
+        res.json({ id: chapterId, title, content, isRaw });
+
     } catch (error) {
         console.error('Lỗi khi cập nhật chương:', error);
         res.status(500).json({ message: "Server Error" });
     }
 };
+
 
 
 // @desc    Delete chapter

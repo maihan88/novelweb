@@ -7,6 +7,7 @@ export interface Chapter {
   content: string;
   createdAt: string; // ISO Date string
   views: number;
+  isRaw?: boolean; // Optional field to indicate if the chapter is raw
 }
 
 export interface Volume {

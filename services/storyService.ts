@@ -26,10 +26,6 @@ export const deleteStory = async (id: string): Promise<void> => {
     await api.delete(`/stories/${id}`);
 };
 
-export const incrementView = async (id: string): Promise<void> => {
-    await api.post(`/stories/${id}/view`);
-};
-
 // Volume operations
 export const addVolume = async (storyId: string, volumeData: { title: string }): Promise<Volume> => {
     const response = await api.post(`/stories/${storyId}/volumes`, volumeData);

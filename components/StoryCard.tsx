@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Story } from '../types';
@@ -13,9 +12,9 @@ const StoryCard: React.FC<StoryCardProps> = ({ story }) => {
   
   return (
     <Link to={`/story/${story.id}`} className="block group animate-fade-in">
-      <div className="relative overflow-hidden rounded-lg shadow-md hover:shadow-cyan-500/20 dark:hover:shadow-cyan-400/20 hover:-translate-y-1 transition-all duration-300 aspect-[2/3]">
+      <div className="relative overflow-hidden rounded-lg shadow-md hover:shadow-orange-500/20 dark:hover:shadow-orange-400/20 hover:-translate-y-1 transition-all duration-300 aspect-[2/3]">
         <img src={story.coverImage} alt={`Bìa truyện ${story.title}`} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
          {story.isHot && (
           <div className="absolute top-1.5 right-1.5 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md z-10 shadow">HOT</div>
         )}
@@ -27,7 +26,7 @@ const StoryCard: React.FC<StoryCardProps> = ({ story }) => {
       </div>
       <div className="mt-2">
         {lastChapter ? (
-          <p className="text-sm text-slate-700 dark:text-slate-300 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors truncate font-medium" title={lastChapter.title}>
+          <p className="text-sm text-slate-700 dark:text-stone-300 group-hover:text-orange-900 dark:group-hover:text-amber-100 transition-colors truncate font-medium" title={lastChapter.title}>
             {lastChapter.title}
           </p>
         ) : (
