@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowDownTrayIcon, HomeIcon, HeartIcon } from '@heroicons/react/24/solid';
 
-const qrCodeImage = 'public/qr-code.png'; 
+const qrCodeImage = '/qr-code.png'; 
 
 const DonatePage: React.FC = () => {
   return (
