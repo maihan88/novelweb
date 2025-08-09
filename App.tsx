@@ -21,6 +21,7 @@ import RegisterPage from './pages/RegisterPage.tsx';
 import ProfilePage from './pages/ProfilePage.tsx';
 import ProtectedRoute from './components/ProtectedRoute.tsx';
 import DonatePage from './pages/DonatePage.tsx';
+import SearchPage from './pages/SearchPage.tsx';
 
 const AppContent: React.FC = () => {
   const location = useLocation();
@@ -39,6 +40,7 @@ const AppContent: React.FC = () => {
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<HomePage />} />
+          <Route path="/search" element={<SearchPage />}/>
           <Route path="/story/:storyId" element={<StoryDetailPage />} />
           <Route path="/story/:storyId/chapter/:chapterId" element={<ReaderPage />} />
           <Route path="/login" element={<LoginPage />} />

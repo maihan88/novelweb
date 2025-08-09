@@ -4,7 +4,10 @@ import {
     PhotoIcon,
     CodeBracketSquareIcon,
     ArrowUturnLeftIcon,
-    ArrowUturnRightIcon
+    ArrowUturnRightIcon,
+    Bars3BottomLeftIcon,
+    Bars3Icon,
+    Bars3BottomRightIcon
 } from '@heroicons/react/24/outline';
 
 interface CustomEditorProps {
@@ -20,14 +23,12 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
         onChangeRef.current = onChange;
     }, [onChange]);
 
-    // Syncs the editor when the `value` prop changes externally.
     useEffect(() => {
         if (editorRef.current && value !== editorRef.current.innerHTML) {
             editorRef.current.innerHTML = value;
         }
     }, [value]);
 
-    // Callback to update parent state when user types or formats text.
     const handleInput = useCallback(() => {
         if (editorRef.current) {
             const currentHtml = editorRef.current.innerHTML;
@@ -41,8 +42,8 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
         e.preventDefault();
     };
 
-    const execCmd = (command: string, commandValue: string | null = null) => {
-        document.execCommand('styleWithCSS', false, 'true');
+    const execCmd = (command: string, commandValue?: string) => {
+        // Sửa ở đây: execCommand nhận string | undefined, không phải null
         document.execCommand(command, false, commandValue);
         editorRef.current?.focus();
         handleInput();
@@ -89,6 +90,7 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
     );
 
     return (
+        // Sửa ở đây: Chỉ có MỘT thẻ div bao bọc toàn bộ component
         <div className="border border-slate-300 dark:border-slate-600 rounded-md overflow-hidden bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
             <div
                 className="toolbar flex flex-wrap items-center gap-1 p-2 bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700"
@@ -100,6 +102,7 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
                     <ArrowUturnRightIcon className="w-5 h-5" />
                 </ToolbarButton>
                 <div className="w-px h-6 bg-slate-300 dark:bg-slate-600 mx-1"></div>
+                
                 <ToolbarButton onClick={() => execCmd('bold')} ariaLabel="In đậm">
                     <span className="font-bold w-5 h-5 flex items-center justify-center">B</span>
                 </ToolbarButton>
@@ -109,7 +112,6 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
                 <ToolbarButton onClick={() => execCmd('underline')} ariaLabel="Gạch chân">
                     <span className="underline w-5 h-5 flex items-center justify-center">U</span>
                 </ToolbarButton>
-                <div className="w-px h-6 bg-slate-300 dark:bg-slate-600 mx-1"></div>
                 <label className="relative flex items-center cursor-pointer" onMouseDown={handleToolbarMouseDown}>
                     <div className="p-2 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
                         <PaintBrushIcon className="w-5 h-5" />
@@ -122,6 +124,18 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
                     />
                 </label>
                 <div className="w-px h-6 bg-slate-300 dark:bg-slate-600 mx-1"></div>
+
+                <ToolbarButton onClick={() => execCmd('justifyLeft')} ariaLabel="Căn trái">
+                    <Bars3BottomLeftIcon className="w-5 h-5" />
+                </ToolbarButton>
+                <ToolbarButton onClick={() => execCmd('justifyCenter')} ariaLabel="Căn giữa">
+                    <Bars3Icon className="w-5 h-5" />
+                </ToolbarButton>
+                <ToolbarButton onClick={() => execCmd('justifyRight')} ariaLabel="Căn phải">
+                    <Bars3BottomRightIcon className="w-5 h-5" />
+                </ToolbarButton>
+                <div className="w-px h-6 bg-slate-300 dark:bg-slate-600 mx-1"></div>
+
                 <ToolbarButton onClick={handleImageUpload} ariaLabel="Tải ảnh">
                     <PhotoIcon className="w-5 h-5" />
                 </ToolbarButton>
@@ -129,6 +143,7 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
                     <CodeBracketSquareIcon className="w-5 h-5" />
                 </ToolbarButton>
             </div>
+            {/* Sửa ở đây: Chỉ có MỘT thẻ div contentEditable */}
             <div
                 ref={editorRef}
                 onInput={handleInput}

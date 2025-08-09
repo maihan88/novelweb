@@ -154,14 +154,13 @@ const StoryEditPage: React.FC = () => {
     }
   }
   
-  const inputStyles = "w-full p-2 border rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-white border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-indigo-500 transition";
+  const inputStyles = "w-full p-2 border rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-white border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-orange-500 transition";
 
   if (loading) return <div className="text-center p-10"><ArrowPathIcon className="h-8 w-8 animate-spin mx-auto" /></div>;
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-fade-in p-4">
       <h1 className="text-3xl font-bold font-serif">{isNewStory ? 'Thêm Truyện Mới' : `Chỉnh Sửa: ${storyData.title}`}</h1>
-
       <form onSubmit={handleStorySubmit} className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-lg space-y-6">
         <h2 className="text-xl font-semibold border-b border-slate-200 dark:border-slate-700 pb-3 mb-4">Thông tin truyện</h2>
         
@@ -176,7 +175,7 @@ const StoryEditPage: React.FC = () => {
                              <svg className="mx-auto h-12 w-12 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                         )}
                         <div className="flex text-sm text-slate-600 dark:text-slate-400">
-                            <label htmlFor="coverImage" className="relative cursor-pointer bg-white dark:bg-slate-800 rounded-md font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 dark:ring-offset-slate-800 focus-within:ring-indigo-500">
+                            <label htmlFor="coverImage" className="relative cursor-pointer bg-white dark:bg-slate-800 rounded-md font-medium text-orange-600 dark:text-orange-400 hover:text-orange-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 dark:ring-offset-slate-800 focus-within:ring-orange-500">
                                 <span>Tải ảnh lên</span>
                                 <input id="coverImage" name="coverImage" type="file" className="sr-only" onChange={handleCoverImageChange} accept="image/*" />
                             </label>
@@ -201,12 +200,12 @@ const StoryEditPage: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-4 pt-2 sm:pt-0">
                       <div className="flex items-center space-x-2">
-                        <input type="checkbox" id="isHot" name="isHot" checked={!!storyData.isHot} onChange={handleStoryChange} className="h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500" />
+                        <input type="checkbox" id="isHot" name="isHot" checked={!!storyData.isHot} onChange={handleStoryChange} className="h-4 w-4 text-red-600 border-slate-300 rounded focus:ring-red-500" />
                         <label htmlFor="isHot" className="text-sm text-slate-700 dark:text-slate-300">Đánh dấu "Hot"</label>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <input type="checkbox" id="isInBanner" name="isInBanner" checked={!!storyData.isInBanner} onChange={handleStoryChange} className="h-4 w-4 text-purple-600 border-slate-300 rounded focus:ring-purple-500" />
-                        <label htmlFor="isInBanner" className="text-sm text-slate-700 dark:text-slate-300">Hiển thị trong banner</label>
+                        <input type="checkbox" id="isInBanner" name="isInBanner" checked={!!storyData.isInBanner} onChange={handleStoryChange} className="h-4 w-4 text-amber-600 border-slate-300 rounded focus:ring-amber-500" />
+                        <label htmlFor="isInBanner" className="text-sm text-slate-700 dark:text-slate-300">Hiển thị banner</label>
                       </div>
                     </div>
                 </div>
@@ -214,7 +213,7 @@ const StoryEditPage: React.FC = () => {
         </div>
         <textarea name="description" value={storyData.description || ''} onChange={handleStoryChange} placeholder="Mô tả" rows={4} className={inputStyles}></textarea>
         {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-        <button type="submit" disabled={isSaving} className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-md hover:opacity-90 transition-opacity shadow disabled:opacity-70 disabled:cursor-not-allowed">
+        <button type="submit" disabled={isSaving} className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-md hover:opacity-90 transition-opacity shadow disabled:opacity-70 disabled:cursor-not-allowed">
             {isSaving ? <ArrowPathIcon className="h-5 w-5 animate-spin" /> : (isNewStory ? 'Lưu Truyện' : 'Cập nhật thông tin')}
         </button>
       </form>
@@ -242,15 +241,14 @@ const StoryEditPage: React.FC = () => {
                   <div key={vol.id} className="border border-slate-200 dark:border-slate-700 rounded-lg">
                       <div className="flex justify-between items-center p-3 bg-slate-100 dark:bg-slate-900/50 rounded-t-lg">
                           <span className="font-bold text-lg">{vol.title}</span>
-                          <div className="space-x-2">
+                          <div className="space-x-1">
                               <Link to={`/admin/story/${storyId}/volume/${vol.id}/chapter/new`} className="inline-flex items-center gap-1 px-2 py-1 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600 text-xs transition-colors">
                                   <PlusIcon className="h-3 w-3"/> Thêm chương
                               </Link>
-                              <button aria-label={`Sửa tên tập ${vol.title}`} onClick={() => handleVolumeTitleChange(vol.id)} className="p-1 rounded-full text-indigo-600 hover:bg-indigo-100 dark:hover:bg-slate-600"><PencilIcon className="h-5 w-5"/></button>
-                              <button aria-label={`Xóa tập ${vol.title}`} onClick={() => handleVolumeDelete(vol.id)} className="p-1 rounded-full text-red-600 hover:bg-red-100 dark:hover:bg-slate-600"><TrashIcon className="h-5 w-5"/></button>
-                          </div>
+                               <button aria-label={`Sửa tên tập ${vol.title}`} onClick={() => handleVolumeTitleChange(vol.id)} className="p-2 rounded-md text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-700"><PencilIcon className="h-4 w-4"/></button>
+                              <button aria-label={`Xóa tập ${vol.title}`} onClick={() => handleVolumeDelete(vol.id)} className="p-2 rounded-md text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-700"><TrashIcon className="h-4 w-4"/></button>
                       </div>
-
+                  </div>
                       <div className="space-y-2 p-3">
                            {vol.chapters.map((chap) => (
                               <div key={chap.id} className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-700/50 rounded-md">

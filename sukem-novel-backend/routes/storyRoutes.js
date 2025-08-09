@@ -6,7 +6,6 @@ const {
     createStory,
     updateStory,
     deleteStory,
-    incrementView,
     addRating,
     addVolume,
     updateVolume,
@@ -21,7 +20,6 @@ const { protect, admin } = require('../middleware/authMiddleware');
 // Public routes
 router.get('/', getAllStories);
 router.get('/:id', getStoryById);
-router.post('/:id/view', incrementView);
 router.post('/:id/chapters/:chapterId/view', incrementChapterView);
 
 // Protected routes

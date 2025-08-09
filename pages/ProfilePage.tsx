@@ -44,34 +44,34 @@ const ProfilePage: React.FC = () => {
         <h1 className="text-4xl font-bold font-serif text-slate-900 dark:text-white">
           Hồ sơ của {currentUser.username}
         </h1>
-        <p className="mt-2 text-slate-500 dark:text-slate-400">
+        <p className="mt-2 text-slate-500 dark:text-stone-400">
           Quản lý truyện đang đọc và danh sách yêu thích của bạn.
         </p>
       </div>
 
       <section>
         <h2 className="text-2xl font-bold font-serif mb-4 flex items-center gap-2">
-            <BookOpenIcon className="h-6 w-6 text-cyan-500"/>
+            <BookOpenIcon className="h-6 w-6 text-orange-500"/>
             Truyện đang đọc
         </h2>
         {readingStories.length > 0 ? (
           <div className="space-y-4">
             {readingStories.map(story => (
-              <div key={story.id} className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-md flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div key={story.id} className="bg-white dark:bg-stone-800 p-4 rounded-lg shadow-md flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 <img src={story.coverImage} alt={story.title} className="w-20 h-28 object-cover rounded-md flex-shrink-0" />
                 <div className="flex-grow w-full">
                   <h3 className="font-bold text-lg">{story.title}</h3>
-                  <p className="text-sm text-cyan-600 dark:text-cyan-400 font-medium my-1">
+                  <p className="text-sm text-orange-400 dark:text-amber-400 font-medium my-1">
                     Đang đọc: {story.lastReadChapterTitle}
                   </p>
-                  <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5">
-                    <div className="bg-cyan-600 h-2.5 rounded-full" style={{ width: `${story.progress}%` }}></div>
+                  <div className="w-full bg-slate-200 dark:bg-stone-700 rounded-full h-2.5">
+                    <div className="bg-orange-400 dark:bg-amber-100 h-2.5 rounded-full" style={{ width: `${story.progress}%` }}></div>
                   </div>
-                  <p className="text-xs text-slate-500 mt-1">Hoàn thành: {story.progress}%</p>
+                  <p className="text-xs text-black-500 dark:text-stone-500 mt-1">Hoàn thành: {story.progress}%</p>
                 </div>
                 <Link
                   to={`/story/${story.id}/chapter/${story.continueChapterId}`}
-                  className="flex-shrink-0 w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white font-semibold rounded-md hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 text-sm"
+                  className="flex-shrink-0 w-full sm:w-auto px-4 py-2 bg-orange-400 dark:bg-amber-500/60 text-white font-semibold rounded-md dark:hover:bg-amber-400/60 hover:bg-orange-500 transition-colors flex items-center justify-center gap-2 text-sm"
                 >
                   <span>Đọc tiếp</span>
                   <ArrowRightIcon className="h-4 w-4" />
@@ -80,7 +80,7 @@ const ProfilePage: React.FC = () => {
             ))}
           </div>
         ) : (
-          <p className="text-center py-8 text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 rounded-lg">Bạn chưa bắt đầu đọc truyện nào.</p>
+          <p className="text-center py-8 text-stone-500 dark:text-stone-400 bg-white dark:bg-stone-800 rounded-lg">Bạn chưa bắt đầu đọc truyện nào.</p>
         )}
       </section>
 
@@ -96,9 +96,9 @@ const ProfilePage: React.FC = () => {
             ))}
           </div>
         ) : (
-          <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
-            <p className="text-slate-500">Bạn chưa có truyện yêu thích nào.</p>
-            <Link to="/" className="mt-4 inline-block text-indigo-600 hover:underline">Khám phá truyện mới</Link>
+          <div className="text-center py-16 bg-white dark:bg-stone-800 rounded-lg shadow-sm">
+            <p className="text-stone-500">Bạn chưa có truyện yêu thích nào.</p>
+            <Link to="/" className="mt-4 inline-block text-orange-600 hover:underline">Khám phá truyện mới</Link>
           </div>
         )}
       </section>
