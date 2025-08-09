@@ -53,6 +53,7 @@ const Header: React.FC = () => {
 
   return (
     <header className="bg-orange-200 dark:bg-stone-900 sticky top-0 z-40 w-full border-b border-stone-300 dark:border-stone-800">
+      <div className="container mx-auto px-4 sm:px-6 md:px-8"></div>
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           <Link to="/" className="text-2xl font-bold font-serif text-amber-900 dark:text-amber-100">
