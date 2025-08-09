@@ -26,11 +26,11 @@ const UserPreferencesContext = createContext<UserPreferencesContextType | undefi
 export const UserPreferencesProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const { currentUser } = useAuth();
     
-    // Tạo key động dựa trên ID của người dùng
+    // Tạo key động. Nếu không có user, key sẽ là `null`.
     const userId = currentUser?._id;
-    const favoritesKey = userId ? `user:${userId}:favorites` : 'guest:favorites';
-    const bookmarksKey = userId ? `user:${userId}:bookmarks` : 'guest:bookmarks';
-    const ratingsKey = userId ? `user:${userId}:ratings` : 'guest:ratings';
+    const favoritesKey = userId ? `user:${userId}:favorites` : null;
+    const bookmarksKey = userId ? `user:${userId}:bookmarks` : null;
+    const ratingsKey = userId ? `user:${userId}:ratings` : null;
     
     const [favorites, setFavorites] = useLocalStorage<string[]>(favoritesKey, []);
     const [bookmarks, setBookmarks] = useLocalStorage<Record<string, Bookmark>>(bookmarksKey, {});

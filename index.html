@@ -3,77 +3,52 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Truyện Chữ Của Tôi</title>
+    <title>SukemNovel - Nơi Đọc Truyện Chữ Online Miễn Phí</title>
+    <link rel="icon" type="image/png" href="/logo.png" />
     
     <!-- SEO and Social Sharing Meta Tags -->
-    <meta name="description" content="Một trang web hiện đại để đọc các tiểu thuyết dịch, cung cấp trải nghiệm đọc tùy chỉnh và các công cụ quản lý cho quản trị viên." />
-    <meta property="og:title" content="Truyện Chữ Của Tôi" />
-    <meta property="og:description" content="Khám phá thế giới truyện dịch hấp dẫn với trải nghiệm đọc tuyệt vời." />
+    <meta name="description" content="Đọc truyện chữ online miễn phí với hàng ngàn bộ truyện hấp dẫn, cập nhật nhanh chóng. SukemNovel - Cùng bạn khám phá thế giới truyện kỳ diệu." />
+    <meta property="og:title" content="SukemNovel - Nơi Đọc Truyện Chữ Online Miễn Phí" />
+    <meta property="og:description" content="Khám phá kho truyện chữ hấp dẫn với trải nghiệm đọc tuyệt vời tại SukemNovel." />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://picsum.photos/seed/og-image/1200/630" />
+    <meta property="og:image" content="https://novelweb-phi.vercel.app/logo.png" />
     <meta property="og:url" content="#" />
-    <meta name="twitter:card" content="summary_large_image" />
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            colors: {
-              'cyan': {
-                50: '#ecfeff',
-                100: '#cffafe',
-                200: '#a5f3fd',
-                300: '#67e8f9',
-                400: '#22d3ee',
-                500: '#06b6d4',
-                600: '#0891b2',
-                700: '#0e7490',
-                800: '#155e75',
-                900: '#164e63',
-                950: '#083344',
-              }
-            },
-            fontFamily: {
-              'serif': ['"Source Serif 4"', 'serif'],
-              'sans': ['"Inter"', 'sans-serif'],
-              'mono': ['"Inconsolata"', 'monospace'],
-            },
-            animation: {
-              'fade-in': 'fadeIn 0.5s ease-in-out',
-            },
-            keyframes: {
-              fadeIn: {
-                '0%': { opacity: 0, transform: 'translateY(10px)' },
-                '100%': { opacity: 1, transform: 'translateY(0)' },
-              },
-            }
-          }
-        }
-      }
-    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;700&family=Inter:wght@400;500;700;900&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
     
-    <script type="module" src="/index.tsx"></script>
     <script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@^19.1.1",
-    "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
-    "react/": "https://esm.sh/react@^19.1.1/",
-    "react-router-dom": "https://esm.sh/react-router-dom@^7.7.1",
-    "react-router-hash-link": "https://esm.sh/react-router-hash-link@^2.4.3",
-    "@heroicons/react/": "https://esm.sh/@heroicons/react@2.1.1/",
-    "axios": "https://esm.sh/axios@^1.7.2"
-  }
-}
-</script>
-<link rel="stylesheet" href="/index.css">
-</head>
-  <body class="bg-slate-100 dark:bg-slate-900 transition-colors duration-300">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@^19.1.1",
+        "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
+        "react/": "https://esm.sh/react@^19.1.1/",
+        "react-router-dom": "https://esm.sh/react-router-dom@^7.7.1",
+        "react-router-hash-link": "https://esm.sh/react-router-hash-link@^2.4.3",
+        "@heroicons/react/": "https://esm.sh/@heroicons/react@2.1.1/",
+        "axios": "https://esm.sh/axios@^1.7.2"
+      }
+    }
+    </script>
+    <script type="module" src="/index.tsx"></script>
+    <link rel="stylesheet" href="/index.css">
+    <style>
+      .chapter-content p {
+        margin-bottom: 0.8em; /* Tạo khoảng cách dưới mỗi đoạn văn */
+      }
+      .chapter-content p:last-child {
+        margin-bottom: 0; /* Bỏ khoảng cách cho đoạn văn cuối cùng */
+      }
+      .prevent-copy {
+        -webkit-user-select: none; /* Safari */
+        -moz-user-select: none; /* Firefox */
+        -ms-user-select: none; /* Internet Explorer/Edge */
+        user-select: none; /* Standard syntax */
+      }
+      </style>
+  </head>
+  <body class="bg-amber-50 dark:bg-stone-950 transition-colors duration-300">
     <div id="root"></div>
   </body>
 </html>

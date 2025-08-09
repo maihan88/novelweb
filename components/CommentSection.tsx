@@ -3,6 +3,7 @@ import { Comment } from '../types';
 import { useComments } from '../contexts/CommentContext.tsx';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import CommentItem, { CommentForm } from './CommentItem.tsx';
+import LoadingSpinner from './LoadingSpinner.tsx'; // Import LoadingSpinner
 
 interface CommentSectionProps {
   storyId: string;
@@ -25,13 +26,13 @@ const CommentSection: React.FC<CommentSectionProps> = ({ storyId, chapterId }) =
 
   const handleAddComment = async (text: string, parentId: string | null = null) => {
     await addCommentToChapter({ storyId, chapterId, text, parentId });
-    fetchComments(); // Tải lại danh sách bình luận sau khi thêm
+    fetchComments();
   };
 
   const handleDeleteComment = async (commentId: string) => {
     if (window.confirm('Bạn có chắc muốn xóa bình luận này?')) {
       await deleteCommentFromChapter(commentId);
-      fetchComments(); // Tải lại danh sách bình luận sau khi xóa
+      fetchComments();
     }
   };
 
@@ -42,15 +43,15 @@ const CommentSection: React.FC<CommentSectionProps> = ({ storyId, chapterId }) =
         <CommentForm onSubmit={(text) => handleAddComment(text)} />
       ) : (
         <p className="p-4 bg-slate-100 dark:bg-slate-800 rounded-md text-center">
-          Vui lòng <a href="/login" className="font-semibold text-indigo-600 hover:underline">đăng nhập</a> để bình luận.
+          Vui lòng <a href="#/login" className="font-semibold text-orange-600 hover:underline">đăng nhập</a> để bình luận.
         </p>
       )}
 
-      {loading && <p>Đang tải bình luận...</p>}
-      {error && <p className="text-red-500">{error}</p>}
+      {loading && <div className="py-8"><LoadingSpinner /></div>}
+      {error && <p className="text-red-500 text-center py-8">{error}</p>}
       
       <div className="mt-8 space-y-6">
-        {comments.map(comment => (
+        {!loading && comments.map(comment => (
           <CommentItem 
             key={comment.id} 
             comment={comment} 
@@ -58,7 +59,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ storyId, chapterId }) =
             onDelete={handleDeleteComment}
           />
         ))}
-        {!loading && comments.length === 0 && <p className="text-center text-slate-500">Chưa có bình luận nào.</p>}
+        {!loading && comments.length === 0 && <p className="text-center text-slate-500 py-8">Chưa có bình luận nào.</p>}
       </div>
     </div>
   );

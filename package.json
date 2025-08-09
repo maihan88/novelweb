@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@heroicons/react": "2.1.1",
+    "@tailwindcss/postcss": "^4.1.11",
     "axios": "^1.7.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
@@ -17,9 +18,14 @@
     "react-router-hash-link": "^2.4.3"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.1.11",
     "@types/node": "^22.14.0",
     "@types/react": "^19.1.9",
     "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^5.0.0",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.11",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }
