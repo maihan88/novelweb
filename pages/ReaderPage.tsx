@@ -167,8 +167,7 @@ const ReaderPage: React.FC = () => {
       fontSize: `${preferences.fontSize}px`,
       lineHeight: preferences.lineHeight,
     };
-    
-    const contentStyle = { fontSize: `${preferences.fontSize}px`, lineHeight: preferences.lineHeight };
+
     const navButtonBaseClasses = "flex items-center justify-center gap-2 px-4 py-2 border rounded-md transition-colors duration-200";
     const navButtonEnabledClasses = "border-orange-300 dark:border-amber-300 hover:bg-orange-100 dark:hover:bg-amber-200/50";
     const navButtonDisabledClasses = "border-orange-200 dark:border-amber-100/50 bg-orange-50 dark:bg-amber-800/10 text-slate-400 dark:text-stone-500 cursor-not-allowed";
