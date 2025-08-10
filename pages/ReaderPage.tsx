@@ -155,10 +155,19 @@ const ReaderPage: React.FC = () => {
         window.removeEventListener('touchstart', userInteractionHandler);
       }
     }, [isAutoScrolling, stopAutoScroll]);
+  
+    const cleanedContent = useMemo(() => {
+        if (!chapter?.content) return '';
+        // Sử dụng biểu thức chính quy để tìm và xóa bỏ mọi 'line-height' có trong style inline
+        // của các thẻ <p>
+        return chapter.content.replace(/line-height:[^;"]*;/g, '');
+    }, [chapter?.content]);
     
-    if (loading) return <div className="flex justify-center items-center h-screen bg-white dark:bg-slate-950"><LoadingSpinner /></div>;
-    if (!story || !chapter) return <div className="flex justify-center items-center h-screen bg-white dark:bg-slate-950 text-red-500">Không tìm thấy truyện hoặc chương.</div>;
-
+    const contentStyle = {
+      fontSize: `${preferences.fontSize}px`,
+      lineHeight: preferences.lineHeight,
+    };
+    
     const contentStyle = { fontSize: `${preferences.fontSize}px`, lineHeight: preferences.lineHeight };
     const navButtonBaseClasses = "flex items-center justify-center gap-2 px-4 py-2 border rounded-md transition-colors duration-200";
     const navButtonEnabledClasses = "border-orange-300 dark:border-amber-300 hover:bg-orange-100 dark:hover:bg-amber-200/50";
@@ -170,7 +179,10 @@ const ReaderPage: React.FC = () => {
             navigate(`/story/${storyId}/chapter/${newChapterId}`);
         }
     };
-
+  
+    if (loading) return <div className="flex justify-center items-center h-screen bg-white dark:bg-slate-950"><LoadingSpinner /></div>;
+    if (!story || !chapter) return <div className="flex justify-center items-center h-screen bg-white dark:bg-slate-950 text-red-500">Không tìm thấy truyện hoặc chương.</div>;
+  
     return (
         <div className="bg-white dark:bg-stone-950 min-h-full">
             <ReadingProgressBar progress={scrollPercent} />
