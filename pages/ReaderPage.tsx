@@ -155,7 +155,7 @@ const ReaderPage: React.FC = () => {
         window.removeEventListener('touchstart', userInteractionHandler);
       }
     }, [isAutoScrolling, stopAutoScroll]);
-  
+    // --- BẮT ĐẦU SỬA CHỮA ---
     const cleanedContent = useMemo(() => {
         if (!chapter?.content) return '';
         // Sử dụng biểu thức chính quy để tìm và xóa bỏ mọi 'line-height' có trong style inline
@@ -167,7 +167,7 @@ const ReaderPage: React.FC = () => {
       fontSize: `${preferences.fontSize}px`,
       lineHeight: preferences.lineHeight,
     };
-
+    // --- KẾT THÚC SỬA CHỮA ---
     const navButtonBaseClasses = "flex items-center justify-center gap-2 px-4 py-2 border rounded-md transition-colors duration-200";
     const navButtonEnabledClasses = "border-orange-300 dark:border-amber-300 hover:bg-orange-100 dark:hover:bg-amber-200/50";
     const navButtonDisabledClasses = "border-orange-200 dark:border-amber-100/50 bg-orange-50 dark:bg-amber-800/10 text-slate-400 dark:text-stone-500 cursor-not-allowed";
@@ -178,10 +178,10 @@ const ReaderPage: React.FC = () => {
             navigate(`/story/${storyId}/chapter/${newChapterId}`);
         }
     };
-  
+
     if (loading) return <div className="flex justify-center items-center h-screen bg-white dark:bg-slate-950"><LoadingSpinner /></div>;
     if (!story || !chapter) return <div className="flex justify-center items-center h-screen bg-white dark:bg-slate-950 text-red-500">Không tìm thấy truyện hoặc chương.</div>;
-  
+
     return (
         <div className="bg-white dark:bg-stone-950 min-h-full">
             <ReadingProgressBar progress={scrollPercent} />
@@ -191,10 +191,11 @@ const ReaderPage: React.FC = () => {
                     <h1 className="text-3xl sm:text-4xl font-bold font-serif mt-2 text-slate-900 dark:text-white">{chapter.title}</h1>
                 </div>
                 <div 
-                    ref={readerContentRef} // <-- GẮN REF VÀO ĐÂY
-                    className={`prose prose-lg dark:prose-invert max-w-none transition-all duration-300 ${preferences.fontFamily} chapter-content prevent-copy`}
+                    ref={readerContentRef}
+                    className={`max-w-none text-slate-800 dark:text-slate-200 transition-all duration-300 ${preferences.fontFamily} chapter-content prevent-copy`}
                     style={contentStyle}
-                    dangerouslySetInnerHTML={{ __html: chapter.content }}
+                    // Sử dụng nội dung đã được làm sạch
+                    dangerouslySetInnerHTML={{ __html: cleanedContent }}
                 />
                 <div className="mt-12 pt-6 border-t border-slate-300 dark:border-slate-700">
                     <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
