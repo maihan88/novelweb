@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
 import {
     PaintBrushIcon,
     PhotoIcon,
@@ -7,7 +7,10 @@ import {
     ArrowUturnRightIcon,
     Bars3BottomLeftIcon,
     Bars3Icon,
-    Bars3BottomRightIcon
+    Bars3BottomRightIcon,
+    MagnifyingGlassIcon, // Thêm icon
+    EyeSlashIcon,     // Thêm icon
+    XMarkIcon             // Thêm icon
 } from '@heroicons/react/24/outline';
 
 interface CustomEditorProps {
@@ -18,6 +21,12 @@ interface CustomEditorProps {
 const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
     const editorRef = useRef<HTMLDivElement>(null);
     const onChangeRef = useRef(onChange);
+    
+    // --- THÊM STATE CHO TÌM KIẾM & THAY THẾ ---
+    const [showFind, setShowFind] = useState(false);
+    const [findText, setFindText] = useState('');
+    const [replaceText, setReplaceText] = useState('');
+    // --- KẾT THÚC ---
 
     useEffect(() => {
         onChangeRef.current = onChange;
@@ -43,11 +52,32 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
     };
 
     const execCmd = (command: string, commandValue?: string) => {
-        // Sửa ở đây: execCommand nhận string | undefined, không phải null
         document.execCommand(command, false, commandValue);
         editorRef.current?.focus();
         handleInput();
     };
+    
+    // --- THÊM HÀM THAY THẾ TẤT CẢ ---
+    const handleReplaceAll = () => {
+        if (!findText || !editorRef.current) return;
+        const originalHtml = editorRef.current.innerHTML;
+        
+        // Sử dụng new RegExp để tìm kiếm không phân biệt chữ hoa/thường
+        const findRegex = new RegExp(findText, 'gi');
+        
+        if (!originalHtml.match(findRegex)) {
+             alert(`Không tìm thấy "${findText}" trong nội dung.`);
+             return;
+        }
+
+        const newHtml = originalHtml.replaceAll(findRegex, replaceText);
+        
+        if (window.confirm(`Bạn có chắc muốn thay thế tất cả "${findText}" bằng "${replaceText}" không? (Thao tác này không thể hoàn tác)`)) {
+            editorRef.current.innerHTML = newHtml;
+            handleInput(); // Cập nhật lại state
+        }
+    };
+    // --- KẾT THÚC ---
 
     const handleImageUpload = () => {
         const input = document.createElement('input');
@@ -90,10 +120,10 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
     );
 
     return (
-        // Sửa ở đây: Chỉ có MỘT thẻ div bao bọc toàn bộ component
-        <div className="border border-slate-300 dark:border-slate-600 rounded-md overflow-hidden bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+        <div className=" border border-slate-300 dark:border-slate-600 rounded-md overflow-hidden bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+            {/* --- THÊM class sticky, top-0, z-10 CHO THANH CÔNG CỤ --- */}
             <div
-                className="toolbar flex flex-wrap items-center gap-1 p-2 bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700"
+                className="toolbar sticky top-0 z-10 flex flex-wrap items-center gap-1 p-2 bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700"
             >
                 <ToolbarButton onClick={() => execCmd('undo')} ariaLabel="Hoàn tác">
                     <ArrowUturnLeftIcon className="w-5 h-5" />
@@ -142,8 +172,48 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
                 <ToolbarButton onClick={handleInsertFrame} ariaLabel="Tạo khung văn bản">
                     <CodeBracketSquareIcon className="w-5 h-5" />
                 </ToolbarButton>
+
+                {/* --- THÊM CÁC NÚT MỚI --- */}
+                <div className="w-px h-6 bg-slate-300 dark:bg-slate-600 mx-1"></div>
+                <ToolbarButton onClick={() => execCmd('removeFormat')} ariaLabel="Xóa định dạng">
+                    <EyeSlashIcon className="w-5 h-5" />
+                </ToolbarButton>
+                <ToolbarButton onClick={() => setShowFind(prev => !prev)} ariaLabel="Tìm và thay thế">
+                    <MagnifyingGlassIcon className="w-5 h-5" />
+                </ToolbarButton>
+                {/* --- KẾT THÚC --- */}
             </div>
-            {/* Sửa ở đây: Chỉ có MỘT thẻ div contentEditable */}
+
+            {/* --- THÊM KHUNG TÌM KIẾM & THAY THẾ --- */}
+            {showFind && (
+                <div className="flex flex-col sm:flex-row gap-2 p-2 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+                    <input 
+                        type="text" 
+                        placeholder="Tìm kiếm..." 
+                        value={findText}
+                        onChange={e => setFindText(e.target.value)}
+                        className="flex-grow p-2 border rounded bg-slate-50 dark:bg-slate-700 border-slate-300 dark:border-slate-600"
+                    />
+                    <input 
+                        type="text" 
+                        placeholder="Thay thế bằng..." 
+                        value={replaceText}
+                        onChange={e => setReplaceText(e.target.value)}
+                        className="flex-grow p-2 border rounded bg-slate-50 dark:bg-slate-700 border-slate-300 dark:border-slate-600"
+                    />
+                    <button 
+                        onClick={handleReplaceAll}
+                        className="px-3 py-2 bg-orange-500 text-white font-semibold rounded hover:bg-orange-600 text-sm"
+                    >
+                        Thay thế tất cả
+                    </button>
+                    <button onClick={() => setShowFind(false)} className="p-2 rounded hover:bg-slate-200 dark:hover:bg-slate-700">
+                       <XMarkIcon className="w-5 h-5" />
+                    </button>
+                </div>
+            )}
+            {/* --- KẾT THÚC --- */}
+
             <div
                 ref={editorRef}
                 onInput={handleInput}
