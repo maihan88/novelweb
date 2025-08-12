@@ -119,39 +119,40 @@ const ReaderPage: React.FC = () => {
     const [isAutoScrolling, setIsAutoScrolling] = useState(false);
     const scrollInterval = useRef<number | null>(null);
 
-    // --- BẮT ĐẦU SỬA LỖI TỰ ĐỘNG CUỘN ---
-    const toggleAutoScroll = useCallback(() => {
-        // Hàm này chỉ có nhiệm vụ BẬT/TẮT trạng thái
-        setIsAutoScrolling(prev => !prev);
+    const stopAutoScroll = useCallback(() => {
+        if (scrollInterval.current) clearInterval(scrollInterval.current);
+        scrollInterval.current = null;
+        setIsAutoScrolling(false);
     }, []);
 
-    useEffect(() => {
-        // useEffect này sẽ THEO DÕI trạng thái và hành động tương ứng
-        if (isAutoScrolling) {
-            // Nếu BẬT, bắt đầu cuộn
-            scrollInterval.current = window.setInterval(() => {
-                if ((window.innerHeight + window.scrollY) >= document.body.scrollHeight - 2) {
-                    setIsAutoScrolling(false); // Tự tắt khi hết trang
-                } else {
-                    window.scrollBy(0, 1);
-                }
-            }, 50);
+    const toggleAutoScroll = useCallback(() => {
+        if(isAutoScrolling) {
+          stopAutoScroll();
         } else {
-            // Nếu TẮT, xóa interval
-            if (scrollInterval.current) {
-                clearInterval(scrollInterval.current);
-                scrollInterval.current = null;
-            }
+          setIsAutoScrolling(true);
+          scrollInterval.current = window.setInterval(() => {
+            // CUỘN LIÊN TỤC, KHÔNG TỰ ĐỘNG DỪNG KHI CHẠM ĐÁY
+            window.scrollBy(0, 1);
+          }, 30);
         }
-        
-        // Dọn dẹp khi component unmount
-        return () => {
-            if (scrollInterval.current) {
-                clearInterval(scrollInterval.current);
-            }
-        };
-    }, [isAutoScrolling]); // useEffect này chỉ chạy khi isAutoScrolling thay đổi
-    // --- KẾT THÚC SỬA LỖI ---
+    }, [isAutoScrolling, stopAutoScroll]);
+    
+    // PHÂN BIỆT LOGIC CHO PC VÀ MOBILE
+    useEffect(() => {
+      // Chỉ dừng auto-scroll khi WHEEL (PC), không dừng với TOUCH (mobile)
+      const wheelHandler = () => {
+        if (isAutoScrolling) {
+          stopAutoScroll();
+        }
+      };
+      
+      // Chỉ lắng nghe wheel event (PC), bỏ touchstart (mobile)
+      window.addEventListener('wheel', wheelHandler);
+
+      return () => {
+        window.removeEventListener('wheel', wheelHandler);
+      }
+    }, [isAutoScrolling, stopAutoScroll]);
 
     // --- BẮT ĐẦU SỬA CHỮA ---
     const cleanedContent = useMemo(() => {
