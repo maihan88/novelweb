@@ -119,47 +119,43 @@ const ReaderPage: React.FC = () => {
     const [isAutoScrolling, setIsAutoScrolling] = useState(false);
     const scrollInterval = useRef<number | null>(null);
 
-    const stopAutoScroll = useCallback(() => {
-        if (scrollInterval.current) clearInterval(scrollInterval.current);
-        scrollInterval.current = null;
-        setIsAutoScrolling(false);
+    // --- BẮT ĐẦU SỬA LỖI TỰ ĐỘNG CUỘN ---
+    const toggleAutoScroll = useCallback(() => {
+        // Hàm này chỉ có nhiệm vụ BẬT/TẮT trạng thái
+        setIsAutoScrolling(prev => !prev);
     }, []);
 
-    const toggleAutoScroll = useCallback(() => {
-        if(isAutoScrolling) {
-          stopAutoScroll();
-        } else {
-          setIsAutoScrolling(true);
-          scrollInterval.current = window.setInterval(() => {
-            if ((window.innerHeight + window.scrollY) >= document.body.scrollHeight - 2) {
-              stopAutoScroll();
-            } else {
-              window.scrollBy(0, 1);
-            }
-          }, 50);
-        }
-    }, [isAutoScrolling, stopAutoScroll]);
-    
-    // Tự động dừng auto-scroll nếu người dùng tự cuộn tay
     useEffect(() => {
-      const userInteractionHandler = () => {
+        // useEffect này sẽ THEO DÕI trạng thái và hành động tương ứng
         if (isAutoScrolling) {
-          stopAutoScroll();
+            // Nếu BẬT, bắt đầu cuộn
+            scrollInterval.current = window.setInterval(() => {
+                if ((window.innerHeight + window.scrollY) >= document.body.scrollHeight - 2) {
+                    setIsAutoScrolling(false); // Tự tắt khi hết trang
+                } else {
+                    window.scrollBy(0, 1);
+                }
+            }, 50);
+        } else {
+            // Nếu TẮT, xóa interval
+            if (scrollInterval.current) {
+                clearInterval(scrollInterval.current);
+                scrollInterval.current = null;
+            }
         }
-      };
-      window.addEventListener('wheel', userInteractionHandler);
-      window.addEventListener('touchstart', userInteractionHandler);
+        
+        // Dọn dẹp khi component unmount
+        return () => {
+            if (scrollInterval.current) {
+                clearInterval(scrollInterval.current);
+            }
+        };
+    }, [isAutoScrolling]); // useEffect này chỉ chạy khi isAutoScrolling thay đổi
+    // --- KẾT THÚC SỬA LỖI ---
 
-      return () => {
-        window.removeEventListener('wheel', userInteractionHandler);
-        window.removeEventListener('touchstart', userInteractionHandler);
-      }
-    }, [isAutoScrolling, stopAutoScroll]);
     // --- BẮT ĐẦU SỬA CHỮA ---
     const cleanedContent = useMemo(() => {
         if (!chapter?.content) return '';
-        // Sử dụng biểu thức chính quy để tìm và xóa bỏ mọi 'line-height' có trong style inline
-        // của các thẻ <p>
         return chapter.content.replace(/line-height:[^;"]*;/g, '');
     }, [chapter?.content]);
     
