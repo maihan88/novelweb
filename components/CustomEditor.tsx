@@ -117,7 +117,7 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
         }
     };
 
-    // --- BƯỚC 2: CẬP NHẬT HÀM XỬ LÝ TẢI ẢNH ---
+    // --- PHẦN SỬA LỖI NẰM Ở ĐÂY ---
     const handleImageUpload = () => {
         const input = document.createElement('input');
         input.type = 'file';
@@ -125,37 +125,51 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
         input.onchange = async () => {
             if (input.files && input.files[0]) {
                 const file = input.files[0];
-                
-                // Hiển thị loading placeholder
                 const placeholderId = `img-placeholder-${Date.now()}`;
-                const placeholderHtml = `<p id="${placeholderId}" style="display: flex; align-items: center; gap: 8px; justify-content: center; padding: 1rem; border: 1px dashed #ccc; border-radius: 4px; opacity: 0.7;">
+                
+                // Chèn placeholder với id duy nhất
+                const placeholderHtml = `<div id="${placeholderId}" style="display: flex; align-items: center; gap: 8px; justify-content: center; padding: 1rem; border: 1px dashed #ccc; border-radius: 4px; opacity: 0.7;">
                     <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                     Đang tải ảnh...
-                </p>`;
+                </div><p><br></p>`; // Thêm thẻ p để xuống dòng
                 execCmd('insertHTML', placeholderHtml);
 
                 try {
-                    // Gọi service để tải ảnh lên Cloudinary
                     const imageUrl = await uploadImage(file);
-                    const imgHtml = `<img src="${imageUrl}" style="max-width: 100%; height: auto; border-radius: 0.25rem;" alt="Ảnh trong truyện"/>`;
                     
-                    // Thay thế placeholder bằng ảnh thật
-                    const editorContent = editorRef.current?.innerHTML || '';
-                    const finalHtml = editorContent.replace(placeholderHtml, imgHtml);
-                    if (editorRef.current) {
-                       editorRef.current.innerHTML = finalHtml;
-                    }
-                    handleInput();
+                    // Tìm phần tử placeholder trong editor bằng ID
+                    const placeholderNode = editorRef.current?.querySelector(`#${placeholderId}`);
+                    
+                    if (placeholderNode) {
+                        // Tạo phần tử ảnh mới
+                        const img = document.createElement('img');
+                        img.src = imageUrl;
+                        img.alt = "Ảnh trong truyện";
+                        img.style.maxWidth = '100%';
+                        img.style.height = 'auto';
+                        img.style.borderRadius = '0.25rem';
 
+                        // Dùng DOM để thay thế placeholder bằng ảnh thật
+                        placeholderNode.parentNode?.replaceChild(img, placeholderNode);
+                    } else {
+                        // Fallback nếu không tìm thấy (ít khi xảy ra)
+                        console.warn("Không tìm thấy placeholder, chèn ảnh ở cuối.");
+                        const imgHtml = `<img src="${imageUrl}" style="max-width: 100%; height: auto; border-radius: 0.25rem;" alt="Ảnh trong truyện"/>`;
+                        execCmd('insertHTML', imgHtml);
+                    }
                 } catch (error) {
                     console.error("Lỗi tải ảnh:", error);
                     alert('Tải ảnh thất bại. Vui lòng thử lại.');
-                    // Xóa placeholder nếu có lỗi
-                     const editorContent = editorRef.current?.innerHTML || '';
-                     if (editorRef.current) {
-                        editorRef.current.innerHTML = editorContent.replace(placeholderHtml, '<p style="color: red;">[Lỗi tải ảnh]</p>');
-                     }
-                     handleInput();
+                    const placeholderNode = editorRef.current?.querySelector(`#${placeholderId}`);
+                    if (placeholderNode) {
+                        const errorEl = document.createElement('p');
+                        errorEl.style.color = 'red';
+                        errorEl.textContent = '[Lỗi tải ảnh]';
+                        placeholderNode.parentNode?.replaceChild(errorEl, placeholderNode);
+                    }
+                } finally {
+                    // Cập nhật lại state sau khi thay đổi DOM
+                    handleInput();
                 }
             }
         };
