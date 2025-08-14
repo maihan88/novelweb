@@ -13,6 +13,8 @@ import {
     XMarkIcon
 } from '@heroicons/react/24/outline';
 
+import { uploadImage } from '../services/uploadService.ts';
+
 interface CustomEditorProps {
     value: string;
     onChange: (value: string) => void;
@@ -115,22 +117,46 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
         }
     };
 
+    // --- BƯỚC 2: CẬP NHẬT HÀM XỬ LÝ TẢI ẢNH ---
     const handleImageUpload = () => {
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = 'image/*';
-        input.onchange = () => {
+        input.onchange = async () => {
             if (input.files && input.files[0]) {
                 const file = input.files[0];
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const dataUrl = e.target?.result;
-                    if (typeof dataUrl === 'string') {
-                        const imgHtml = `<img src="${dataUrl}" style="max-width: 100%; height: auto; border-radius: 0.25rem;" alt=""/>`;
-                        execCmd('insertHTML', imgHtml);
+                
+                // Hiển thị loading placeholder
+                const placeholderId = `img-placeholder-${Date.now()}`;
+                const placeholderHtml = `<p id="${placeholderId}" style="display: flex; align-items: center; gap: 8px; justify-content: center; padding: 1rem; border: 1px dashed #ccc; border-radius: 4px; opacity: 0.7;">
+                    <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    Đang tải ảnh...
+                </p>`;
+                execCmd('insertHTML', placeholderHtml);
+
+                try {
+                    // Gọi service để tải ảnh lên Cloudinary
+                    const imageUrl = await uploadImage(file);
+                    const imgHtml = `<img src="${imageUrl}" style="max-width: 100%; height: auto; border-radius: 0.25rem;" alt="Ảnh trong truyện"/>`;
+                    
+                    // Thay thế placeholder bằng ảnh thật
+                    const editorContent = editorRef.current?.innerHTML || '';
+                    const finalHtml = editorContent.replace(placeholderHtml, imgHtml);
+                    if (editorRef.current) {
+                       editorRef.current.innerHTML = finalHtml;
                     }
-                };
-                reader.readAsDataURL(file);
+                    handleInput();
+
+                } catch (error) {
+                    console.error("Lỗi tải ảnh:", error);
+                    alert('Tải ảnh thất bại. Vui lòng thử lại.');
+                    // Xóa placeholder nếu có lỗi
+                     const editorContent = editorRef.current?.innerHTML || '';
+                     if (editorRef.current) {
+                        editorRef.current.innerHTML = editorContent.replace(placeholderHtml, '<p style="color: red;">[Lỗi tải ảnh]</p>');
+                     }
+                     handleInput();
+                }
             }
         };
         input.click();
