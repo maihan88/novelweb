@@ -13,7 +13,7 @@ import {
 import { uploadImage } from '../../services/uploadService.ts';
 
 // --- BƯỚC 1: TẠO HÀM TIỆN ÍCH ĐỂ DI CHUYỂN PHẦN TỬ TRONG MẢNG ---
-const moveItemInArray = <T,>(array: T[], fromIndex: number, toIndex: number): T[] => {
+const moveItemInArray = <T>(array: T[], fromIndex: number, toIndex: number): T[] => {
     const newArray = [...array];
     const [item] = newArray.splice(fromIndex, 1);
     newArray.splice(toIndex, 0, item);
