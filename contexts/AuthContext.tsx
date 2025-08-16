@@ -1,11 +1,15 @@
+// maihan88/novelweb/novelweb-30378715fdd33fd98f7c1318544ef93eab22c598/contexts/AuthContext.tsx
 import React, { createContext, useContext, ReactNode } from 'react';
-import { useLocalStorage } from '../hooks/useLocalStorage.ts';
-import { User } from '../types';
+import { useLocalStorage } from '../hooks/useLocalStorage.tsx'; // Sửa lại đường dẫn nếu cần
+import { User, Bookmark } from '../types';
 import api from '../services/api.ts';
 
-// Định nghĩa kiểu dữ liệu cho người dùng có token
+// Mở rộng interface để chứa cả dữ liệu sở thích
 interface AuthenticatedUser extends User {
   token: string;
+  favorites: string[];
+  bookmarks: Record<string, Bookmark>;
+  ratedStories: Record<string, number>;
 }
 
 interface AuthContextType {
@@ -13,7 +17,12 @@ interface AuthContextType {
   login: (username: string, pass: string) => Promise<{ success: boolean, message: string }>;
   register: (username: string, pass: string) => Promise<{ success: boolean, message: string }>;
   logout: () => void;
-  // Bỏ hàm updateCurrentUser
+  // Hàm mới để cập nhật sở thích trong state
+  updateUserPreferencesState: (prefs: {
+    favorites?: string[];
+    bookmarks?: Record<string, Bookmark>;
+    ratedStories?: Record<string, number>;
+  }) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -21,12 +30,12 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useLocalStorage<AuthenticatedUser | null>('currentUser', null);
 
-  // Hàm đăng nhập bằng cách gọi API
   const login = async (username: string, pass: string): Promise<{ success: boolean, message: string }> => {
     try {
+      // API giờ trả về đầy đủ thông tin user
       const response = await api.post('/users/login', { username, password: pass });
       if (response.data && response.data.token) {
-        setCurrentUser(response.data);
+        setCurrentUser(response.data); // Lưu toàn bộ object user vào state và localStorage
         return { success: true, message: 'Đăng nhập thành công!' };
       }
       return { success: false, message: 'Dữ liệu trả về không hợp lệ.' };
@@ -36,7 +45,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // Hàm đăng ký bằng cách gọi API
   const register = async (username: string, pass: string): Promise<{ success: boolean, message: string }> => {
     try {
       const response = await api.post('/users/register', { username, password: pass });
@@ -50,17 +58,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }
 
-  // Hàm đăng xuất
   const logout = () => {
     setCurrentUser(null);
   };
 
-    const updateCurrentUser = (userData: Partial<AuthenticatedUser>) => {
-    setCurrentUser(prev => prev ? { ...prev, ...userData } : null);
+  // Hàm này chỉ cập nhật state ở client, được gọi bởi UserPreferencesContext sau khi API thành công
+  const updateUserPreferencesState = (prefs: Partial<Omit<AuthenticatedUser, 'token' | '_id' | 'id' | 'username' | 'role'>>) => {
+      setCurrentUser(prevUser => {
+          if (!prevUser) return null;
+          return { ...prevUser, ...prefs };
+      });
   };
 
   return (
-    <AuthContext.Provider value={{ currentUser, login, register, logout }}>
+    <AuthContext.Provider value={{ currentUser, login, register, logout, updateUserPreferencesState }}>
       {children}
     </AuthContext.Provider>
   );
