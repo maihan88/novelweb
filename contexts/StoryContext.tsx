@@ -16,12 +16,14 @@ interface StoryContextType {
   addVolume: (storyId: string, volumeTitle: string) => Promise<Volume>;
   updateVolume: (storyId: string, volumeId: string, newTitle: string) => Promise<Volume>;
   deleteVolume: (storyId: string, volumeId: string) => Promise<void>;
+  reorderVolumesInStory: (storyId: string, orderedVolumeIds: string[]) => Promise<void>; // <--- Thêm mới
 
   // Chapter Management
   incrementChapterView: (storyId: string, chapterId: string) => Promise<void>;
   addChapterToVolume: (storyId: string, volumeId: string, chapterData: Omit<Chapter, 'id' | '_id' | 'createdAt' | 'views'>) => Promise<Chapter>;
   updateChapterInVolume: (storyId: string, volumeId: string, updatedChapterData: Omit<Chapter, 'createdAt'| 'views' | '_id'>) => Promise<Chapter>;
   deleteChapterFromVolume: (storyId: string, volumeId: string, chapterId: string) => Promise<void>;
+  reorderChaptersInVolume: (storyId: string, volumeId: string, orderedChapterIds: string[]) => Promise<void>; // <--- Thêm mới
 }
 
 const StoryContext = createContext<StoryContextType | undefined>(undefined);
@@ -133,6 +135,24 @@ export const StoryProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     await fetchStories();
   }, [fetchStories]);
 
+    const reorderVolumesInStory = useCallback(async (storyId: string, orderedVolumeIds: string[]) => {
+      // Cập nhật state ngay lập tức để UI mượt
+      setStories(prev => prev.map(s => {
+          if (s.id === storyId) {
+              const reorderedVolumes = orderedVolumeIds.map(id => s.volumes.find(v => v.id === id)).filter((v): v is Volume => !!v);
+              return { ...s, volumes: reorderedVolumes };
+          }
+          return s;
+      }));
+      // Gọi API để lưu thay đổi
+      try {
+          await storyService.reorderVolumes(storyId, orderedVolumeIds);
+      } catch (err) {
+          console.error("Lỗi sắp xếp tập, khôi phục lại trạng thái cũ.", err);
+          fetchStories(); // Tải lại để đảm bảo đồng bộ nếu có lỗi
+      }
+  }, [fetchStories]);
+
   const addChapterToVolume = useCallback(async (storyId: string, volumeId: string, chapterData: Omit<Chapter, 'id' | '_id' | 'createdAt' | 'views'>) => {
       const newChapter = await storyService.addChapter(storyId, volumeId, chapterData);
       await fetchStories();
@@ -150,6 +170,32 @@ export const StoryProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     await fetchStories();
   }, [fetchStories]);
 
+    const reorderChaptersInVolume = useCallback(async (storyId: string, volumeId: string, orderedChapterIds: string[]) => {
+      // Cập nhật state
+      setStories(prev => prev.map(s => {
+          if (s.id === storyId) {
+              return {
+                  ...s,
+                  volumes: s.volumes.map(v => {
+                      if (v.id === volumeId) {
+                          const reorderedChapters = orderedChapterIds.map(id => v.chapters.find(c => c.id === id)).filter((c): c is Chapter => !!c);
+                          return { ...v, chapters: reorderedChapters };
+                      }
+                      return v;
+                  })
+              };
+          }
+          return s;
+      }));
+      // Gọi API
+      try {
+          await storyService.reorderChapters(storyId, volumeId, orderedChapterIds);
+      } catch (err) {
+          console.error("Lỗi sắp xếp chương, khôi phục lại trạng thái cũ.", err);
+          fetchStories();
+      }
+  }, [fetchStories]);
+
   const value = { 
     stories, 
     loading, 
@@ -165,7 +211,9 @@ export const StoryProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     deleteVolume, 
     addChapterToVolume, 
     updateChapterInVolume, 
-    deleteChapterFromVolume 
+    deleteChapterFromVolume,
+    reorderVolumesInStory,
+    reorderChaptersInVolume,
   };
 
   return (
