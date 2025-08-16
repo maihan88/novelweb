@@ -1,4 +1,4 @@
-
+// maihan88/novelweb/novelweb-30378715fdd33fd98f7c1318544ef93eab22c598/types.ts
 
 export interface Chapter {
   _id: string;
@@ -44,6 +44,14 @@ export interface ReaderPreferences {
   fontFamily: ReaderFont;
   lineHeight: number;
 }
+
+// --- BẮT ĐẦU THÊM MỚI ---
+export interface Bookmark {
+  chapterId: string;
+  progress: number;
+  lastRead: string; // ISO Date string
+}
+// --- KẾT THÚC THÊM MỚI ---
 
 export interface User {
   _id: string;
