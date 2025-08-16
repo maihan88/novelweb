@@ -1,6 +1,6 @@
 const Story = require('../models/storyModel');
 
-// THÊM HÀM NÀY VÀO ĐẦU FILE
+// Hàm slugify
 const slugify = (text) => {
   if (!text) return '';
   return text
@@ -93,10 +93,7 @@ exports.createStory = async (req, res) => {
 // @access  Private/Admin
 exports.updateStory = async (req, res) => {
     try {
-        // Loại bỏ trường `id` ra khỏi req.body để tránh việc cố gắng cập nhật nó
         const { id, ...updateData } = req.body;
-
-        // Thêm logic xử lý cho alias và tags
         if (updateData.tags && typeof updateData.tags === 'string') {
             updateData.tags = updateData.tags.split(',').map(tag => tag.trim()).filter(Boolean);
         }
@@ -127,7 +124,6 @@ exports.updateStory = async (req, res) => {
 exports.deleteStory = async (req, res) => {
     try {
         const story = await Story.findOneAndDelete({ id: req.params.id });
-        
         if (story) {
             res.json({ message: 'Story removed' });
         } else {
@@ -146,15 +142,12 @@ exports.addRating = async (req, res) => {
     try {
         const { rating } = req.body;
         const story = await Story.findOne({ id: req.params.id });
-        
         if (story) {
             const newRatingsCount = story.ratingsCount + 1;
             const newTotalRating = story.rating * story.ratingsCount + rating;
             const newAverageRating = newTotalRating / newRatingsCount;
-            
             story.rating = newAverageRating;
             story.ratingsCount = newRatingsCount;
-            
             const updatedStory = await story.save();
             res.json(updatedStory);
         } else {
@@ -173,16 +166,14 @@ exports.addVolume = async (req, res) => {
     try {
         const { title } = req.body;
         const story = await Story.findOne({ id: req.params.id });
-        
         if (story) {
             const newVolume = {
                 id: `vol-${Date.now()}`,
                 title,
                 chapters: []
             };
-            
             story.volumes.push(newVolume);
-            const updatedStory = await story.save();
+            await story.save();
             res.json(newVolume);
         } else {
             res.status(404).json({ message: 'Story not found' });
@@ -200,12 +191,11 @@ exports.updateVolume = async (req, res) => {
     try {
         const { title } = req.body;
         const story = await Story.findOne({ id: req.params.id });
-        
         if (story) {
             const volume = story.volumes.find(v => v.id === req.params.volumeId);
             if (volume) {
                 volume.title = title;
-                const updatedStory = await story.save();
+                await story.save();
                 res.json(volume);
             } else {
                 res.status(404).json({ message: 'Volume not found' });
@@ -225,7 +215,6 @@ exports.updateVolume = async (req, res) => {
 exports.deleteVolume = async (req, res) => {
     try {
         const story = await Story.findOne({ id: req.params.id });
-        
         if (story) {
             story.volumes = story.volumes.filter(v => v.id !== req.params.volumeId);
             await story.save();
@@ -239,14 +228,13 @@ exports.deleteVolume = async (req, res) => {
     }
 };
 
-/// @desc    Add chapter to volume
+// @desc    Add chapter to volume
 // @route   POST /api/stories/:id/volumes/:volumeId/chapters
 // @access  Private/Admin
 exports.addChapter = async (req, res) => {
     try {
-        const { title, content, isRaw } = req.body; // Thêm isRaw
+        const { title, content, isRaw } = req.body;
         const story = await Story.findOne({ id: req.params.id });
-        
         if (story) {
             const volume = story.volumes.find(v => v.id === req.params.volumeId);
             if (volume) {
@@ -254,17 +242,13 @@ exports.addChapter = async (req, res) => {
                     id: `ch-${Date.now()}`,
                     title,
                     content,
-                    isRaw: !!isRaw, // Chuyển đổi sang boolean
+                    isRaw: !!isRaw,
                     views: 0
                 };
-                
                 volume.chapters.push(newChapter);
-
-                // CHỈ cập nhật thời gian khi chương mới không phải là bản nháp
                 if (!newChapter.isRaw) {
                     story.lastUpdatedAt = new Date();
                 }
-
                 await story.save();
                 res.json(newChapter);
             } else {
@@ -285,47 +269,28 @@ exports.addChapter = async (req, res) => {
 exports.updateChapter = async (req, res) => {
     try {
         const { id, volumeId, chapterId } = req.params;
-        const { title, content, isRaw } = req.body; // Thêm isRaw
-
+        const { title, content, isRaw } = req.body;
         const story = await Story.findOne({ id: id });
-
-        if (!story) {
-            return res.status(404).json({ message: 'Không tìm thấy truyện' });
-        }
-
+        if (!story) return res.status(404).json({ message: 'Không tìm thấy truyện' });
         const volume = story.volumes.find(v => v.id === volumeId);
-        if (!volume) {
-            return res.status(404).json({ message: 'Không tìm thấy tập' });
-        }
-
+        if (!volume) return res.status(404).json({ message: 'Không tìm thấy tập' });
         const chapter = volume.chapters.find(c => c.id === chapterId);
-        if (!chapter) {
-            return res.status(404).json({ message: 'Không tìm thấy chương' });
-        }
+        if (!chapter) return res.status(404).json({ message: 'Không tìm thấy chương' });
         
-        const wasRaw = chapter.isRaw; // Lưu trạng thái cũ
-        
-        // Cập nhật thông tin chương
+        const wasRaw = chapter.isRaw;
         chapter.title = title;
         chapter.content = content;
         chapter.isRaw = !!isRaw;
-
-        // CHỈ cập nhật thời gian khi sửa một chương từ `raw` thành `không raw`
         if (wasRaw && !chapter.isRaw) {
             story.lastUpdatedAt = new Date();
         }
-        
         await story.save();
-
         res.json({ id: chapterId, title, content, isRaw });
-
     } catch (error) {
         console.error('Lỗi khi cập nhật chương:', error);
         res.status(500).json({ message: "Server Error" });
     }
 };
-
-
 
 // @desc    Delete chapter
 // @route   DELETE /api/stories/:id/volumes/:volumeId/chapters/:chapterId
@@ -333,7 +298,6 @@ exports.updateChapter = async (req, res) => {
 exports.deleteChapter = async (req, res) => {
     try {
         const story = await Story.findOne({ id: req.params.id });
-        
         if (story) {
             const volume = story.volumes.find(v => v.id === req.params.volumeId);
             if (volume) {
@@ -358,17 +322,11 @@ exports.deleteChapter = async (req, res) => {
 exports.incrementChapterView = async (req, res) => {
     try {
         const { id, chapterId } = req.params;
-
-        // Sử dụng findOneAndUpdate với arrayFilters để cập nhật trực tiếp trong DB
-        // Thao tác này hiệu quả hơn và sẽ KHÔNG kích hoạt 'pre-save' hook
         const result = await Story.updateOne(
             { "id": id, "volumes.chapters.id": chapterId },
             { $inc: { "volumes.$[v].chapters.$[c].views": 1 } },
-            {
-                arrayFilters: [{ "v.chapters.id": chapterId }, { "c.id": chapterId }],
-            }
+            { arrayFilters: [{ "v.chapters.id": chapterId }, { "c.id": chapterId }] }
         );
-
         if (result.modifiedCount > 0) {
             res.json({ message: 'Chapter view incremented' });
         } else {
@@ -377,5 +335,70 @@ exports.incrementChapterView = async (req, res) => {
     } catch (error) {
         console.error('Error incrementing chapter view:', error);
         res.status(500).json({ message: "Server Error" });
+    }
+};
+
+// @desc    Reorder volumes in a story
+// @route   PUT /api/stories/:id/volumes/reorder
+// @access  Private/Admin
+exports.reorderVolumes = async (req, res) => {
+    try {
+        const { orderedVolumeIds } = req.body;
+        const story = await Story.findOne({ id: req.params.id });
+
+        if (!story) {
+            return res.status(404).json({ message: 'Không tìm thấy truyện' });
+        }
+
+        const reorderedVolumes = orderedVolumeIds.map(volId => {
+            return story.volumes.find(v => v.id === volId);
+        }).filter(Boolean);
+
+        if (reorderedVolumes.length !== story.volumes.length) {
+             return res.status(400).json({ message: 'Danh sách ID tập không hợp lệ' });
+        }
+
+        story.volumes = reorderedVolumes;
+        await story.save();
+        res.json(story.volumes);
+
+    } catch (error) {
+        console.error('Lỗi khi sắp xếp tập:', error);
+        res.status(500).json({ message: "Lỗi Server" });
+    }
+};
+
+// @desc    Reorder chapters in a volume
+// @route   PUT /api/stories/:id/volumes/:volumeId/chapters/reorder
+// @access  Private/Admin
+exports.reorderChapters = async (req, res) => {
+    try {
+        const { orderedChapterIds } = req.body;
+        const story = await Story.findOne({ id: req.params.id });
+
+        if (!story) {
+            return res.status(404).json({ message: 'Không tìm thấy truyện' });
+        }
+
+        const volume = story.volumes.find(v => v.id === req.params.volumeId);
+        if (!volume) {
+            return res.status(404).json({ message: 'Không tìm thấy tập' });
+        }
+        
+        const reorderedChapters = orderedChapterIds.map(chapId => {
+            return volume.chapters.find(c => c.id === chapId);
+        }).filter(Boolean);
+
+        if (reorderedChapters.length !== volume.chapters.length) {
+            return res.status(400).json({ message: 'Danh sách ID chương không hợp lệ' });
+        }
+
+        volume.chapters = reorderedChapters;
+        await story.save();
+        res.json(volume.chapters);
+
+    } catch (error) {
+        console.error('Lỗi khi sắp xếp chương:', error);
+        res.status(500).json({ message: "Lỗi Server" });
     }
 };
