@@ -26,6 +26,11 @@ export const deleteStory = async (id: string): Promise<void> => {
     await api.delete(`/stories/${id}`);
 };
 
+export const reorderVolumes = async (storyId: string, orderedVolumeIds: string[]): Promise<Volume[]> => {
+    const response = await api.put(`/stories/${storyId}/volumes/reorder`, { orderedVolumeIds });
+    return response.data;
+};
+
 // Volume operations
 export const addVolume = async (storyId: string, volumeData: { title: string }): Promise<Volume> => {
     const response = await api.post(`/stories/${storyId}/volumes`, volumeData);
@@ -42,6 +47,11 @@ export const deleteVolume = async (storyId: string, volumeId: string): Promise<v
 };
 
 // Chapter operations
+export const reorderChapters = async (storyId: string, volumeId: string, orderedChapterIds: string[]): Promise<Chapter[]> => {
+    const response = await api.put(`/stories/${storyId}/volumes/${volumeId}/chapters/reorder`, { orderedChapterIds });
+    return response.data;
+};
+
 export const addChapter = async (storyId: string, volumeId: string, chapterData: Partial<Chapter>): Promise<Chapter> => {
     const response = await api.post(`/stories/${storyId}/volumes/${volumeId}/chapters`, chapterData);
     return response.data;
