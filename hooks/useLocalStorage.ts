@@ -1,12 +1,14 @@
+// maihan88/novelweb/novelweb-30378715fdd33fd98f7c1318544ef93eab22c598/hooks/useLocalStorage.tsx
 import { useState, useEffect } from 'react';
 
-function getStorageValue<T>(key: string | null, defaultValue: T): T {
-    if (typeof window !== 'undefined' && key) { // Chỉ đọc nếu có key
+function getStorageValue<T>(key: string, defaultValue: T): T {
+    if (typeof window !== 'undefined') {
         const saved = localStorage.getItem(key);
         if (saved !== null) {
             try {
                 return JSON.parse(saved) as T;
             } catch (e) {
+                console.error("Failed to parse local storage value for key:", key, e);
                 return defaultValue;
             }
         }
@@ -14,23 +16,20 @@ function getStorageValue<T>(key: string | null, defaultValue: T): T {
     return defaultValue;
 }
 
-export function useLocalStorage<T>(key: string | null, defaultValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
+export function useLocalStorage<T>(key: string, defaultValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
     const [value, setValue] = useState<T>(() => {
         return getStorageValue(key, defaultValue);
     });
 
     useEffect(() => {
-        // Đồng bộ lại state từ localStorage khi key thay đổi (ví dụ: khi người dùng đăng nhập/đăng xuất)
-        setValue(getStorageValue(key, defaultValue));
-    }, [key]);
-
-    useEffect(() => {
         try {
-            if (key) { // Chỉ lưu vào localStorage nếu có key (tức là user đã đăng nhập)
+            if (value === null) {
+                localStorage.removeItem(key);
+            } else {
                 localStorage.setItem(key, JSON.stringify(value));
             }
         } catch (e) {
-            console.error("Lỗi khi lưu vào localStorage:", e);
+            console.error("Failed to set local storage value for key:", key, e);
         }
     }, [key, value]);
 
