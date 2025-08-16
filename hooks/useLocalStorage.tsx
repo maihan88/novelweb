@@ -1,3 +1,4 @@
+// maihan88/novelweb/novelweb-30378715fdd33fd98f7c1318544ef93eab22c598/hooks/useLocalStorage.tsx
 import { useState, useEffect } from 'react';
 
 function getStorageValue<T>(key: string, defaultValue: T): T {
@@ -22,7 +23,11 @@ export function useLocalStorage<T>(key: string, defaultValue: T): [T, React.Disp
 
     useEffect(() => {
         try {
-            localStorage.setItem(key, JSON.stringify(value));
+            if (value === null) {
+                localStorage.removeItem(key);
+            } else {
+                localStorage.setItem(key, JSON.stringify(value));
+            }
         } catch (e) {
             console.error("Failed to set local storage value for key:", key, e);
         }
