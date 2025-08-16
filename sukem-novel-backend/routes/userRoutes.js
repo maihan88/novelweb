@@ -1,3 +1,4 @@
+// maihan88/novelweb/novelweb-30378715fdd33fd98f7c1318544ef93eab22c598/sukem-novel-backend/routes/userRoutes.js
 const express = require('express');
 const router = express.Router();
 const {
@@ -5,7 +6,8 @@ const {
     loginUser,
     logoutUser,
     getUserProfile,
-    updateUserProfile
+    updateUserProfile,
+    updateUserPreferences // <-- Import hàm mới
 } = require('../controllers/userController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -18,6 +20,8 @@ router
     .get(protect, getUserProfile)
     .put(protect, updateUserProfile);
 
-// XÓA BỎ DÒNG router.put('/profile/avatar', ...)
+// --- THÊM ROUTE MỚI ---
+router.put('/preferences', protect, updateUserPreferences);
+// --- KẾT THÚC ---
 
 module.exports = router;
