@@ -14,6 +14,8 @@ const {
     updateChapter,
     deleteChapter,
     incrementChapterView,
+    reorderVolumes,
+    reorderChapters,
 } = require('../controllers/storyController');
 const { protect, admin } = require('../middleware/authMiddleware');
 
@@ -32,12 +34,14 @@ router.delete('/:id', protect, admin, deleteStory);
 
 // Volume management (Admin)
 router.post('/:id/volumes', protect, admin, addVolume);
+router.put('/:id/volumes/reorder', protect, admin, reorderVolumes);
 router.put('/:id/volumes/:volumeId', protect, admin, updateVolume);
 router.delete('/:id/volumes/:volumeId', protect, admin, deleteVolume);
 
 // Chapter management (Admin)
 router.post('/:id/volumes/:volumeId/chapters', protect, admin, addChapter);
+router.put('/:id/volumes/:volumeId/chapters/reorder', protect, admin, reorderChapters);
 router.put('/:id/volumes/:volumeId/chapters/:chapterId', protect, admin, updateChapter);
 router.delete('/:id/volumes/:volumeId/chapters/:chapterId', protect, admin, deleteChapter);
 
-module.exports = router; 
+module.exports = router;
