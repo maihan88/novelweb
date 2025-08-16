@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef} from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import ThemeToggle from './ThemeToggle.tsx';
 import { useAuth } from '../contexts/AuthContext.tsx';
@@ -15,6 +15,27 @@ const Header: React.FC = () => {
   useEffect(() => {
     setIsMenuOpen(false);
   }, [location.pathname]);
+
+    // --- THÊM LOGIC ẨN/HIỆN HEADER ---
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      // Chỉ ẩn header khi không ở trên cùng và đang cuộn xuống
+      if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
+        setIsHeaderVisible(false);
+      } else {
+        setIsHeaderVisible(true);
+      }
+      lastScrollY.current = currentScrollY;
+    };
+    
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+  // --- KẾT THÚC LOGIC ---
 
     const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,9 +72,15 @@ const Header: React.FC = () => {
     </>
   );
 
+    // Thêm class để điều khiển hiệu ứng ẩn/hiện
+  const headerClasses = `
+    bg-orange-200 dark:bg-stone-900 sticky top-0 z-40 w-full border-b border-stone-300 dark:border-stone-800
+    transition-transform duration-300 ease-in-out
+    ${isHeaderVisible ? 'translate-y-0' : '-translate-y-full'}
+  `;
+
   return (
-    <header className="bg-orange-200 dark:bg-stone-900 sticky top-0 z-40 w-full border-b border-stone-300 dark:border-stone-800">
-      <div className="container mx-auto px-4 sm:px-6 md:px-8"></div>
+      <header className={headerClasses}>
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           <Link to="/" className="text-2xl font-bold font-serif text-amber-900 dark:text-amber-100">
