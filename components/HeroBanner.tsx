@@ -1,5 +1,5 @@
-
-import React, { useState, useEffect, useMemo } from 'react';
+// maihan88/novelweb/novelweb-d14588e6d469796ca4d76fea103c02df2ebaa5a1/components/HeroBanner.tsx
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Story } from '../types.ts';
 
@@ -8,19 +8,28 @@ interface HeroBannerProps {
   interval?: number;
 }
 
-const HeroBanner: React.FC<HeroBannerProps> = ({ stories, interval = 5000 }) => {
+const HeroBanner: React.FC<HeroBannerProps> = ({ stories, interval = 7000 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
+  // --- THÊM STATE ĐỂ THEO DÕI SLIDE TRƯỚC ĐÓ ---
+  const [previousIndex, setPreviousIndex] = useState<number | null>(null);
+
+  const changeSlide = useCallback((newIndex: number) => {
+      setPreviousIndex(currentIndex); // Lưu lại index hiện tại thành index cũ
+      setCurrentIndex(newIndex);
+  }, [currentIndex]);
 
   const nextSlide = React.useCallback(() => {
     if (stories.length > 1) {
         const isLastSlide = currentIndex === stories.length - 1;
         const newIndex = isLastSlide ? 0 : currentIndex + 1;
-        setCurrentIndex(newIndex);
+        changeSlide(newIndex);
     }
-  }, [currentIndex, stories.length]);
+  }, [currentIndex, stories.length, changeSlide]);
   
   const goToSlide = (slideIndex: number) => {
-      setCurrentIndex(slideIndex);
+      if (slideIndex !== currentIndex) {
+        changeSlide(slideIndex);
+      }
   }
 
   useEffect(() => {
@@ -28,10 +37,9 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ stories, interval = 5000 }) => 
       const slideInterval = setInterval(nextSlide, interval);
       return () => clearInterval(slideInterval);
     }
-  }, [currentIndex, stories.length, interval, nextSlide]);
+  }, [nextSlide, interval, stories.length]);
 
   if (stories.length === 0) {
-    // Fallback static banner if no stories are marked for the banner
     return (
         <div className="text-center rounded-lg p-10 md:p-16 bg-gradient-to-br from-orange-500 via-amber-500 to-orange-400 shadow-2xl shadow-orange-500/30">
             <h1 className="text-4xl font-extrabold font-serif tracking-tight text-white sm:text-5xl md:text-6xl drop-shadow-lg">
@@ -48,29 +56,48 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ stories, interval = 5000 }) => 
 
   const { totalChapters, firstChapterId } = useMemo(() => {
      if (!currentStory) return { totalChapters: 0, firstChapterId: null };
-     
      const total = currentStory.volumes.reduce((acc, vol) => acc + vol.chapters.length, 0);
      const firstId = currentStory.volumes?.[0]?.chapters?.[0]?.id;
-
      return { totalChapters: total, firstChapterId: firstId };
   }, [currentStory]);
 
 
   return (
     <div className="relative h-[75vh] md:h-[70vh] max-h-[550px] min-h-[450px] w-full overflow-hidden rounded-lg group shadow-2xl bg-slate-900">
-      {/* Background Image with Transition */}
-      {stories.map((story, index) => (
-         <div
-          key={story.id}
-          className={`absolute inset-0 w-full h-full bg-cover bg-center transition-opacity duration-1000 ease-in-out ${index === currentIndex ? 'opacity-100' : 'opacity-0'}`}
-          style={{ backgroundImage: `url(${story.coverImage})` }}
-        />
-      ))}
+      {stories.map((story, index) => {
+         const isUp = index % 2 === 0;
+         const animationClass = isUp ? 'animate-pan-up' : 'animate-pan-down';
+         // Class để "ghim" vị trí cuối của animation
+         const endPositionClass = isUp ? 'bg-[50%_20%]' : 'bg-[50%_80%]';
+
+         const isActive = index === currentIndex;
+         const isPrevious = index === previousIndex;
+
+         // --- LOGIC CLASS MỚI ĐỂ GIẢI QUYẾT VẤN ĐỀ ---
+         let dynamicClasses = 'opacity-0'; // Mặc định là ẩn
+         if (isActive) {
+             // Slide đang chạy thì có animation và hiện ra
+             dynamicClasses = `opacity-100 ${animationClass}`;
+         } else if (isPrevious) {
+             // Slide vừa chạy xong (đang fade out) thì bị ghim vị trí và ẩn đi
+             dynamicClasses = `opacity-0 ${endPositionClass}`;
+         }
+
+         return (
+            <div
+                key={story.id}
+                className={`
+                    absolute inset-0 w-full h-full bg-cover 
+                    transition-opacity duration-[1500ms] ease-in-out
+                    ${dynamicClasses}
+                `}
+                style={{ backgroundImage: `url(${story.coverImage})` }}
+            />
+         );
+      })}
       
-      {/* Overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-black/20"></div>
 
-      {/* Content */}
       <div className="relative h-full w-full flex flex-col items-center justify-end gap-4 text-center p-6 pb-12 sm:p-8 sm:pb-16 md:pb-20">
         <div className="relative z-10 text-white animate-fade-in">
            <p className="font-semibold text-slate-200">Chapter: {totalChapters}</p>
@@ -92,7 +119,6 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ stories, interval = 5000 }) => 
           {firstChapterId && (
             <Link
                 to={`/story/${currentStory.id}/chapter/${firstChapterId}`}
-
                 className="mt-6 sm:mt-8 inline-block px-8 py-2.5 sm:px-10 sm:py-3 bg-orange-900 dark:bg-amber-100 dark:text-stone-900 text-orange-100 font-bold rounded-3xl shadow-lg hover:opacity-90 transition-all duration-300 hover:scale-105"
             >
                 Đọc Ngay &rarr;
@@ -101,7 +127,6 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ stories, interval = 5000 }) => 
         </div>
       </div>
      
-       {/* Navigation Dots */}
        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex space-x-2">
         {stories.map((_, index) => (
           <button
