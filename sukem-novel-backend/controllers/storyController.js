@@ -93,13 +93,19 @@ exports.createStory = async (req, res) => {
 // @access  Private/Admin
 exports.updateStory = async (req, res) => {
     try {
-        const { id, ...updateData } = req.body;
+        // --- BẮT ĐẦU SỬA LỖI ---
+        const { id, _id, ...updateData } = req.body; // Loại bỏ cả id và _id khỏi dữ liệu cập nhật
+
         if (updateData.tags && typeof updateData.tags === 'string') {
             updateData.tags = updateData.tags.split(',').map(tag => tag.trim()).filter(Boolean);
         }
         if (updateData.alias && typeof updateData.alias === 'string') {
             updateData.alias = updateData.alias.split(',').map(name => name.trim()).filter(Boolean);
         }
+
+        // Tự động cập nhật thời gian
+        updateData.lastUpdatedAt = new Date();
+        // --- KẾT THÚC SỬA LỖI ---
 
         const story = await Story.findOneAndUpdate(
             { id: req.params.id },
