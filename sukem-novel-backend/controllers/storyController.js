@@ -1,3 +1,4 @@
+
 const Story = require('../models/storyModel');
 
 // Hàm slugify
@@ -93,8 +94,13 @@ exports.createStory = async (req, res) => {
 // @access  Private/Admin
 exports.updateStory = async (req, res) => {
     try {
-        // --- BẮT ĐẦU SỬA LỖI ---
-        const { id, _id, ...updateData } = req.body; // Loại bỏ cả id và _id khỏi dữ liệu cập nhật
+        console.log('Received update data:', req.body);
+        console.log('Story ID:', req.params.id);
+
+        // Loại bỏ id, _id và volumes khỏi dữ liệu cập nhật
+        const { id, _id, volumes, views, createdAt, lastUpdatedAt, rating, ratingsCount, ...updateData } = req.body;
+        
+        console.log('Filtered update data:', updateData);
 
         if (updateData.tags && typeof updateData.tags === 'string') {
             updateData.tags = updateData.tags.split(',').map(tag => tag.trim()).filter(Boolean);
@@ -105,22 +111,27 @@ exports.updateStory = async (req, res) => {
 
         // Tự động cập nhật thời gian
         updateData.lastUpdatedAt = new Date();
-        // --- KẾT THÚC SỬA LỖI ---
 
         const story = await Story.findOneAndUpdate(
             { id: req.params.id },
-            updateData,
+            { $set: updateData }, // Sử dụng $set operator để rõ ràng
             { new: true, runValidators: true }
         );
         
         if (story) {
+            console.log('Story updated successfully');
             res.json(story);
         } else {
+            console.log('Story not found');
             res.status(404).json({ message: 'Story not found' });
         }
     } catch (error) {
-        console.error('Error updating story:', error);
-        res.status(500).json({ message: "Server Error" });
+        console.error('Detailed error updating story:', error);
+        res.status(500).json({ 
+            message: "Server Error", 
+            error: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 };
 
