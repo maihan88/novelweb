@@ -99,35 +99,37 @@ const StoryEditPage: React.FC = () => {
         }
     };
 
-    const handleStorySubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!storyData.title || !storyData.author) {
-            alert("Vui lòng điền tên truyện và tác giả.");
-            return;
-        }
-        
-        setIsSaving(true);
-        setError('');
-        try {
-            if (isNewStory) {
-                if (!storyData.coverImage) {
-                    alert("Vui lòng tải lên ảnh bìa.");
-                    setIsSaving(false);
-                    return;
-                }
-                const newStory = await addStory(storyData as Omit<Story, 'id'|'_id'|'volumes'|'views'|'createdAt'|'lastUpdatedAt'|'rating'|'ratingsCount'>);
-                navigate(`/admin/story/edit/${newStory.id}`);
-            } else if(storyId) {
-                await updateStory(storyId, storyData);
-                alert('Đã cập nhật truyện thành công!');
+const handleStorySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!storyData.title || !storyData.author) {
+        alert("Vui lòng điền tên truyện và tác giả.");
+        return;
+    }
+    
+    setIsSaving(true);
+    setError('');
+    try {
+        if (isNewStory) {
+            if (!storyData.coverImage) {
+                alert("Vui lòng tải lên ảnh bìa.");
+                setIsSaving(false);
+                return;
             }
-        } catch(err) {
-            setError('Lưu thất bại. Vui lòng thử lại.');
-            console.error(err);
-        } finally {
-            setIsSaving(false);
+            const newStory = await addStory(storyData as Omit<Story, 'id'|'_id'|'volumes'|'views'|'createdAt'|'lastUpdatedAt'|'rating'|'ratingsCount'>);
+            navigate(`/admin/story/edit/${newStory.id}`);
+        } else if(storyId) {
+            // Loại bỏ volumes và các field không cần thiết khỏi dữ liệu gửi đi
+            const { volumes, views, createdAt, lastUpdatedAt, rating, ratingsCount, ...updateData } = storyData;
+            await updateStory(storyId, updateData);
+            alert('Đã cập nhật truyện thành công!');
         }
-    };
+    } catch(err) {
+        setError('Lưu thất bại. Vui lòng thử lại.');
+        console.error(err);
+    } finally {
+        setIsSaving(false);
+    }
+};
         
     const handleChapterDelete = useCallback(async (volumeId: string, chapterId: string) => {
         if(storyId && window.confirm("Bạn có chắc muốn xóa chương này?")) {
