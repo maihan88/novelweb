@@ -1,3 +1,5 @@
+// src/pages/admin/StoryEditPage.tsx
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useStories } from '../../contexts/StoryContext.tsx';
@@ -63,11 +65,12 @@ const StoryEditPage: React.FC = () => {
         const updatedStoryFromContext = stories.find(s => s.id === storyId);
         if (updatedStoryFromContext) {
             // So sánh đơn giản để tránh re-render không cần thiết
-            if (JSON.stringify(updatedStoryFromContext) !== JSON.stringify(storyData)) {
-                setStoryData(updatedStoryFromContext);
+            // Chỉ cập nhật nếu dữ liệu từ context khác với dữ liệu đang hiển thị
+             if (JSON.stringify(updatedStoryFromContext.volumes) !== JSON.stringify(storyData.volumes)) {
+                setStoryData(prev => ({...prev, volumes: updatedStoryFromContext.volumes}));
             }
         }
-    }, [stories, storyId, storyData]);
+    }, [stories, storyId]); // <--- ĐÃ SỬA: Bỏ `storyData` ra khỏi dependency array
     // === KẾT THÚC PHẦN SỬA LỖI ===
 
     const handleStoryChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
