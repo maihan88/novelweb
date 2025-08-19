@@ -59,16 +59,8 @@ exports.createStory = async (req, res) => {
             return res.status(400).json({ message: 'Vui lòng cung cấp đủ Tên truyện, Tác giả và Ảnh bìa' });
         }
         
-        const baseId = slugify(title);
-        let storyId = baseId;
-        let counter = 1;
-        while (await Story.findOne({ id: storyId })) {
-            storyId = `${baseId}-${counter}`;
-            counter++;
-        }
-
+        // Không cần tạo id ở đây nữa, model sẽ tự làm
         const story = new Story({
-            id: storyId,
             title,
             author,
             description,
@@ -81,7 +73,7 @@ exports.createStory = async (req, res) => {
             volumes: [],
         });
 
-        const createdStory = await story.save();
+        const createdStory = await story.save(); // Middleware pre('save') sẽ chạy ở đây
         res.status(201).json(createdStory);
     } catch (error) {
         console.error('Error creating story:', error);
@@ -94,43 +86,38 @@ exports.createStory = async (req, res) => {
 // @access  Private/Admin
 exports.updateStory = async (req, res) => {
     try {
-        console.log('Received update data:', req.body);
-        console.log('Story ID:', req.params.id);
+        const story = await Story.findOne({ id: req.params.id });
 
-        // Loại bỏ id, _id và volumes khỏi dữ liệu cập nhật
-        const { id, _id, volumes, views, createdAt, lastUpdatedAt, rating, ratingsCount, ...updateData } = req.body;
-        
-        console.log('Filtered update data:', updateData);
-
-        if (updateData.tags && typeof updateData.tags === 'string') {
-            updateData.tags = updateData.tags.split(',').map(tag => tag.trim()).filter(Boolean);
-        }
-        if (updateData.alias && typeof updateData.alias === 'string') {
-            updateData.alias = updateData.alias.split(',').map(name => name.trim()).filter(Boolean);
-        }
-
-        // Tự động cập nhật thời gian
-        updateData.lastUpdatedAt = new Date();
-
-        const story = await Story.findOneAndUpdate(
-            { id: req.params.id },
-            { $set: updateData }, // Sử dụng $set operator để rõ ràng
-            { new: true, runValidators: true }
-        );
-        
         if (story) {
-            console.log('Story updated successfully');
-            res.json(story);
+            const { title, author, description, coverImage, tags, status, isHot, isInBanner, alias } = req.body;
+
+            story.title = title || story.title;
+            story.author = author || story.author;
+            story.description = description !== undefined ? description : story.description;
+            story.coverImage = coverImage || story.coverImage;
+            story.status = status || story.status;
+            story.isHot = isHot !== undefined ? isHot : story.isHot;
+            story.isInBanner = isInBanner !== undefined ? isInBanner : story.isInBanner;
+            
+            if (tags !== undefined) {
+                 story.tags = typeof tags === 'string' ? tags.split(',').map(tag => tag.trim()).filter(Boolean) : (Array.isArray(tags) ? tags : []);
+            }
+            if (alias !== undefined) {
+                 story.alias = typeof alias === 'string' ? alias.split(',').map(name => name.trim()).filter(Boolean) : (Array.isArray(alias) ? alias : []);
+            }
+            
+            story.lastUpdatedAt = new Date();
+
+            const updatedStory = await story.save(); // Middleware pre('save') sẽ chạy ở đây nếu title thay đổi
+            res.json(updatedStory); // Trả về truyện đã được cập nhật (có thể có id mới)
         } else {
-            console.log('Story not found');
             res.status(404).json({ message: 'Story not found' });
         }
     } catch (error) {
         console.error('Detailed error updating story:', error);
         res.status(500).json({ 
             message: "Server Error", 
-            error: error.message,
-            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+            error: error.message
         });
     }
 };
