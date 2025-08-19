@@ -1,5 +1,20 @@
 const mongoose = require('mongoose');
 
+// --- HÀM TẠO SLUG ---
+const slugify = (text) => {
+  if (!text) return '';
+  return text
+    .toString()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^\w-]+/g, '')
+    .replace(/--+/g, '-');
+};
+
+
 const chapterSchema = new mongoose.Schema({
     id: { type: String, required: true, unique: true },
     title: { type: String, required: true },
@@ -7,16 +22,16 @@ const chapterSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now },
     views: { type: Number, default: 0 },
     isRaw: { type: Boolean, default: false },
-}, { _id: false }); // Thêm dòng này để Mongoose không tự tạo _id cho chapter
+}, { _id: false });
 
 const volumeSchema = new mongoose.Schema({
     id: { type: String, required: true, unique: true },
     title: { type: String, required: true },
     chapters: [chapterSchema],
-}, { _id: false }); // Thêm dòng này để Mongoose không tự tạo _id cho volume
+}, { _id: false });
 
 const storySchema = new mongoose.Schema({
-    id: { type: String, required: true, unique: true },
+    id: { type: String, required: true, unique: true, index: true }, // Thêm index để tìm kiếm nhanh hơn
     title: { type: String, required: true },
     alias: [String],
     author: { type: String, required: true },
@@ -32,23 +47,38 @@ const storySchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now },
     lastUpdatedAt: { type: Date, default: Date.now },
 }, {
-    // Thêm tùy chọn này để Mongoose tự động thêm các trường ảo khi chuyển đổi sang JSON
     toJSON: { virtuals: true },
     toObject: { virtuals: true }
 });
 
-// --- THÊM TRƯỜNG ẢO `views` ---
 storySchema.virtual('views').get(function() {
   if (!this.volumes || this.volumes.length === 0) {
     return 0;
   }
-  // Tính tổng lượt xem từ tất cả các chương trong tất cả các tập
   return this.volumes.reduce((totalViews, volume) => {
     const volumeViews = volume.chapters.reduce((volTotal, chapter) => volTotal + chapter.views, 0);
     return totalViews + volumeViews;
   }, 0);
 });
 
-// --- CHÚNG TA ĐÃ XÓA HOÀN TOÀN CÁC ĐOẠN .set('toJSON', ...) GÂY LỖI Ở ĐÂY ---
+// --- MIDDLEWARE TỰ ĐỘNG TẠO SLUG ---
+// Hook này sẽ chạy trước khi document được lưu (cả tạo mới và cập nhật)
+storySchema.pre('save', async function(next) {
+  // Chỉ chạy logic này nếu title được tạo mới hoặc bị thay đổi
+  if (this.isNew || this.isModified('title')) {
+    const baseId = slugify(this.title);
+    let storyId = baseId;
+    let counter = 1;
+
+    // Vòng lặp để đảm bảo id là duy nhất
+    // this.constructor là model Story
+    while (await this.constructor.findOne({ id: storyId })) {
+      storyId = `${baseId}-${counter}`;
+      counter++;
+    }
+    this.id = storyId;
+  }
+  next();
+});
 
 module.exports = mongoose.model('Story', storySchema);
