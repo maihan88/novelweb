@@ -116,12 +116,20 @@ const handleStorySubmit = async (e: React.FormEvent) => {
                 return;
             }
             const newStory = await addStory(storyData as Omit<Story, 'id'|'_id'|'volumes'|'views'|'createdAt'|'lastUpdatedAt'|'rating'|'ratingsCount'>);
-            navigate(`/admin/story/edit/${newStory.id}`);
+            alert('Đã thêm truyện thành công!');
+            navigate(`/admin/story/edit/${newStory.id}`); // Chuyển hướng đến trang chỉnh sửa của truyện mới
         } else if(storyId) {
-            // Loại bỏ volumes và các field không cần thiết khỏi dữ liệu gửi đi
             const { volumes, views, createdAt, lastUpdatedAt, rating, ratingsCount, ...updateData } = storyData;
-            await updateStory(storyId, updateData);
+            
+            // updateStory giờ sẽ trả về truyện đã được cập nhật
+            const updatedStory = await updateStory(storyId, updateData); 
+            
             alert('Đã cập nhật truyện thành công!');
+
+            // KIỂM TRA VÀ CHUYỂN HƯỚNG NẾU ID THAY ĐỔI
+            if (updatedStory.id !== storyId) {
+                navigate(`/admin/story/edit/${updatedStory.id}`, { replace: true });
+            }
         }
     } catch(err) {
         setError('Lưu thất bại. Vui lòng thử lại.');
