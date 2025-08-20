@@ -119,9 +119,13 @@ const ReaderControls: React.FC<ReaderControlsProps> = ({ preferences, setPrefere
                 aria-hidden="true"
             />
         )}
-        <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-3">
+        {/* --- SỬA ĐỔI CHÍNH NẰM Ở ĐÂY --- */}
+        {/* Bỏ các class flexbox: flex flex-col items-end gap-3 */}
+        <div className="fixed bottom-5 right-5 z-50">
+             {/* Thêm class `absolute` và định vị cho panel */}
              <div
                 className={`
+                    absolute bottom-20 right-0
                     w-72 bg-white/80 dark:bg-stone-800/80 backdrop-blur-md shadow-2xl rounded-2xl p-4
                     transition-all duration-300 ease-in-out origin-bottom-right
                     ${isControlsOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}
@@ -140,7 +144,7 @@ const ReaderControls: React.FC<ReaderControlsProps> = ({ preferences, setPrefere
       </div>
       
       {/* DESKTOP VIEW */}
-      <div className="hidden md:block fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-lg bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm shadow-lg rounded-full p-2 border border-gray-200 dark:border-gray-700">
+      <div className="hidden md:block fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-lg bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm shadow-lg rounded-full p-2 border border-gray-200 dark:border-gray-700 z-50">
         <DesktopControlBar/>
       </div>
     </>
