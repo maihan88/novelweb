@@ -13,8 +13,25 @@ export const getStoryById = async (id: string): Promise<Story> => {
 };
 
 export const createStory = async (storyData: Partial<Story>): Promise<Story> => {
-    const response = await api.post('/stories', storyData);
-    return response.data;
+    console.log('=== SERVICE: createStory called ===');
+    console.log('API Base URL:', api.defaults.baseURL);
+    console.log('Story data to send:', JSON.stringify(storyData, null, 2));
+    
+    try {
+        console.log('=== SERVICE: Making POST request to /stories ===');
+        const response = await api.post('/stories', storyData);
+        console.log('=== SERVICE: POST request successful ===');
+        console.log('Response status:', response.status);
+        console.log('Response data:', response.data);
+        return response.data;
+    } catch (error: any) {
+        console.error('=== SERVICE: createStory error ===');
+        console.error('Error config:', error.config);
+        console.error('Error response status:', error.response?.status);
+        console.error('Error response data:', error.response?.data);
+        console.error('Error message:', error.message);
+        throw error;
+    }
 };
 
 export const updateStory = async (id: string, storyData: Partial<Story>): Promise<Story> => {
