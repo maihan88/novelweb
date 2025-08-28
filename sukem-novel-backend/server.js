@@ -6,7 +6,7 @@ const connectDB = require('./config/db');
 // Load env vars
 dotenv.config();
 
-// Connect to database
+// Connect to database (optional for now)
 try {
     connectDB();
 } catch (error) {
@@ -15,31 +15,61 @@ try {
 
 const app = express();
 
-// --- BẮT ĐẦU THAY ĐỔI CORS ---
-// Danh sách các domain được phép truy cập
-const allowedOrigins = [
-    'https://novelweb-phi.vercel.app', // Domain frontend của bạn trên Vercel
-    'http://localhost:5173' // Dành cho môi trường phát triển local
-];
-
+// CORS configuration - SỬA PHẦN NÀY
 const corsOptions = {
-    origin: function (origin, callback) {
-        // Cho phép các request không có origin (như Postman, mobile apps) hoặc từ các domain trong danh sách
-        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
+    origin: [
+        'https://novelweb-phi.vercel.app', // Frontend production URL
+        'http://localhost:3000',           // Frontend development URL
+        'http://localhost:5173'            // Vite dev server
+    ],
+    credentials: true,
+    optionsSuccessStatus: 200,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 };
 
 // Middleware
-app.use(cors(corsOptions)); // <-- SỬ DỤNG CẤU HÌNH MỚI
-// --- KẾT THÚC THAY ĐỔI CORS ---
-
+app.use(cors(corsOptions)); // Thay đổi từ cors() thành cors(corsOptions)
 app.use(express.json());
+// Debug middleware để log mọi request
+app.use((req, res, next) => {
+    console.log('\n=== INCOMING REQUEST ===');
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    console.log('Headers:', req.headers);
+    console.log('Body:', JSON.stringify(req.body, null, 2));
+    console.log('========================\n');
+    next();
+});
+
+// Error handling middleware - cập nhật để log chi tiết hơn
+app.use((err, req, res, next) => {
+    console.error('\n=== UNHANDLED ERROR ===');
+    console.error('Error name:', err.name);
+    console.error('Error message:', err.message);
+    console.error('Error stack:', err.stack);
+    console.error('Request URL:', req.url);
+    console.error('Request method:', req.method);
+    console.error('Request body:', req.body);
+    console.error('=====================\n');
+    
+    res.status(500).json({ 
+        message: 'Something went wrong!',
+        error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
+});
 app.use(express.urlencoded({ extended: false }));
+
+app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+    console.log('Origin:', req.get('Origin'));
+    console.log('Headers:', req.headers);
+    
+    if (req.body && Object.keys(req.body).length > 0) {
+        console.log('Body:', JSON.stringify(req.body, null, 2));
+    }
+    
+    next();
+});
 
 // Routes
 app.use('/api/stories', require('./routes/storyRoutes'));
@@ -50,6 +80,11 @@ app.use('/api/comments', require('./routes/commentRoutes'));
 // Basic route
 app.get('/', (req, res) => {
     res.json({ message: 'Welcome to Sukem Novel API' });
+});
+
+// Test routes
+app.get('/api/test', (req, res) => {
+    res.json({ message: 'API test route working!' });
 });
 
 // Error handling middleware
