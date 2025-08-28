@@ -31,8 +31,9 @@ const volumeSchema = new mongoose.Schema({
 }, { _id: false });
 
 const storySchema = new mongoose.Schema({
-    // BỎ "required: true" Ở DÒNG DƯỚI ĐÂY
-    id: { type: String, unique: true, index: true }, 
+    // --- SỬA ĐỔI TẠI ĐÂY: Bỏ `required: true` ---
+    id: { type: String, unique: true, index: true },
+    // --- KẾT THÚC SỬA ĐỔI ---
     title: { type: String, required: true },
     alias: [String],
     author: { type: String, required: true },
@@ -66,7 +67,7 @@ storySchema.virtual('views').get(function() {
 // Hook này sẽ chạy trước khi document được lưu (cả tạo mới và cập nhật)
 storySchema.pre('save', async function(next) {
   // Chỉ chạy logic này nếu title được tạo mới hoặc bị thay đổi
-  if (this.isModified('title') || this.isNew) {
+  if (this.isNew || this.isModified('title')) {
     const baseId = slugify(this.title);
     let storyId = baseId;
     let counter = 1;
