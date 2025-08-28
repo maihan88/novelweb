@@ -49,18 +49,37 @@ exports.getStoryById = async (req, res) => {
 // @route   POST /api/stories
 // @access  Private/Admin
 exports.createStory = async (req, res) => {
+    console.log('=== CREATE STORY REQUEST ===');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    console.log('Headers:', req.headers);
+    
     try {
         const { title, author, description, coverImage, tags, status, isHot, isInBanner, alias } = req.body;
 
+        // Validation
+        if (!title || !author || !coverImage) {
+            console.log('Validation failed:', { title: !!title, author: !!author, coverImage: !!coverImage });
+            return res.status(400).json({ message: 'Vui lòng cung cấp đủ Tên truyện, Tác giả và Ảnh bìa' });
+        }
+
+        // Process arrays
         const tagsArray = tags && typeof tags === 'string' ? tags.split(',').map(tag => tag.trim()).filter(Boolean) : (Array.isArray(tags) ? tags : []);
         const aliasArray = alias && typeof alias === 'string' ? alias.split(',').map(name => name.trim()).filter(Boolean) : (Array.isArray(alias) ? alias : []);
 
-        if (!title || !author || !coverImage) {
-            return res.status(400).json({ message: 'Vui lòng cung cấp đủ Tên truyện, Tác giả và Ảnh bìa' });
-        }
-        
-        // Không cần tạo id ở đây nữa, model sẽ tự làm
-        const story = new Story({
+        console.log('Processed data:', {
+            title,
+            author,
+            description,
+            coverImage,
+            tagsArray,
+            aliasArray,
+            status,
+            isHot,
+            isInBanner
+        });
+
+        // Create story object
+        const storyData = {
             title,
             author,
             description,
@@ -71,13 +90,43 @@ exports.createStory = async (req, res) => {
             isInBanner,
             alias: aliasArray,
             volumes: [],
-        });
+        };
 
-        const createdStory = await story.save(); // Middleware pre('save') sẽ chạy ở đây
+        console.log('Creating story with data:', JSON.stringify(storyData, null, 2));
+
+        const story = new Story(storyData);
+        const createdStory = await story.save();
+        
+        console.log('Story created successfully:', createdStory.id);
         res.status(201).json(createdStory);
+        
     } catch (error) {
-        console.error('Error creating story:', error);
-        res.status(500).json({ message: "Server Error" });
+        console.error('=== CREATE STORY ERROR ===');
+        console.error('Error type:', error.constructor.name);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+        
+        // MongoDB specific errors
+        if (error.name === 'ValidationError') {
+            console.error('Validation errors:', error.errors);
+            return res.status(400).json({ 
+                message: 'Dữ liệu không hợp lệ', 
+                errors: Object.keys(error.errors).map(key => ({
+                    field: key,
+                    message: error.errors[key].message
+                }))
+            });
+        }
+        
+        if (error.code === 11000) {
+            console.error('Duplicate key error:', error.keyPattern);
+            return res.status(400).json({ message: 'Truyện với ID này đã tồn tại' });
+        }
+        
+        res.status(500).json({ 
+            message: "Server Error",
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
 };
 
