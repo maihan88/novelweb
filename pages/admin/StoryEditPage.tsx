@@ -101,39 +101,80 @@ const StoryEditPage: React.FC = () => {
 
 const handleStorySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!storyData.title || !storyData.author) {
-        alert("Vui lòng điền tên truyện và tác giả.");
+    
+    // Debug: Log dữ liệu trước khi gửi
+    console.log('=== FRONTEND: Preparing to submit story ===');
+    console.log('isNewStory:', isNewStory);
+    console.log('storyData before submit:', JSON.stringify(storyData, null, 2));
+    console.log('tagsInput:', tagsInput);
+    console.log('aliasInput:', aliasInput);
+    
+    // Validation chi tiết
+    if (!storyData.title?.trim()) {
+        alert("Tên truyện không được để trống.");
         return;
     }
     
+    if (!storyData.author?.trim()) {
+        alert("Tác giả không được để trống.");
+        return;
+    }
+    
+    if (!storyData.coverImage?.trim()) {
+        alert("Vui lòng tải lên ảnh bìa.");
+        return;
+    }
+    
+    // Chuẩn bị dữ liệu gửi đi
+    const submitData = {
+        title: storyData.title.trim(),
+        author: storyData.author.trim(),
+        description: storyData.description || '',
+        coverImage: storyData.coverImage.trim(),
+        tags: storyData.tags || [],
+        alias: storyData.alias || [],
+        status: storyData.status || 'Đang dịch',
+        isHot: !!storyData.isHot,
+        isInBanner: !!storyData.isInBanner
+    };
+    
+    console.log('=== FRONTEND: Final submit data ===');
+    console.log(JSON.stringify(submitData, null, 2));
+    
     setIsSaving(true);
     setError('');
+    
     try {
         if (isNewStory) {
-            if (!storyData.coverImage) {
-                alert("Vui lòng tải lên ảnh bìa.");
-                setIsSaving(false);
-                return;
-            }
-            const newStory = await addStory(storyData as Omit<Story, 'id'|'_id'|'volumes'|'views'|'createdAt'|'lastUpdatedAt'|'rating'|'ratingsCount'>);
+            console.log('=== FRONTEND: Calling addStory ===');
+            const newStory = await addStory(submitData);
+            console.log('=== FRONTEND: addStory success ===', newStory);
             alert('Đã thêm truyện thành công!');
-            navigate(`/admin/story/edit/${newStory.id}`); // Chuyển hướng đến trang chỉnh sửa của truyện mới
+            navigate(`/admin/story/edit/${newStory.id}`);
         } else if(storyId) {
-            const { volumes, views, createdAt, lastUpdatedAt, rating, ratingsCount, ...updateData } = storyData;
-            
-            // updateStory giờ sẽ trả về truyện đã được cập nhật
-            const updatedStory = await updateStory(storyId, updateData); 
-            
+            console.log('=== FRONTEND: Calling updateStory ===');
+            const updatedStory = await updateStory(storyId, submitData); 
+            console.log('=== FRONTEND: updateStory success ===', updatedStory);
             alert('Đã cập nhật truyện thành công!');
 
-            // KIỂM TRA VÀ CHUYỂN HƯỚNG NẾU ID THAY ĐỔI
             if (updatedStory.id !== storyId) {
                 navigate(`/admin/story/edit/${updatedStory.id}`, { replace: true });
             }
         }
-    } catch(err) {
-        setError('Lưu thất bại. Vui lòng thử lại.');
-        console.error(err);
+    } catch(err: any) {
+        console.error('=== FRONTEND: Submit error ===');
+        console.error('Error object:', err);
+        console.error('Error response:', err.response);
+        console.error('Error message:', err.message);
+        
+        // Hiển thị lỗi chi tiết từ server
+        const errorMessage = err.response?.data?.message || err.message || 'Lưu thất bại. Vui lòng thử lại.';
+        setError(errorMessage);
+        
+        // Log chi tiết lỗi validation nếu có
+        if (err.response?.data?.errors) {
+            console.error('Validation errors:', err.response.data.errors);
+        }
     } finally {
         setIsSaving(false);
     }
