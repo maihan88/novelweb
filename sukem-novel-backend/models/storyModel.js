@@ -16,7 +16,7 @@ const slugify = (text) => {
 
 
 const chapterSchema = new mongoose.Schema({
-    id: { type: String, required: true }, // ĐÃ SỬA: Xóa unique: true
+    id: { type: String, required: true, unique: true },
     title: { type: String, required: true },
     content: { type: String, required: true },
     createdAt: { type: Date, default: Date.now },
@@ -25,13 +25,15 @@ const chapterSchema = new mongoose.Schema({
 }, { _id: false });
 
 const volumeSchema = new mongoose.Schema({
-    id: { type: String, required: true }, // ĐÃ SỬA: Xóa unique: true
+    id: { type: String, required: true, unique: true },
     title: { type: String, required: true },
     chapters: [chapterSchema],
 }, { _id: false });
 
 const storySchema = new mongoose.Schema({
+    // --- SỬA ĐỔI TẠI ĐÂY: Bỏ `required: true` ---
     id: { type: String, unique: true, index: true },
+    // --- KẾT THÚC SỬA ĐỔI ---
     title: { type: String, required: true },
     alias: [String],
     author: { type: String, required: true },
@@ -62,12 +64,16 @@ storySchema.virtual('views').get(function() {
 });
 
 // --- MIDDLEWARE TỰ ĐỘNG TẠO SLUG ---
+// Hook này sẽ chạy trước khi document được lưu (cả tạo mới và cập nhật)
 storySchema.pre('save', async function(next) {
+  // Chỉ chạy logic này nếu title được tạo mới hoặc bị thay đổi
   if (this.isNew || this.isModified('title')) {
     const baseId = slugify(this.title);
     let storyId = baseId;
     let counter = 1;
 
+    // Vòng lặp để đảm bảo id là duy nhất
+    // this.constructor là model Story
     while (await this.constructor.findOne({ id: storyId })) {
       storyId = `${baseId}-${counter}`;
       counter++;
