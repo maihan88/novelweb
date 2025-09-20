@@ -1,7 +1,7 @@
-
+const mongoose = require('mongoose'); // <-- SỬA ĐỔI: Thêm dòng này
 const Story = require('../models/storyModel');
 
-// Hàm slugify
+// Hàm slugify (giữ nguyên)
 const slugify = (text) => {
   if (!text) return '';
   return text
@@ -56,29 +56,14 @@ exports.createStory = async (req, res) => {
     try {
         const { title, author, description, coverImage, tags, status, isHot, isInBanner, alias } = req.body;
 
-        // Validation
         if (!title || !author || !coverImage) {
             console.log('Validation failed:', { title: !!title, author: !!author, coverImage: !!coverImage });
             return res.status(400).json({ message: 'Vui lòng cung cấp đủ Tên truyện, Tác giả và Ảnh bìa' });
         }
 
-        // Process arrays
         const tagsArray = tags && typeof tags === 'string' ? tags.split(',').map(tag => tag.trim()).filter(Boolean) : (Array.isArray(tags) ? tags : []);
         const aliasArray = alias && typeof alias === 'string' ? alias.split(',').map(name => name.trim()).filter(Boolean) : (Array.isArray(alias) ? alias : []);
 
-        console.log('Processed data:', {
-            title,
-            author,
-            description,
-            coverImage,
-            tagsArray,
-            aliasArray,
-            status,
-            isHot,
-            isInBanner
-        });
-
-        // Create story object
         const storyData = {
             title,
             author,
@@ -92,8 +77,6 @@ exports.createStory = async (req, res) => {
             volumes: [],
         };
 
-        console.log('Creating story with data:', JSON.stringify(storyData, null, 2));
-
         const story = new Story(storyData);
         const createdStory = await story.save();
         
@@ -106,7 +89,6 @@ exports.createStory = async (req, res) => {
         console.error('Error message:', error.message);
         console.error('Error stack:', error.stack);
         
-        // MongoDB specific errors
         if (error.name === 'ValidationError') {
             console.error('Validation errors:', error.errors);
             return res.status(400).json({ 
@@ -157,8 +139,8 @@ exports.updateStory = async (req, res) => {
             
             story.lastUpdatedAt = new Date();
 
-            const updatedStory = await story.save(); // Middleware pre('save') sẽ chạy ở đây nếu title thay đổi
-            res.json(updatedStory); // Trả về truyện đã được cập nhật (có thể có id mới)
+            const updatedStory = await story.save();
+            res.json(updatedStory);
         } else {
             res.status(404).json({ message: 'Story not found' });
         }
@@ -221,7 +203,7 @@ exports.addVolume = async (req, res) => {
         const story = await Story.findOne({ id: req.params.id });
         if (story) {
             const newVolume = {
-                id: `vol-${Date.now()}`,
+                id: new mongoose.Types.ObjectId().toString(), // <-- SỬA ĐỔI
                 title,
                 chapters: []
             };
@@ -292,7 +274,7 @@ exports.addChapter = async (req, res) => {
             const volume = story.volumes.find(v => v.id === req.params.volumeId);
             if (volume) {
                 const newChapter = {
-                    id: `ch-${Date.now()}`,
+                    id: new mongoose.Types.ObjectId().toString(), // <-- SỬA ĐỔI
                     title,
                     content,
                     isRaw: !!isRaw,
