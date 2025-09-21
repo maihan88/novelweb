@@ -1,4 +1,5 @@
-// maihan88/novelweb/novelweb-30378715fdd33fd98f7c1318544ef93eab22c598/pages/ReaderPage.tsx
+// file: pages/ReaderPage.tsx
+
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Story, Chapter, ReaderPreferences } from '../types';
@@ -29,7 +30,6 @@ const ReadingProgressBar: React.FC<{ progress: number }> = React.memo(({ progres
 });
 ReadingProgressBar.displayName = 'ReadingProgressBar';
 
-// Component thông báo Auto Scroll
 const AutoScrollWarning: React.FC<{ isVisible: boolean; onClose: () => void }> = ({ isVisible, onClose }) => {
     useEffect(() => {
         if (isVisible) {
@@ -70,11 +70,10 @@ const FloatingNavBar: React.FC<{
         if (newChapterId) navigate(`/story/${story.id}/chapter/${newChapterId}`);
     };
 
-    const handleNavigation = (e: React.MouseEvent<HTMLAnchorElement>, path: string) => {
+    const handleNavigation = (e: React.MouseEvent<HTMLAnchorElement>) => {
         if (isAutoScrolling) {
             e.preventDefault();
             onAutoScrollWarning();
-            return;
         }
     };
 
@@ -87,7 +86,7 @@ const FloatingNavBar: React.FC<{
                     to={`/story/${story.id}`} 
                     className={navButtonClasses} 
                     aria-label="Về trang truyện"
-                    onClick={(e) => handleNavigation(e, `/story/${story.id}`)}
+                    onClick={handleNavigation}
                 >
                     <HomeIcon className="h-5 w-5" />
                 </Link>
@@ -96,7 +95,7 @@ const FloatingNavBar: React.FC<{
                     className={navButtonClasses} 
                     aria-disabled={!prevChapter} 
                     aria-label="Chương trước"
-                    onClick={(e) => prevChapter && handleNavigation(e, `/story/${story.id}/chapter/${prevChapter.id}`)}
+                    onClick={handleNavigation}
                 >
                     <ArrowLeftIcon className="h-5 w-5" />
                 </Link>
@@ -117,7 +116,7 @@ const FloatingNavBar: React.FC<{
                     className={navButtonClasses} 
                     aria-disabled={!nextChapter} 
                     aria-label="Chương sau"
-                    onClick={(e) => nextChapter && handleNavigation(e, `/story/${story.id}/chapter/${nextChapter.id}`)}
+                    onClick={handleNavigation}
                 >
                     <ArrowRightIcon className="h-5 w-5" />
                 </Link>
@@ -148,6 +147,17 @@ const ReaderPage: React.FC = () => {
     const scrollInterval = useRef<number | null>(null);
     const didRestoreBookmarkRef = useRef(false);
 
+    // --- BẮT ĐẦU SỬA LỖI VÒNG LẶP ---
+    // 1. Tạo một ref để giữ phiên bản mới nhất của hàm updateBookmark
+    const updateBookmarkRef = useRef(updateBookmark);
+    useEffect(() => {
+        updateBookmarkRef.current = updateBookmark;
+    });
+
+    // 2. Tối ưu hóa dependency `currentUser` thành một giá trị boolean ổn định hơn
+    const isAdmin = useMemo(() => currentUser?.role === 'admin', [currentUser]);
+    // --- KẾT THÚC SỬA LỖI VÒNG LẶP ---
+
     // Effect 1: Lấy dữ liệu truyện
     useEffect(() => {
         if (!storyId) return;
@@ -158,61 +168,35 @@ const ReaderPage: React.FC = () => {
         });
     }, [storyId, getStoryById]);
 
-    // Effect 2: Reset và khôi phục vị trí cuộn, chỉ chạy khi đổi chương
+    // Effect 2: Reset và khôi phục vị trí cuộn
     useEffect(() => {
         viewIncrementedRef.current = false;
         didRestoreBookmarkRef.current = false;
+        window.scrollTo(0, 0); // Luôn cuộn lên đầu khi chương thay đổi
 
-        const initialProgress = bookmarks[storyId!]?.progress || 0;
-        setScrollPercent(initialProgress);
-        progressRef.current = initialProgress;
-
-        const tryRestore = () => {
-            if (didRestoreBookmarkRef.current) return;
-
-            const savedBookmark = storyId ? bookmarks[storyId] : null;
-            if (savedBookmark && savedBookmark.chapterId === chapterId) {
-                setTimeout(() => {
-                    if (didRestoreBookmarkRef.current) return;
-                    
-                    // Khôi phục bookmark - tính toán giống với cách tính progress
-                    const contentElement = readerContentRef.current;
-                    if (contentElement) {
-                        const contentTop = contentElement.offsetTop;
-                        const contentHeight = contentElement.scrollHeight;
-                        const viewportHeight = window.innerHeight;
-                        
-                        // Tính vị trí scroll dựa trên progress đã lưu
-                        // Nếu nội dung cao hơn viewport, tính scroll position
-                        if (contentHeight > viewportHeight) {
-                            const maxScrollInContent = contentHeight - viewportHeight;
-                            const targetScrollInContent = (maxScrollInContent * savedBookmark.progress) / 100;
-                            const targetScrollPosition = contentTop + targetScrollInContent;
-                            window.scrollTo({ top: targetScrollPosition, behavior: 'auto' });
-                        } else {
-                            // Nội dung ngắn hơn viewport, scroll đến đầu content
-                            window.scrollTo({ top: contentTop, behavior: 'auto' });
-                        }
+        const savedBookmark = storyId ? bookmarks[storyId] : null;
+        if (savedBookmark && savedBookmark.chapterId === chapterId) {
+             setTimeout(() => {
+                if (readerContentRef.current) {
+                    const contentTop = readerContentRef.current.offsetTop;
+                    const contentHeight = readerContentRef.current.scrollHeight;
+                    const viewportHeight = window.innerHeight;
+                    if (contentHeight > viewportHeight) {
+                        const maxScrollInContent = contentHeight - viewportHeight;
+                        const targetScrollInContent = (maxScrollInContent * savedBookmark.progress) / 100;
+                        const targetScrollPosition = contentTop + targetScrollInContent;
+                        window.scrollTo({ top: targetScrollPosition, behavior: 'auto' });
                     }
-                    didRestoreBookmarkRef.current = true;
-                }, 250);
-            } else {
-                window.scrollTo(0, 0);
-                didRestoreBookmarkRef.current = true;
-            }
-        };
+                }
+            }, 100);
+        }
+    }, [storyId, chapterId]); // Chỉ chạy khi chapterId hoặc storyId thay đổi
 
-        tryRestore();
-    }, [storyId, chapterId]);
-
-    // Effect 3: Quản lý scroll, view, và chống copy
+    // Effect 3: Quản lý scroll, view, và chống copy (ĐÃ ĐƯỢC SỬA)
     useEffect(() => {
         if (!story || !storyId || !chapterId) return;
 
-        let lastUiUpdate = 0;
-        let scrollStopTimeout: NodeJS.Timeout | null = null;
-        
-        if (!viewIncrementedRef.current && currentUser?.role !== 'admin') {
+        if (!viewIncrementedRef.current && !isAdmin) { // Sử dụng biến `isAdmin`
             incrementChapterView(storyId, chapterId);
             viewIncrementedRef.current = true;
         }
@@ -224,61 +208,48 @@ const ReaderPage: React.FC = () => {
             contentEl.addEventListener('copy', preventAction);
         }
 
-        const combinedScrollHandler = () => {
-            const now = Date.now();
-            if (now - lastUiUpdate > 50) {
-                const contentElement = readerContentRef.current;
-                if (contentElement) {
-                    const contentTop = contentElement.offsetTop;
-                    const contentHeight = contentElement.scrollHeight;
-                    const viewportHeight = window.innerHeight;
-                    const currentScrollTop = window.pageYOffset;
-                    
-                    // Tính toán progress dựa trên vị trí scroll trong nội dung
-                    let percentage = 0;
-                    
-                    if (contentHeight <= viewportHeight) {
-                        // Nội dung ngắn hơn viewport - coi như đã đọc hết
-                        percentage = 100;
-                    } else {
-                        // Nội dung dài hơn viewport
-                        const scrollStartInContent = Math.max(0, currentScrollTop - contentTop);
-                        const maxScrollInContent = contentHeight - viewportHeight;
-                        
-                        if (scrollStartInContent <= 0) {
-                            percentage = 0;
-                        } else if (scrollStartInContent >= maxScrollInContent) {
-                            percentage = 100;
-                        } else {
-                            percentage = (scrollStartInContent / maxScrollInContent) * 100;
-                        }
-                    }
-                    
-                    progressRef.current = percentage;
-                    setScrollPercent(percentage);
-                }
-                lastUiUpdate = now;
+        const handleScroll = () => {
+            const contentElement = readerContentRef.current;
+            if (!contentElement) return;
+
+            const contentTop = contentElement.offsetTop;
+            const contentHeight = contentElement.scrollHeight;
+            const viewportHeight = window.innerHeight;
+            const currentScrollTop = window.pageYOffset;
+            
+            let percentage = 0;
+            if (contentHeight <= viewportHeight) {
+                percentage = 100;
+            } else {
+                const scrollStartInContent = Math.max(0, currentScrollTop - contentTop);
+                const maxScrollInContent = contentHeight - viewportHeight;
+                percentage = Math.min(100, (scrollStartInContent / maxScrollInContent) * 100);
             }
             
-            if (scrollStopTimeout) clearTimeout(scrollStopTimeout);
-            scrollStopTimeout = setTimeout(() => {
-                const finalProgress = progressRef.current >= 98 ? 100 : progressRef.current;
-                updateBookmark(storyId, chapterId, finalProgress);
-            }, 1500);
+            progressRef.current = percentage;
+            setScrollPercent(percentage);
         };
 
-        window.addEventListener('scroll', combinedScrollHandler, { passive: true });
+        window.addEventListener('scroll', handleScroll, { passive: true });
         
         return () => {
-            window.removeEventListener('scroll', combinedScrollHandler);
+            window.removeEventListener('scroll', handleScroll);
             if (contentEl) {
                 contentEl.removeEventListener('contextmenu', preventAction);
                 contentEl.removeEventListener('copy', preventAction);
             }
-            if (scrollStopTimeout) clearTimeout(scrollStopTimeout);
+
+            if (storyId && chapterId) {
+                const finalProgress = progressRef.current >= 98 ? 100 : progressRef.current;
+                // Gọi hàm lưu bookmark thông qua ref
+                updateBookmarkRef.current(storyId, chapterId, finalProgress);
+            }
         };
-    }, [story, storyId, chapterId, currentUser, incrementChapterView, updateBookmark]);
+    // Dependency array đã được dọn dẹp để phá vỡ vòng lặp
+    }, [story, storyId, chapterId, isAdmin, incrementChapterView]); 
     
+    // ... các useEffect và hàm xử lý còn lại không thay đổi ...
+
     const stopAutoScroll = useCallback(() => {
         if (scrollInterval.current) clearInterval(scrollInterval.current);
         scrollInterval.current = null;
@@ -291,7 +262,7 @@ const ReaderPage: React.FC = () => {
         } else {
             setIsAutoScrolling(true);
             scrollInterval.current = window.setInterval(() => {
-                if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight) {
+                if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 10) {
                     stopAutoScroll();
                 } else {
                     window.scrollBy({ top: 1, behavior: 'auto' });
@@ -312,12 +283,8 @@ const ReaderPage: React.FC = () => {
         };
     }, [isAutoScrolling, stopAutoScroll]);
 
-    // Xử lý tap zone
     const handleTapZoneClick = (event: React.MouseEvent<HTMLDivElement>) => {
-        if (window.getSelection()?.toString()) {
-            return;
-        }
-        if ((event.target as HTMLElement).closest('a, button')) {
+        if (window.getSelection()?.toString() || (event.target as HTMLElement).closest('a, button')) {
             return;
         }
         const now = Date.now();
@@ -327,14 +294,8 @@ const ReaderPage: React.FC = () => {
         lastTap.current = now;
     };
 
-    // Callback cho warning
-    const handleAutoScrollWarning = useCallback(() => {
-        setShowAutoScrollWarning(true);
-    }, []);
-
-    const hideAutoScrollWarning = useCallback(() => {
-        setShowAutoScrollWarning(false);
-    }, []);
+    const handleAutoScrollWarning = useCallback(() => setShowAutoScrollWarning(true), []);
+    const hideAutoScrollWarning = useCallback(() => setShowAutoScrollWarning(false), []);
     
     const { chapter, prevChapter, nextChapter } = useMemo(() => {
         if (!story || !chapterId) return { chapter: undefined, prevChapter: null, nextChapter: null };
@@ -344,7 +305,7 @@ const ReaderPage: React.FC = () => {
         return {
             chapter: allChapters[index],
             prevChapter: index > 0 ? allChapters[index - 1] : null,
-            nextChapter: index < allChapters.length - 1 ? allChapters[index + 1] : null,
+            nextChapter: index < allChapters.length - 1 ? allChapters[index - 1] : null,
         };
     }, [story, chapterId]);
     
@@ -371,7 +332,7 @@ const ReaderPage: React.FC = () => {
         if (newChapterId) navigate(`/story/${storyId}/chapter/${newChapterId}`);
     };
 
-    const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, path: string) => {
+    const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
         if (isAutoScrolling) {
             e.preventDefault();
             handleAutoScrollWarning();
@@ -411,7 +372,7 @@ const ReaderPage: React.FC = () => {
                             <Link 
                                 to={`/story/${story.id}/chapter/${prevChapter.id}`} 
                                 className={`${navButtonBaseClasses} ${navButtonEnabledClasses}`}
-                                onClick={(e) => handleNavClick(e, `/story/${story.id}/chapter/${prevChapter.id}`)}
+                                onClick={handleNavClick}
                             >
                                 <ArrowLeftIcon className="h-4 w-4" />
                                 <span>Chương trước</span>
@@ -440,7 +401,7 @@ const ReaderPage: React.FC = () => {
                             <Link 
                                 to={`/story/${story.id}/chapter/${nextChapter.id}`} 
                                 className={`${navButtonBaseClasses} ${navButtonEnabledClasses}`}
-                                onClick={(e) => handleNavClick(e, `/story/${story.id}/chapter/${nextChapter.id}`)}
+                                onClick={handleNavClick}
                             >
                                 <span>Chương tiếp</span>
                                 <ArrowRightIcon className="h-4 w-4" />
