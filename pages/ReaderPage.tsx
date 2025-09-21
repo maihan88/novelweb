@@ -305,7 +305,7 @@ const ReaderPage: React.FC = () => {
         return {
             chapter: allChapters[index],
             prevChapter: index > 0 ? allChapters[index - 1] : null,
-            nextChapter: index < allChapters.length - 1 ? allChapters[index - 1] : null,
+            nextChapter: index < allChapters.length - 1 ? allChapters[index + 1] : null,
         };
     }, [story, chapterId]);
     
