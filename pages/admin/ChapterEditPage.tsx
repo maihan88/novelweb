@@ -1,96 +1,114 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useStories } from '../../contexts/StoryContext.tsx';
 import { Story, Chapter } from '../../types.ts';
 import { CheckIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
-import { ArrowUturnLeftIcon } from '@heroicons/react/24/outline';
-import { InformationCircleIcon } from '@heroicons/react/24/outline';
+import { ArrowUturnLeftIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner.tsx';
 import CustomEditor from '../../components/CustomEditor.tsx';
 
+// --- BẮT ĐẦU THÊM MỚI: HÀM GỢI Ý TIÊU ĐỀ ---
+const getNextChapterTitle = (currentTitle: string): string => {
+    // Tìm kiếm số ở cuối tiêu đề
+    const match = currentTitle.match(/(.*?)(\d+)$/);
+    if (match) {
+        const base = match[1].trim(); // Phần chữ (ví dụ: "Chương")
+        const number = parseInt(match[2], 10); // Phần số
+        return `${base} ${number + 1}`;
+    }
+    // Nếu không tìm thấy số, chỉ trả về chuỗi rỗng
+    return '';
+};
+// --- KẾT THÚC THÊM MỚI ---
+
 const ChapterEditPage: React.FC = () => {
   const { storyId, volumeId, chapterId } = useParams<{ storyId: string; volumeId: string; chapterId?: string }>();
-  const [isRaw, setIsRaw] = useState(false);
   const navigate = useNavigate();
   const { getStoryById, addChapterToVolume, updateChapterInVolume } = useStories();
 
   const [story, setStory] = useState<Story | null>(null);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [isRaw, setIsRaw] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isNew, setIsNew] = useState(false);
+  const [key, setKey] = useState(Date.now()); // Thêm key để reset CustomEditor
 
-  useEffect(() => {
-    const loadData = async () => {
-        if (!storyId || !volumeId) {
-            navigate('/admin');
-            return;
-        }
-
-        try {
-            const currentStory = await getStoryById(storyId);
-            if (!currentStory) {
-              alert('Không tìm thấy truyện!');
-              navigate('/admin');
-              return;
-            }
-            setStory(currentStory);
-
-            const currentVolume = currentStory.volumes.find(v => v.id === volumeId);
-            if (!currentVolume) {
-                alert('Không tìm thấy tập!');
-                navigate(`/admin/story/edit/${storyId}`);
-                return;
-            }
-
-            if (chapterId) {
-              // Editing existing chapter
-              const currentChapter = currentVolume.chapters.find(c => c.id === chapterId);
-              if (currentChapter) {
-                setTitle(currentChapter.title);
-                setContent(currentChapter.content);
-                setIsRaw(!!currentChapter.isRaw);
-                setIsNew(false);
-              } else {
-                alert('Không tìm thấy chương!');
-                navigate(`/admin/story/edit/${storyId}`);
-                return;
-              }
-            } else {
-              // Adding new chapter
-              setIsNew(true);
-              setIsRaw(true);
-              setContent('<p>Viết nội dung chương ở đây...</p>');
-            }
-        } catch (error) {
-            alert('Lỗi tải dữ liệu.');
-            navigate('/admin');
-        } finally {
-            setIsLoading(false);
-        }
+  const loadData = useCallback(async () => {
+    if (!storyId || !volumeId) {
+        navigate('/admin');
+        return;
     }
-    loadData();
+    try {
+        setIsLoading(true);
+        const currentStory = await getStoryById(storyId);
+        if (!currentStory) throw new Error('Không tìm thấy truyện!');
+        setStory(currentStory);
+
+        const currentVolume = currentStory.volumes.find(v => v.id === volumeId);
+        if (!currentVolume) throw new Error('Không tìm thấy tập!');
+
+        if (chapterId) {
+            const currentChapter = currentVolume.chapters.find(c => c.id === chapterId);
+            if (!currentChapter) throw new Error('Không tìm thấy chương!');
+            setTitle(currentChapter.title);
+            setContent(currentChapter.content);
+            setIsRaw(!!currentChapter.isRaw);
+            setIsNew(false);
+        } else {
+            setIsNew(true);
+            setIsRaw(true);
+            setTitle(''); // Bắt đầu với tiêu đề rỗng
+            setContent('<p>Nội dung chương mới...</p>');
+        }
+    } catch (error: any) {
+        alert(error.message || 'Lỗi tải dữ liệu.');
+        navigate(`/admin/story/edit/${storyId}`);
+    } finally {
+        setIsLoading(false);
+        setKey(Date.now()); // Reset key sau khi tải xong
+    }
   }, [storyId, volumeId, chapterId, getStoryById, navigate]);
 
+
+  useEffect(() => {
+    loadData();
+  }, [chapterId, loadData]); // Chỉ chạy lại khi chapterId thay đổi
+
+  // --- BẮT ĐẦU SỬA ĐỔI HÀM LƯU ---
   const handleSave = async () => {
     if (!storyId || !volumeId || !title.trim()) {
-      alert('Lỗi: Vui lòng điền đầy đủ thông tin.');
+      alert('Lỗi: Vui lòng điền tiêu đề chương.');
       return;
-
     }
     
     setIsSaving(true);
     try {
+        let savedChapterTitle = title;
         if (isNew) {
-          await addChapterToVolume(storyId, volumeId, { title, content, isRaw });
+          const newChapter = await addChapterToVolume(storyId, volumeId, { title, content, isRaw });
+          savedChapterTitle = newChapter.title;
         } else if(chapterId) {
           const chapterToUpdate: Omit<Chapter, 'createdAt' | 'views' | '_id'> = { id: chapterId, title, content, isRaw };
           await updateChapterInVolume(storyId, volumeId, chapterToUpdate);
         }
         
-        alert(`Đã ${isNew ? 'thêm' : 'cập nhật'} chương thành công!`);
-        navigate(`/admin/story/edit/${storyId}`);
+        // Hỏi người dùng có muốn tiếp tục không
+        const continueEditing = window.confirm(`Đã lưu "${savedChapterTitle}" thành công!\nBạn có muốn tạo ngay chương tiếp theo không?`);
+
+        if (continueEditing) {
+            // Reset state để tạo chương mới
+            navigate(`/admin/story/${storyId}/volume/${volumeId}/chapter/new`, { replace: true });
+            setIsNew(true);
+            setTitle(getNextChapterTitle(savedChapterTitle)); // Gợi ý tiêu đề mới
+            setContent('<p>Nội dung chương tiếp theo...</p>');
+            setIsRaw(true);
+            setKey(Date.now()); // Thay đổi key để buộc CustomEditor re-render
+        } else {
+            navigate(`/admin/story/edit/${storyId}`);
+        }
+
     } catch(err) {
         alert('Lưu chương thất bại!');
         console.error(err);
@@ -98,6 +116,7 @@ const ChapterEditPage: React.FC = () => {
         setIsSaving(false);
     }
   };
+  // --- KẾT THÚC SỬA ĐỔI HÀM LƯU ---
 
   if (isLoading) {
     return (
@@ -115,7 +134,7 @@ const ChapterEditPage: React.FC = () => {
           Quay lại trang chỉnh sửa truyện
         </button>
         <h1 className="text-3xl font-bold font-serif">
-          {isNew ? 'Thêm Chương Mới' : 'Chỉnh Sửa Chương'}
+          {isNew ? 'Thêm Chương Mới' : `Chỉnh Sửa: ${title}`}
         </h1>
         <p className="text-slate-600 dark:text-slate-300">cho truyện: <span className="font-semibold">{story?.title}</span></p>
       </div>
@@ -135,7 +154,6 @@ const ChapterEditPage: React.FC = () => {
           />
         </div>
 
-        {/* Thêm Checkbox isRaw */}
         <div className="flex items-center gap-4 p-3 bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-400 rounded-r-lg">
             <InformationCircleIcon className="h-6 w-6 text-amber-500 flex-shrink-0"/>
             <div>
@@ -162,7 +180,8 @@ const ChapterEditPage: React.FC = () => {
           <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
             Nội dung
           </label>
-          <CustomEditor value={content} onChange={setContent} />
+          {/* Dùng key để reset editor khi cần */}
+          <CustomEditor key={key} value={content} onChange={setContent} />
         </div>
         <div className="flex justify-end pt-4">
             <button
