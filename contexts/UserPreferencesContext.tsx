@@ -1,5 +1,6 @@
-// maihan88/novelweb/novelweb-30378715fdd33fd98f7c1318544ef93eab22c598/contexts/UserPreferencesContext.tsx
-import React, { createContext, useContext, ReactNode, useCallback, useMemo, useRef, useEffect } from 'react';
+// file: contexts/UserPreferencesContext.tsx
+
+import React, { createContext, useContext, ReactNode, useCallback, useMemo, useEffect } from 'react';
 import { useAuth } from './AuthContext.tsx';
 import * as userService from '../services/userService.ts';
 import { Bookmark } from '../types.ts';
@@ -10,7 +11,7 @@ interface UserPreferencesContextType {
     isFavorite: (storyId: string) => boolean;
     
     bookmarks: Record<string, Bookmark>;
-    updateBookmark: (storyId: string, chapterId: string, progress: number) => void;
+    updateBookmark: (storyId: string, chapterId: string, progress: number) => Promise<void>; // Thay đổi thành async
     removeBookmark: (storyId: string) => void;
     getBookmark: (storyId: string) => Bookmark | undefined;
 
@@ -24,21 +25,13 @@ const UserPreferencesContext = createContext<UserPreferencesContextType | undefi
 export const UserPreferencesProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const { currentUser, updateUserPreferencesState } = useAuth();
     
-    // Refs để quản lý debounce
-    const debounceTimersRef = useRef<{ [key: string]: NodeJS.Timeout }>({});
-
     const favorites = useMemo(() => currentUser?.favorites || [], [currentUser]);
     const bookmarks = useMemo(() => currentUser?.bookmarks || {}, [currentUser]);
     const ratedStories = useMemo(() => currentUser?.ratedStories || {}, [currentUser]);
+    
+    // --- BẮT ĐẦU THAY ĐỔI LỚN ---
 
-    // Cleanup effect để xóa tất cả các timer khi unmount
-    useEffect(() => {
-        const timers = debounceTimersRef.current;
-        return () => {
-            Object.values(timers).forEach(clearTimeout);
-        };
-    }, []);
-
+    // Hàm toggleFavorite không cần debounce nữa, gọi trực tiếp
     const toggleFavorite = useCallback(async (storyId: string) => {
         if (!currentUser) return;
 
@@ -47,28 +40,19 @@ export const UserPreferencesProvider: React.FC<{ children: ReactNode }> = ({ chi
             ? oldFavorites.filter(id => id !== storyId)
             : [...oldFavorites, storyId];
 
-        // Cập nhật state ở client ngay lập tức
         updateUserPreferencesState({ favorites: newFavorites });
 
-        // Debounce việc gọi API
-        const debounceKey = `favorite-${storyId}`;
-        if (debounceTimersRef.current[debounceKey]) {
-            clearTimeout(debounceTimersRef.current[debounceKey]);
+        try {
+            await userService.updateUserPreferences({ favorites: newFavorites });
+        } catch (error) {
+            console.error("Lỗi đồng bộ yêu thích:", error);
+            updateUserPreferencesState({ favorites: oldFavorites });
+            alert("Đã xảy ra lỗi khi cập nhật yêu thích, vui lòng thử lại.");
         }
-
-        debounceTimersRef.current[debounceKey] = setTimeout(async () => {
-            try {
-                await userService.updateUserPreferences({ favorites: newFavorites });
-            } catch (error) {
-                console.error("Lỗi đồng bộ yêu thích:", error);
-                updateUserPreferencesState({ favorites: oldFavorites }); // Khôi phục nếu lỗi
-                alert("Đã xảy ra lỗi khi cập nhật yêu thích, vui lòng thử lại.");
-            }
-        }, 1000); // Gửi request sau 1 giây
-
     }, [currentUser, updateUserPreferencesState]);
     
-    const updateBookmark = useCallback((storyId: string, chapterId: string, progress: number) => {
+    // Hàm updateBookmark giờ sẽ gọi API trực tiếp, không còn debounce
+    const updateBookmark = useCallback(async (storyId: string, chapterId: string, progress: number) => {
         if (!currentUser) return;
         
         const oldBookmarks = currentUser.bookmarks || {};
@@ -80,29 +64,19 @@ export const UserPreferencesProvider: React.FC<{ children: ReactNode }> = ({ chi
         };
         const newBookmarks = { ...oldBookmarks, [storyId]: newBookmark };
         
-        // Cập nhật state ở client ngay lập tức
         updateUserPreferencesState({ bookmarks: newBookmarks });
 
-        // Debounce việc gọi API
-        const debounceKey = `bookmark-${storyId}`;
-        if (debounceTimersRef.current[debounceKey]) {
-            clearTimeout(debounceTimersRef.current[debounceKey]);
+        try {
+            // Gọi API ngay lập tức
+            await userService.updateUserPreferences({ bookmarks: newBookmarks });
+        } catch (error) {
+            console.error("Lỗi đồng bộ bookmark:", error);
+            // Nếu lỗi, khôi phục lại trạng thái cũ để tránh sai lệch dữ liệu
+            updateUserPreferencesState({ bookmarks: oldBookmarks });
         }
-
-        debounceTimersRef.current[debounceKey] = setTimeout(async () => {
-            try {
-                // Gửi state mới nhất tại thời điểm API được gọi
-                 const latestUserSnapshot = JSON.parse(localStorage.getItem('currentUser') || '{}');
-                 if(latestUserSnapshot?._id === currentUser._id) {
-                    await userService.updateUserPreferences({ bookmarks: latestUserSnapshot.bookmarks });
-                 }
-            } catch (error) {
-                console.error("Lỗi đồng bộ bookmark:", error);
-                updateUserPreferencesState({ bookmarks: oldBookmarks });
-            }
-        }, 2000); // Gửi request sau 2 giây ngừng cuộn
-
     }, [currentUser, updateUserPreferencesState]);
+    
+    // --- KẾT THÚC THAY ĐỔI LỚN ---
     
     const removeBookmark = useCallback(async (storyId: string) => {
         if (!currentUser) return;
