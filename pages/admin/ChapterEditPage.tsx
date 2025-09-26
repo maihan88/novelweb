@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useStories } from '../../contexts/StoryContext.tsx';
 import { Story, Chapter } from '../../types.ts';
 import { CheckIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
@@ -7,23 +7,24 @@ import { ArrowUturnLeftIcon, InformationCircleIcon } from '@heroicons/react/24/o
 import LoadingSpinner from '../../components/LoadingSpinner.tsx';
 import CustomEditor from '../../components/CustomEditor.tsx';
 
-// --- BẮT ĐẦU THÊM MỚI: HÀM GỢI Ý TIÊU ĐỀ ---
+// --- HÀM GỢI Ý TIÊU ĐỀ (cải tiến: tìm số cuối cùng trong tiêu đề và tăng lên) ---
 const getNextChapterTitle = (currentTitle: string): string => {
-    // Tìm kiếm số ở cuối tiêu đề
-    const match = currentTitle.match(/(.*?)(\d+)$/);
+    if (!currentTitle) return '';
+    // Tìm số cuối cùng xuất hiện trong chuỗi
+    const match = currentTitle.match(/(\d+)(?!.*\d)/);
     if (match) {
-        const base = match[1].trim(); // Phần chữ (ví dụ: "Chương")
-        const number = parseInt(match[2], 10); // Phần số
-        return `${base} ${number + 1}`;
+        const num = parseInt(match[1], 10);
+        return currentTitle.replace(/(\d+)(?!.*\d)/, String(num + 1));
     }
-    // Nếu không tìm thấy số, chỉ trả về chuỗi rỗng
+    // Nếu không có số nào -> trả về chuỗi rỗng (không tự đặt tiêu đề)
     return '';
 };
-// --- KẾT THÚC THÊM MỚI ---
+// --- KẾT THÚC HÀM GỢI Ý ---
 
 const ChapterEditPage: React.FC = () => {
   const { storyId, volumeId, chapterId } = useParams<{ storyId: string; volumeId: string; chapterId?: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { getStoryById, addChapterToVolume, updateChapterInVolume } = useStories();
 
   const [story, setStory] = useState<Story | null>(null);
@@ -59,8 +60,12 @@ const ChapterEditPage: React.FC = () => {
         } else {
             setIsNew(true);
             setIsRaw(true);
-            setTitle(''); // Bắt đầu với tiêu đề rỗng
-            setContent('<p>Nội dung chương mới...</p>');
+            // Nếu có state truyền từ navigate (gợi ý tiêu đề / nội dung), dùng nó
+            const stateAny = location.state as any;
+            const suggestedTitle = stateAny?.suggestedTitle ?? '';
+            const suggestedContent = stateAny?.suggestedContent ?? '<p>Nội dung chương mới...</p>';
+            setTitle(suggestedTitle);
+            setContent(suggestedContent);
         }
     } catch (error: any) {
         alert(error.message || 'Lỗi tải dữ liệu.');
@@ -69,42 +74,82 @@ const ChapterEditPage: React.FC = () => {
         setIsLoading(false);
         setKey(Date.now()); // Reset key sau khi tải xong
     }
-  }, [storyId, volumeId, chapterId, getStoryById, navigate]);
-
+  }, [storyId, volumeId, chapterId, getStoryById, navigate, location.state]);
 
   useEffect(() => {
     loadData();
-  }, [chapterId, loadData]); // Chỉ chạy lại khi chapterId thay đổi
+  }, [chapterId, loadData]);
 
-  // --- BẮT ĐẦU SỬA ĐỔI HÀM LƯU ---
   const handleSave = async () => {
     if (!storyId || !volumeId || !title.trim()) {
       alert('Lỗi: Vui lòng điền tiêu đề chương.');
       return;
     }
-    
+
     setIsSaving(true);
     try {
         let savedChapterTitle = title;
         if (isNew) {
           const newChapter = await addChapterToVolume(storyId, volumeId, { title, content, isRaw });
           savedChapterTitle = newChapter.title;
-        } else if(chapterId) {
+        } else if (chapterId) {
           const chapterToUpdate: Omit<Chapter, 'createdAt' | 'views' | '_id'> = { id: chapterId, title, content, isRaw };
           await updateChapterInVolume(storyId, volumeId, chapterToUpdate);
         }
-        
-        // Hỏi người dùng có muốn tiếp tục không
-        const continueEditing = window.confirm(`Đã lưu "${savedChapterTitle}" thành công!\nBạn có muốn tạo ngay chương tiếp theo không?`);
+
+        // Khác biệt: khi lưu chương đã có sẵn -> nếu chọn "tiếp tục", chuyển tới CHƯƠNG TIẾP THEO nếu có, còn không hỏi tạo mới
+        const continueEditing = window.confirm(`Đã lưu "${savedChapterTitle}" thành công!\nBạn có muốn chuyển tới chương tiếp theo để cập nhật không?`);
 
         if (continueEditing) {
-            // Reset state để tạo chương mới
-            navigate(`/admin/story/${storyId}/volume/${volumeId}/chapter/new`, { replace: true });
-            setIsNew(true);
-            setTitle(getNextChapterTitle(savedChapterTitle)); // Gợi ý tiêu đề mới
-            setContent('<p>Nội dung chương tiếp theo...</p>');
-            setIsRaw(true);
-            setKey(Date.now()); // Thay đổi key để buộc CustomEditor re-render
+            if (!story) {
+                // Nếu story chưa có trong state (hiếm), lấy lại
+                const fetched = await getStoryById(storyId);
+                setStory(fetched);
+            }
+            const currentVolume = (story ?? await getStoryById(storyId))!.volumes.find(v => v.id === volumeId);
+            if (!currentVolume) {
+                // fallback: chuyển về trang chỉnh sửa truyện
+                navigate(`/admin/story/edit/${storyId}`);
+                return;
+            }
+            if (chapterId) {
+                const idx = currentVolume.chapters.findIndex(c => c.id === chapterId);
+                const nextChapter = currentVolume.chapters[idx + 1];
+                if (nextChapter) {
+                    // Điều hướng tới chương tiếp theo (sẽ load dữ liệu để chỉnh sửa)
+                    navigate(`/admin/story/${storyId}/volume/${volumeId}/chapter/${nextChapter.id}`, { replace: true });
+                } else {
+                    // Không có chương tiếp theo — hỏi có muốn tạo chương mới không
+                    const createNew = window.confirm('Không có chương tiếp theo. Bạn có muốn tạo chương mới tiếp theo không?');
+                    if (createNew) {
+                        const suggestedTitle = getNextChapterTitle(savedChapterTitle) || '';
+                        navigate(`/admin/story/${storyId}/volume/${volumeId}/chapter/new`, {
+                            state: { suggestedTitle, suggestedContent: '<p>Nội dung chương tiếp theo...</p>' },
+                            replace: true
+                        });
+                        // set local state đề phòng (loadData sẽ sử dụng location.state để tiền điền)
+                        setIsNew(true);
+                        setTitle(suggestedTitle);
+                        setContent('<p>Nội dung chương tiếp theo...</p>');
+                        setIsRaw(true);
+                        setKey(Date.now());
+                    } else {
+                        navigate(`/admin/story/edit/${storyId}`);
+                    }
+                }
+            } else {
+                // Trường hợp không có chapterId (thường khi vừa tạo mới), chuyển sang new (an toàn)
+                const suggestedTitle = getNextChapterTitle(savedChapterTitle) || '';
+                navigate(`/admin/story/${storyId}/volume/${volumeId}/chapter/new`, {
+                    state: { suggestedTitle, suggestedContent: '<p>Nội dung chương tiếp theo...</p>' },
+                    replace: true
+                });
+                setIsNew(true);
+                setTitle(suggestedTitle);
+                setContent('<p>Nội dung chương tiếp theo...</p>');
+                setIsRaw(true);
+                setKey(Date.now());
+            }
         } else {
             navigate(`/admin/story/edit/${storyId}`);
         }
@@ -116,7 +161,6 @@ const ChapterEditPage: React.FC = () => {
         setIsSaving(false);
     }
   };
-  // --- KẾT THÚC SỬA ĐỔI HÀM LƯU ---
 
   if (isLoading) {
     return (
@@ -180,7 +224,6 @@ const ChapterEditPage: React.FC = () => {
           <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
             Nội dung
           </label>
-          {/* Dùng key để reset editor khi cần */}
           <CustomEditor key={key} value={content} onChange={setContent} />
         </div>
         <div className="flex justify-end pt-4">
