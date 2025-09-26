@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useStories } from '../../contexts/StoryContext.tsx';
 import { Story, Chapter } from '../../types.ts';
 import { CheckIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
@@ -7,24 +7,20 @@ import { ArrowUturnLeftIcon, InformationCircleIcon } from '@heroicons/react/24/o
 import LoadingSpinner from '../../components/LoadingSpinner.tsx';
 import CustomEditor from '../../components/CustomEditor.tsx';
 
-// --- HÀM GỢI Ý TIÊU ĐỀ (cải tiến: tìm số cuối cùng trong tiêu đề và tăng lên) ---
+// Hàm gợi ý tiêu đề chương tiếp theo
 const getNextChapterTitle = (currentTitle: string): string => {
-    if (!currentTitle) return '';
-    // Tìm số cuối cùng xuất hiện trong chuỗi
-    const match = currentTitle.match(/(\d+)(?!.*\d)/);
+    const match = currentTitle.match(/(.*?)(\d+)$/);
     if (match) {
-        const num = parseInt(match[1], 10);
-        return currentTitle.replace(/(\d+)(?!.*\d)/, String(num + 1));
+        const base = match[1].trim();
+        const number = parseInt(match[2], 10);
+        return `${base} ${number + 1}`;
     }
-    // Nếu không có số nào -> trả về chuỗi rỗng (không tự đặt tiêu đề)
     return '';
 };
-// --- KẾT THÚC HÀM GỢI Ý ---
 
 const ChapterEditPage: React.FC = () => {
   const { storyId, volumeId, chapterId } = useParams<{ storyId: string; volumeId: string; chapterId?: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
   const { getStoryById, addChapterToVolume, updateChapterInVolume } = useStories();
 
   const [story, setStory] = useState<Story | null>(null);
@@ -34,7 +30,7 @@ const ChapterEditPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isNew, setIsNew] = useState(false);
-  const [key, setKey] = useState(Date.now()); // Thêm key để reset CustomEditor
+  const [key, setKey] = useState(Date.now()); // Key để reset CustomEditor
 
   const loadData = useCallback(async () => {
     if (!storyId || !volumeId) {
@@ -60,100 +56,76 @@ const ChapterEditPage: React.FC = () => {
         } else {
             setIsNew(true);
             setIsRaw(true);
-            // Nếu có state truyền từ navigate (gợi ý tiêu đề / nội dung), dùng nó
-            const stateAny = location.state as any;
-            const suggestedTitle = stateAny?.suggestedTitle ?? '';
-            const suggestedContent = stateAny?.suggestedContent ?? '<p>Nội dung chương mới...</p>';
-            setTitle(suggestedTitle);
-            setContent(suggestedContent);
+            const allChapters = currentStory.volumes.flatMap(v => v.chapters);
+            const lastChapter = allChapters[allChapters.length - 1];
+            setTitle(lastChapter ? getNextChapterTitle(lastChapter.title) : 'Chương 1');
+            setContent('<p>Nội dung chương mới...</p>');
         }
     } catch (error: any) {
         alert(error.message || 'Lỗi tải dữ liệu.');
         navigate(`/admin/story/edit/${storyId}`);
     } finally {
         setIsLoading(false);
-        setKey(Date.now()); // Reset key sau khi tải xong
+        setKey(Date.now());
     }
-  }, [storyId, volumeId, chapterId, getStoryById, navigate, location.state]);
+  }, [storyId, volumeId, chapterId, getStoryById, navigate]);
+
 
   useEffect(() => {
     loadData();
-  }, [chapterId, loadData]);
+  }, [chapterId, storyId, volumeId]); // Tải lại dữ liệu khi bất kỳ ID nào trên URL thay đổi
 
   const handleSave = async () => {
     if (!storyId || !volumeId || !title.trim()) {
       alert('Lỗi: Vui lòng điền tiêu đề chương.');
       return;
     }
-
+    
     setIsSaving(true);
     try {
-        let savedChapterTitle = title;
         if (isNew) {
-          const newChapter = await addChapterToVolume(storyId, volumeId, { title, content, isRaw });
-          savedChapterTitle = newChapter.title;
-        } else if (chapterId) {
-          const chapterToUpdate: Omit<Chapter, 'createdAt' | 'views' | '_id'> = { id: chapterId, title, content, isRaw };
-          await updateChapterInVolume(storyId, volumeId, chapterToUpdate);
-        }
+            // --- LOGIC KHI TẠO CHƯƠNG MỚI ---
+            const newChapter = await addChapterToVolume(storyId, volumeId, { title, content, isRaw });
+            const continueEditing = window.confirm(`Đã thêm "${newChapter.title}" thành công!\nBạn có muốn tạo ngay chương tiếp theo không?`);
 
-        // Khác biệt: khi lưu chương đã có sẵn -> nếu chọn "tiếp tục", chuyển tới CHƯƠNG TIẾP THEO nếu có, còn không hỏi tạo mới
-        const continueEditing = window.confirm(`Đã lưu "${savedChapterTitle}" thành công!\nBạn có muốn chuyển tới chương tiếp theo để cập nhật không?`);
-
-        if (continueEditing) {
-            if (!story) {
-                // Nếu story chưa có trong state (hiếm), lấy lại
-                const fetched = await getStoryById(storyId);
-                setStory(fetched);
-            }
-            const currentVolume = (story ?? await getStoryById(storyId))!.volumes.find(v => v.id === volumeId);
-            if (!currentVolume) {
-                // fallback: chuyển về trang chỉnh sửa truyện
-                navigate(`/admin/story/edit/${storyId}`);
-                return;
-            }
-            if (chapterId) {
-                const idx = currentVolume.chapters.findIndex(c => c.id === chapterId);
-                const nextChapter = currentVolume.chapters[idx + 1];
-                if (nextChapter) {
-                    // Điều hướng tới chương tiếp theo (sẽ load dữ liệu để chỉnh sửa)
-                    navigate(`/admin/story/${storyId}/volume/${volumeId}/chapter/${nextChapter.id}`, { replace: true });
-                } else {
-                    // Không có chương tiếp theo — hỏi có muốn tạo chương mới không
-                    const createNew = window.confirm('Không có chương tiếp theo. Bạn có muốn tạo chương mới tiếp theo không?');
-                    if (createNew) {
-                        const suggestedTitle = getNextChapterTitle(savedChapterTitle) || '';
-                        navigate(`/admin/story/${storyId}/volume/${volumeId}/chapter/new`, {
-                            state: { suggestedTitle, suggestedContent: '<p>Nội dung chương tiếp theo...</p>' },
-                            replace: true
-                        });
-                        // set local state đề phòng (loadData sẽ sử dụng location.state để tiền điền)
-                        setIsNew(true);
-                        setTitle(suggestedTitle);
-                        setContent('<p>Nội dung chương tiếp theo...</p>');
-                        setIsRaw(true);
-                        setKey(Date.now());
-                    } else {
-                        navigate(`/admin/story/edit/${storyId}`);
-                    }
-                }
-            } else {
-                // Trường hợp không có chapterId (thường khi vừa tạo mới), chuyển sang new (an toàn)
-                const suggestedTitle = getNextChapterTitle(savedChapterTitle) || '';
-                navigate(`/admin/story/${storyId}/volume/${volumeId}/chapter/new`, {
-                    state: { suggestedTitle, suggestedContent: '<p>Nội dung chương tiếp theo...</p>' },
-                    replace: true
-                });
-                setIsNew(true);
-                setTitle(suggestedTitle);
+            if (continueEditing) {
+                // Reset state để tạo chương mới, không cần navigate vì URL đã đúng
+                setTitle(getNextChapterTitle(newChapter.title));
                 setContent('<p>Nội dung chương tiếp theo...</p>');
                 setIsRaw(true);
-                setKey(Date.now());
+                setKey(Date.now()); // Thay đổi key để buộc CustomEditor re-render
+                window.scrollTo(0, 0); // Cuộn lên đầu trang
+            } else {
+                navigate(`/admin/story/edit/${storyId}`);
             }
-        } else {
-            navigate(`/admin/story/edit/${storyId}`);
-        }
+        } else if(chapterId) {
+            // --- LOGIC KHI CẬP NHẬT CHƯƠNG CŨ ---
+            const chapterToUpdate: Omit<Chapter, 'createdAt' | 'views' | '_id'> = { id: chapterId, title, content, isRaw };
+            await updateChapterInVolume(storyId, volumeId, chapterToUpdate);
 
+            // Tìm chương tiếp theo để gợi ý
+            const allChaptersWithVolume = story?.volumes.flatMap(v => v.chapters.map(c => ({ ...c, volumeId: v.id }))) || [];
+            const currentIndex = allChaptersWithVolume.findIndex(c => c.id === chapterId);
+
+            if (currentIndex !== -1 && currentIndex < allChaptersWithVolume.length - 1) {
+                // Nếu có chương tiếp theo
+                const nextChapter = allChaptersWithVolume[currentIndex + 1];
+                const continueToNext = window.confirm(`Đã cập nhật "${title}" thành công!\nBạn có muốn chỉnh sửa chương tiếp theo ("${nextChapter.title}") không?`);
+                if (continueToNext) {
+                    navigate(`/admin/story/${storyId}/volume/${nextChapter.volumeId}/chapter/edit/${nextChapter.id}`);
+                } else {
+                    navigate(`/admin/story/edit/${storyId}`);
+                }
+            } else {
+                // Nếu đây là chương cuối cùng
+                const continueToNew = window.confirm(`Đã cập nhật "${title}" thành công!\nĐây là chương cuối. Bạn có muốn tạo chương mới không?`);
+                if (continueToNew) {
+                    navigate(`/admin/story/${storyId}/volume/${volumeId}/chapter/new`);
+                } else {
+                    navigate(`/admin/story/edit/${storyId}`);
+                }
+            }
+        }
     } catch(err) {
         alert('Lưu chương thất bại!');
         console.error(err);
