@@ -1,26 +1,47 @@
 // src/pages/admin/StoryEditPage.tsx
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react'; // Added useMemo
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useStories } from '../../contexts/StoryContext.tsx';
 import { Story, Volume, Chapter } from '../../types.ts';
-import { 
-    PlusIcon, TrashIcon, PencilIcon, ArrowPathIcon, 
-    ArrowUpIcon, ArrowDownIcon 
+import {
+    PlusIcon, TrashIcon, PencilIcon, ArrowPathIcon,
+    ArrowUpIcon, ArrowDownIcon, PhotoIcon, ArrowUturnLeftIcon,
+    ExclamationTriangleIcon, MagnifyingGlassIcon // Added MagnifyingGlassIcon
 } from '@heroicons/react/24/solid';
 import { uploadImage } from '../../services/uploadService.ts';
+import LoadingSpinner from '../../components/LoadingSpinner.tsx';
+
+// --- COMPONENT NÚT DI CHUYỂN --- (Fix prop types)
+interface MoveButtonProps {
+    direction: 'up' | 'down';
+    disabled: boolean;
+    onClick: () => void;
+    ariaLabel: string;
+}
+const MoveButton: React.FC<MoveButtonProps> = ({ direction, disabled, onClick, ariaLabel }) => (
+    <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={ariaLabel}
+        className="p-1 rounded-md text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+    >
+        {direction === 'up' ? <ArrowUpIcon className="h-4 w-4" /> : <ArrowDownIcon className="h-4 w-4" />}
+    </button>
+);
+// --- KẾT THÚC COMPONENT ---
+
 
 const StoryEditPage: React.FC = () => {
     const { storyId } = useParams<{ storyId: string }>();
     const navigate = useNavigate();
-    
-    // Lấy thêm `stories` từ context để theo dõi thay đổi
-    const { 
-        stories, getStoryById, addStory, updateStory, addVolume, deleteVolume, 
-        updateVolume, deleteChapterFromVolume, reorderVolumesInStory, reorderChaptersInVolume 
+
+    const {
+        stories, getStoryById, addStory, updateStory, addVolume, deleteVolume,
+        updateVolume, deleteChapterFromVolume, reorderVolumesInStory, reorderChaptersInVolume
     } = useStories();
 
-    // State cục bộ của trang
     const [storyData, setStoryData] = useState<Partial<Story>>({});
     const [tagsInput, setTagsInput] = useState('');
     const [aliasInput, setAliasInput] = useState('');
@@ -29,9 +50,14 @@ const StoryEditPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState('');
+    const [imageUploading, setImageUploading] = useState(false);
+    // --- STATE TÌM KIẾM CHƯƠNG (ADMIN) ---
+    const [adminChapterSearchTerm, setAdminChapterSearchTerm] = useState('');
+    // --- KẾT THÚC STATE ---
 
-    // Effect để tải dữ liệu truyện lần đầu
     useEffect(() => {
+        setLoading(true);
+        setError('');
         if (storyId) {
             setIsNewStory(false);
             getStoryById(storyId)
@@ -40,11 +66,16 @@ const StoryEditPage: React.FC = () => {
                         setStoryData(existingStory);
                         setTagsInput(existingStory.tags?.join(', ') || '');
                         setAliasInput(existingStory.alias?.join(', ') || '');
+                        setAdminChapterSearchTerm(''); // Reset search on load
                     } else {
-                        navigate('/admin');
+                         setError('Không tìm thấy truyện.');
+                         setTimeout(() => navigate('/admin'), 2000);
                     }
                 })
-                .catch(() => navigate('/admin'))
+                .catch(() => {
+                     setError('Lỗi khi tải dữ liệu truyện.');
+                     setTimeout(() => navigate('/admin'), 2000);
+                 })
                 .finally(() => setLoading(false));
         } else {
             setIsNewStory(true);
@@ -58,20 +89,16 @@ const StoryEditPage: React.FC = () => {
         }
     }, [storyId, getStoryById, navigate]);
 
-    // === PHẦN SỬA LỖI QUAN TRỌNG ===
-    // Effect này sẽ lắng nghe sự thay đổi từ `stories` (state toàn cục)
-    // và cập nhật `storyData` (state cục bộ) của trang này.
     useEffect(() => {
-        const updatedStoryFromContext = stories.find(s => s.id === storyId);
-        if (updatedStoryFromContext) {
-            // So sánh đơn giản để tránh re-render không cần thiết
-            // Chỉ cập nhật nếu dữ liệu từ context khác với dữ liệu đang hiển thị
-             if (JSON.stringify(updatedStoryFromContext.volumes) !== JSON.stringify(storyData.volumes)) {
-                setStoryData(prev => ({...prev, volumes: updatedStoryFromContext.volumes}));
+        if (!isNewStory && storyId) {
+            const updatedStoryFromContext = stories.find(s => s.id === storyId);
+            if (updatedStoryFromContext) {
+                 if (JSON.stringify(updatedStoryFromContext.volumes) !== JSON.stringify(storyData.volumes)) {
+                    setStoryData(prev => ({...prev, volumes: updatedStoryFromContext.volumes}));
+                }
             }
         }
-    }, [stories, storyId]); // <--- ĐÃ SỬA: Bỏ `storyData` ra khỏi dependency array
-    // === KẾT THÚC PHẦN SỬA LỖI ===
+    }, [stories, storyId, isNewStory, storyData.volumes]);
 
     const handleStoryChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value, type } = e.target;
@@ -83,288 +110,382 @@ const StoryEditPage: React.FC = () => {
         const value = e.target.value;
         (field === 'tags' ? setTagsInput : setAliasInput)(value);
         setStoryData(prev => ({...prev, [field]: value.split(',').map(item => item.trim()).filter(Boolean)}));
-    }
+    };
 
     const handleCoverImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
+            if (file.size > 10 * 1024 * 1024) {
+                setError('Ảnh bìa không được vượt quá 10MB.');
+                return;
+            }
+            if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
+                 setError('Chỉ chấp nhận ảnh định dạng JPG, PNG, GIF, WEBP.');
+                 return;
+            }
+            setImageUploading(true);
+            setError('');
             try {
                 const imageUrl = await uploadImage(file);
                 setStoryData(prev => ({ ...prev, coverImage: imageUrl }));
-                alert('Tải ảnh bìa thành công!');
-            } catch (error) {
-                alert('Tải ảnh bìa thất bại. Vui lòng thử lại.');
+            } catch (error: any) {
+                setError('Tải ảnh bìa thất bại: ' + (error.response?.data?.message || error.message));
                 console.error(error);
+            } finally {
+                setImageUploading(false);
             }
         }
     };
 
-const handleStorySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Debug: Log dữ liệu trước khi gửi
-    console.log('=== FRONTEND: Preparing to submit story ===');
-    console.log('isNewStory:', isNewStory);
-    console.log('storyData before submit:', JSON.stringify(storyData, null, 2));
-    console.log('tagsInput:', tagsInput);
-    console.log('aliasInput:', aliasInput);
-    
-    // Validation chi tiết
-    if (!storyData.title?.trim()) {
-        alert("Tên truyện không được để trống.");
-        return;
-    }
-    
-    if (!storyData.author?.trim()) {
-        alert("Tác giả không được để trống.");
-        return;
-    }
-    
-    if (!storyData.coverImage?.trim()) {
-        alert("Vui lòng tải lên ảnh bìa.");
-        return;
-    }
-    
-    // Chuẩn bị dữ liệu gửi đi
-    const submitData = {
-        title: storyData.title.trim(),
-        author: storyData.author.trim(),
-        description: storyData.description || '',
-        coverImage: storyData.coverImage.trim(),
-        tags: storyData.tags || [],
-        alias: storyData.alias || [],
-        status: storyData.status || 'Đang dịch',
-        isHot: !!storyData.isHot,
-        isInBanner: !!storyData.isInBanner
-    };
-    
-    console.log('=== FRONTEND: Final submit data ===');
-    console.log(JSON.stringify(submitData, null, 2));
-    
-    setIsSaving(true);
-    setError('');
-    
-    try {
-        if (isNewStory) {
-            console.log('=== FRONTEND: Calling addStory ===');
-            const newStory = await addStory(submitData);
-            console.log('=== FRONTEND: addStory success ===', newStory);
-            alert('Đã thêm truyện thành công!');
-            navigate(`/admin/story/edit/${newStory.id}`);
-        } else if(storyId) {
-            console.log('=== FRONTEND: Calling updateStory ===');
-            const updatedStory = await updateStory(storyId, submitData); 
-            console.log('=== FRONTEND: updateStory success ===', updatedStory);
-            alert('Đã cập nhật truyện thành công!');
-
-            if (updatedStory.id !== storyId) {
-                navigate(`/admin/story/edit/${updatedStory.id}`, { replace: true });
+    const handleStorySubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        if (!storyData.title?.trim() || !storyData.author?.trim() || !storyData.coverImage?.trim()) {
+            setError("Tên truyện, Tác giả và Ảnh bìa là bắt buộc.");
+            window.scrollTo(0, 0);
+            return;
+        }
+        const submitData = {
+            title: storyData.title.trim(),
+            author: storyData.author.trim(),
+            description: storyData.description || '',
+            coverImage: storyData.coverImage.trim(),
+            tags: storyData.tags || [],
+            alias: storyData.alias || [],
+            status: storyData.status || 'Đang dịch',
+            isHot: !!storyData.isHot,
+            isInBanner: !!storyData.isInBanner
+        };
+        setIsSaving(true);
+        try {
+            if (isNewStory) {
+                const newStory = await addStory(submitData);
+                alert(`Đã thêm truyện "${newStory.title}" thành công!`);
+                navigate(`/admin/story/edit/${newStory.id}`, { replace: true });
+            } else if(storyId) {
+                const updatedStory = await updateStory(storyId, submitData);
+                alert(`Đã cập nhật truyện "${updatedStory.title}" thành công!`);
+                 setStoryData(updatedStory);
+                 setTagsInput(updatedStory.tags?.join(', ') || '');
+                 setAliasInput(updatedStory.alias?.join(', ') || '');
+                 if (updatedStory.id !== storyId) {
+                    navigate(`/admin/story/edit/${updatedStory.id}`, { replace: true });
+                 }
             }
+        } catch(err: any) {
+            const errorMessage = err.response?.data?.message || err.message || 'Lưu thất bại. Vui lòng thử lại.';
+            setError(errorMessage);
+            window.scrollTo(0, 0);
+        } finally {
+            setIsSaving(false);
         }
-    } catch(err: any) {
-        console.error('=== FRONTEND: Submit error ===');
-        console.error('Error object:', err);
-        console.error('Error response:', err.response);
-        console.error('Error message:', err.message);
-        
-        // Hiển thị lỗi chi tiết từ server
-        const errorMessage = err.response?.data?.message || err.message || 'Lưu thất bại. Vui lòng thử lại.';
-        setError(errorMessage);
-        
-        // Log chi tiết lỗi validation nếu có
-        if (err.response?.data?.errors) {
-            console.error('Validation errors:', err.response.data.errors);
-        }
-    } finally {
-        setIsSaving(false);
-    }
-};
-        
-    const handleChapterDelete = useCallback(async (volumeId: string, chapterId: string) => {
-        if(storyId && window.confirm("Bạn có chắc muốn xóa chương này?")) {
-            await deleteChapterFromVolume(storyId, volumeId, chapterId);
+    };
+
+    const confirmAction = (message: string): Promise<boolean> => {
+        return Promise.resolve(window.confirm(message));
+    };
+
+    const handleChapterDelete = useCallback(async (volumeId: string, chapterId: string, chapterTitle: string) => {
+        if(storyId) {
+            const confirmed = await confirmAction(`Bạn có chắc muốn xóa chương "${chapterTitle}"?`);
+            if (confirmed) {
+                try { await deleteChapterFromVolume(storyId, volumeId, chapterId); } catch (err) { alert('Xóa chương thất bại.'); }
+            }
         }
     }, [storyId, deleteChapterFromVolume]);
 
-    const handleAddVolume = async (e: React.FormEvent) => {
+    const handleAddVolume = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
         if (storyId && newVolumeTitle.trim()) {
-            await addVolume(storyId, newVolumeTitle.trim());
-            setNewVolumeTitle('');
+             try { await addVolume(storyId, newVolumeTitle.trim()); setNewVolumeTitle(''); } catch (err) { alert('Thêm tập thất bại.'); }
         }
-    }
+    }, [storyId, newVolumeTitle, addVolume]);
 
-    const handleVolumeDelete = useCallback(async (volumeId: string) => {
-        if(storyId && window.confirm("Bạn có chắc muốn xóa tập này và tất cả các chương bên trong?")) {
-            await deleteVolume(storyId, volumeId);
+    const handleVolumeDelete = useCallback(async (volumeId: string, volumeTitle: string) => {
+        if(storyId) {
+            const confirmed = await confirmAction(`Bạn có chắc muốn xóa tập "${volumeTitle}" và tất cả các chương bên trong?`);
+             if(confirmed) { try { await deleteVolume(storyId, volumeId); } catch (err) { alert('Xóa tập thất bại.'); } }
         }
     }, [storyId, deleteVolume]);
 
-    const handleVolumeTitleChange = async (volumeId: string) => {
+    const handleVolumeTitleChange = useCallback(async (volumeId: string) => {
         const currentVolume = storyData.volumes?.find(v => v.id === volumeId);
         const newTitle = prompt("Nhập tên tập mới:", currentVolume?.title || '');
         if (storyId && newTitle !== null && newTitle.trim() !== '') {
-            await updateVolume(storyId, volumeId, newTitle.trim());
+             try { await updateVolume(storyId, volumeId, newTitle.trim()); } catch (err) { alert('Đổi tên tập thất bại.'); }
         }
+    }, [storyId, storyData.volumes, updateVolume]);
+
+    const handleMove = useCallback(async (direction: 'up' | 'down', type: 'volume' | 'chapter', ids: { volumeId?: string; chapterId?: string }) => {
+        if (!storyId || !storyData.volumes) return;
+        try {
+            if (type === 'volume' && ids.volumeId) {
+                const index = storyData.volumes.findIndex(v => v.id === ids.volumeId);
+                if ((direction === 'up' && index > 0) || (direction === 'down' && index < storyData.volumes.length - 1)) {
+                    const newIndex = direction === 'up' ? index - 1 : index + 1;
+                    const newVolumes = [...storyData.volumes];
+                    [newVolumes[index], newVolumes[newIndex]] = [newVolumes[newIndex], newVolumes[index]];
+                    await reorderVolumesInStory(storyId, newVolumes.map(v => v.id));
+                }
+            } else if (type === 'chapter' && ids.volumeId && ids.chapterId) {
+                const volume = storyData.volumes.find(v => v.id === ids.volumeId);
+                if (!volume) return;
+                const index = volume.chapters.findIndex(c => c.id === ids.chapterId);
+                if ((direction === 'up' && index > 0) || (direction === 'down' && index < volume.chapters.length - 1)) {
+                    const newIndex = direction === 'up' ? index - 1 : index + 1;
+                    const newChapters = [...volume.chapters];
+                    [newChapters[index], newChapters[newIndex]] = [newChapters[newIndex], newChapters[index]];
+                    await reorderChaptersInVolume(storyId, ids.volumeId, newChapters.map(c => c.id));
+                }
+            }
+        } catch (err) { alert('Thay đổi thứ tự thất bại.'); }
+    }, [storyId, storyData.volumes, reorderVolumesInStory, reorderChaptersInVolume]);
+
+    const inputStyles = "w-full p-2.5 border rounded-lg bg-white dark:bg-slate-700/50 text-slate-900 dark:text-white border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-150 shadow-sm";
+    const labelStyles = "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5";
+
+    // --- LOGIC LỌC CHƯƠNG (ADMIN) ---
+    const filteredVolumes = useMemo(() => {
+        if (!storyData.volumes) return [];
+        if (!adminChapterSearchTerm.trim()) {
+            return storyData.volumes;
+        }
+        const searchTerm = adminChapterSearchTerm.toLowerCase();
+        // Map qua các tập, lọc các chương bên trong, sau đó lọc các tập không có chương nào khớp
+        return storyData.volumes.map(vol => ({
+            ...vol,
+            chapters: vol.chapters.filter(chap => chap.title.toLowerCase().includes(searchTerm))
+        })).filter(vol => vol.chapters.length > 0); // Chỉ giữ lại tập có chương khớp
+    }, [storyData.volumes, adminChapterSearchTerm]);
+    // --- KẾT THÚC LOGIC LỌC ---
+
+    if (loading) return <div className="flex justify-center items-center h-screen -mt-16"><LoadingSpinner size="lg"/></div>;
+
+    if (error && !storyData.title && !isNewStory) {
+        return (
+            <div className="max-w-xl mx-auto text-center py-16 px-6 bg-red-50 dark:bg-red-900/30 rounded-lg border border-red-200 dark:border-red-700/50">
+                <ExclamationTriangleIcon className="h-12 w-12 mx-auto text-red-400 mb-4"/>
+                <p className="text-lg font-semibold text-red-700 dark:text-red-200 mb-2">Đã xảy ra lỗi</p>
+                <p className="text-red-600 dark:text-red-300">{error}</p>
+                <button onClick={() => navigate('/admin')} className="mt-6 px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-md hover:bg-slate-300 dark:hover:bg-slate-600 text-sm font-medium">
+                    Quay lại Dashboard
+                </button>
+            </div>
+        );
     }
 
-    const handleMove = async (
-        direction: 'up' | 'down',
-        type: 'volume' | 'chapter',
-        ids: { volumeId?: string; chapterId?: string }
-    ) => {
-        if (!storyId || !storyData.volumes) return;
-
-        if (type === 'volume' && ids.volumeId) {
-            const { volumeId } = ids;
-            const volumes = storyData.volumes;
-            const index = volumes.findIndex(v => v.id === volumeId);
-            if ((direction === 'up' && index > 0) || (direction === 'down' && index < volumes.length - 1)) {
-                const newIndex = direction === 'up' ? index - 1 : index + 1;
-                const newVolumes = [...volumes];
-                [newVolumes[index], newVolumes[newIndex]] = [newVolumes[newIndex], newVolumes[index]];
-                await reorderVolumesInStory(storyId, newVolumes.map(v => v.id));
-            }
-        } else if (type === 'chapter' && ids.volumeId && ids.chapterId) {
-            const { volumeId, chapterId } = ids;
-            const volume = storyData.volumes.find(v => v.id === volumeId);
-            if (!volume) return;
-
-            const chapters = volume.chapters;
-            const index = chapters.findIndex(c => c.id === chapterId);
-            if ((direction === 'up' && index > 0) || (direction === 'down' && index < chapters.length - 1)) {
-                const newIndex = direction === 'up' ? index - 1 : index + 1;
-                const newChapters = [...chapters];
-                [newChapters[index], newChapters[newIndex]] = [newChapters[newIndex], newChapters[index]];
-                await reorderChaptersInVolume(storyId, volumeId, newChapters.map(c => c.id));
-            }
-        }
-    };
-
-    const inputStyles = "w-full p-2 border rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-white border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-orange-500 transition";
-
-    if (loading) return <div className="text-center p-10"><ArrowPathIcon className="h-8 w-8 animate-spin mx-auto" /></div>;
-    
-    const MoveButton: React.FC<{
-        direction: 'up' | 'down';
-        disabled: boolean;
-        onClick: () => void;
-        ariaLabel: string;
-    }> = ({ direction, disabled, onClick, ariaLabel }) => (
-        <button
-            type="button"
-            onClick={onClick}
-            disabled={disabled}
-            aria-label={ariaLabel}
-            className="p-1 rounded-md text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-        >
-            {direction === 'up' ? <ArrowUpIcon className="h-4 w-4" /> : <ArrowDownIcon className="h-4 w-4" />}
-        </button>
-    );
-
+    // --- RENDER UI ---
     return (
-        <div className="max-w-4xl mx-auto space-y-8 animate-fade-in p-4">
-            <h1 className="text-3xl font-bold font-serif">{isNewStory ? 'Thêm Truyện Mới' : `Chỉnh Sửa: ${storyData.title}`}</h1>
-            <form onSubmit={handleStorySubmit} className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-lg space-y-6">
-                <h2 className="text-xl font-semibold border-b border-slate-200 dark:border-slate-700 pb-3 mb-4">Thông tin truyện</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="md:col-span-1">
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Ảnh bìa</label>
-                        <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 dark:border-slate-600 border-dashed rounded-md">
-                            <div className="space-y-1 text-center">
-                                {storyData.coverImage ? (
-                                    <img src={storyData.coverImage} alt="Preview" className="mx-auto h-32 w-auto object-contain rounded-md"/>
-                                ) : (
-                                    <svg className="mx-auto h-12 w-12 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                                )}
-                                <div className="flex text-sm text-slate-600 dark:text-slate-400">
-                                    <label htmlFor="coverImage" className="relative cursor-pointer bg-white dark:bg-slate-800 rounded-md font-medium text-orange-600 dark:text-orange-400 hover:text-orange-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 dark:ring-offset-slate-800 focus-within:ring-orange-500">
-                                        <span>Tải ảnh lên</span>
-                                        <input id="coverImage" name="coverImage" type="file" className="sr-only" onChange={handleCoverImageChange} accept="image/*" />
-                                    </label>
-                                    <p className="pl-1">hoặc kéo và thả</p>
+        <div className="max-w-7xl mx-auto space-y-8 animate-fade-in p-4 sm:p-6 lg:p-8"> {/* Tăng max-width */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                 <div>
+                     <button onClick={() => navigate('/admin')} className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors mb-1 group">
+                         <ArrowUturnLeftIcon className="h-4 w-4 transition-transform group-hover:-translate-x-1 duration-200" />
+                         Quay lại Dashboard
+                     </button>
+                    <h1 className="text-2xl sm:text-3xl font-bold font-serif text-slate-900 dark:text-white leading-tight">
+                        {isNewStory ? 'Thêm Truyện Mới' : `Chỉnh Sửa: ${storyData.title || '...'}`}
+                    </h1>
+                 </div>
+                 <div className="sm:sticky sm:top-20 sm:z-10">
+                     <button
+                        form="storyForm"
+                        type="submit"
+                        disabled={isSaving || imageUploading}
+                        className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity shadow-lg hover:shadow-xl disabled:opacity-70 disabled:cursor-not-allowed"
+                    >
+                        {isSaving ? <ArrowPathIcon className="h-5 w-5 animate-spin" /> : <PlusIcon className="h-5 w-5" />}
+                        {isNewStory ? 'Lưu Truyện' : 'Cập nhật Thông Tin'}
+                    </button>
+                 </div>
+            </div>
+
+            {error && (
+                 <div className="p-3 bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 rounded-r-lg flex items-center gap-3 text-sm text-red-700 dark:text-red-300 shadow-sm">
+                    <ExclamationTriangleIcon className="h-6 w-6 flex-shrink-0"/>
+                    <span className="font-medium">{error}</span>
+                 </div>
+             )}
+
+            <form id="storyForm" onSubmit={handleStorySubmit} className="bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-lg shadow-lg space-y-6 border border-slate-200 dark:border-slate-700">
+                <h2 className="text-xl font-semibold border-b border-slate-200 dark:border-slate-700 pb-3 mb-6 text-slate-800 dark:text-slate-200">Thông tin cơ bản</h2>
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-8">
+                    <div className="md:col-span-4 lg:col-span-3 space-y-1.5">
+                        <label className={labelStyles}>Ảnh bìa *</label>
+                        <div className="aspect-[2/3] relative border-2 border-slate-300 dark:border-slate-600 border-dashed rounded-lg flex items-center justify-center text-center p-2 bg-slate-50 dark:bg-slate-700/20 group">
+                             {imageUploading && (
+                                <div className="absolute inset-0 bg-white/80 dark:bg-slate-800/80 flex flex-col items-center justify-center z-10 rounded-lg backdrop-blur-sm">
+                                    <LoadingSpinner size="md" />
+                                    <span className="text-xs mt-2 text-slate-500 dark:text-slate-400">Đang tải lên...</span>
                                 </div>
-                                <p className="text-xs text-slate-500 dark:text-slate-500">PNG, JPG, GIF up to 10MB</p>
-                            </div>
+                             )}
+                            {storyData.coverImage ? (
+                                <img src={storyData.coverImage} alt="Preview" className="max-h-full w-auto object-contain rounded-md mx-auto shadow-md"/>
+                             ) : (
+                                <div className="text-slate-400 dark:text-slate-500 space-y-1">
+                                    <PhotoIcon className="h-10 w-10 mx-auto"/>
+                                    <p className="text-xs font-medium">Chọn hoặc kéo thả ảnh</p>
+                                </div>
+                             )}
+                             <label htmlFor="coverImage" className="absolute inset-0 cursor-pointer bg-black/40 dark:bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-200 rounded-lg">
+                                <PencilIcon className="h-7 w-7 mb-1"/>
+                                <span className="text-xs font-medium">Thay đổi ảnh</span>
+                             </label>
+                             <input id="coverImage" name="coverImage" type="file" className="sr-only" onChange={handleCoverImageChange} accept="image/jpeg,image/png,image/gif,image/webp" />
                         </div>
+                         <p className="text-xs text-slate-500 dark:text-slate-400 text-center px-2">JPG, PNG, GIF, WEBP. Tối đa 10MB.</p>
                     </div>
-                    <div className="md:col-span-2 space-y-4">
-                        <input name="title" value={storyData.title || ''} onChange={handleStoryChange} placeholder="Tên truyện" required className={inputStyles} />
-                        <input name="author" value={storyData.author || ''} onChange={handleStoryChange} placeholder="Tác giả" required className={inputStyles} />
-                        <input name="alias" value={aliasInput} onChange={(e) => handleStringToArrayChange(e, 'alias')} placeholder="Tên khác (cách nhau bằng dấu phẩy)" className={inputStyles} />
-                        <input name="tags" value={tagsInput} onChange={(e) => handleStringToArrayChange(e, 'tags')} placeholder="Tags (cách nhau bằng dấu phẩy)" className={inputStyles} />
-                        <div className="flex flex-col sm:flex-row gap-4">
-                            <div>
-                                <select name="status" value={storyData.status} onChange={handleStoryChange} className={inputStyles + " flex-grow"}>
+                    <div className="md:col-span-8 lg:col-span-9 space-y-5">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                            <div><label htmlFor="title" className={labelStyles}>Tên truyện *</label><input id="title" name="title" value={storyData.title || ''} onChange={handleStoryChange} required className={inputStyles} /></div>
+                             <div><label htmlFor="author" className={labelStyles}>Tác giả *</label><input id="author" name="author" value={storyData.author || ''} onChange={handleStoryChange} required className={inputStyles} /></div>
+                        </div>
+                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                            <div><label htmlFor="alias" className={labelStyles}>Tên khác <span className="text-xs font-normal text-slate-400">(cách nhau bởi dấu phẩy)</span></label><input id="alias" name="alias" value={aliasInput} onChange={(e) => handleStringToArrayChange(e, 'alias')} className={inputStyles} /></div>
+                            <div><label htmlFor="tags" className={labelStyles}>Tags <span className="text-xs font-normal text-slate-400">(cách nhau bởi dấu phẩy)</span></label><input id="tags" name="tags" value={tagsInput} onChange={(e) => handleStringToArrayChange(e, 'tags')} className={inputStyles} /></div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-2">
+                             <div>
+                                <label htmlFor="status" className={labelStyles}>Trạng thái</label>
+                                <select id="status" name="status" value={storyData.status} onChange={handleStoryChange} className={inputStyles}>
                                     <option value="Đang dịch">Đang dịch</option>
                                     <option value="Hoàn thành">Hoàn thành</option>
                                 </select>
-                            </div>
-                            <div className="flex items-center gap-4 pt-2 sm:pt-0">
-                                <div className="flex items-center space-x-2">
-                                    <input type="checkbox" id="isHot" name="isHot" checked={!!storyData.isHot} onChange={handleStoryChange} className="h-4 w-4 text-red-600 border-slate-300 rounded focus:ring-red-500" />
-                                    <label htmlFor="isHot" className="text-sm text-slate-700 dark:text-slate-300">Đánh dấu "Hot"</label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <input type="checkbox" id="isInBanner" name="isInBanner" checked={!!storyData.isInBanner} onChange={handleStoryChange} className="h-4 w-4 text-amber-600 border-slate-300 rounded focus:ring-amber-500" />
-                                    <label htmlFor="isInBanner" className="text-sm text-slate-700 dark:text-slate-300">Hiển thị banner</label>
-                                </div>
+                             </div>
+                             <div className="flex flex-col justify-end space-y-3 pt-2 sm:pt-0">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" id="isHot" name="isHot" checked={!!storyData.isHot} onChange={handleStoryChange} className="h-4 w-4 text-red-600 border-slate-300 dark:border-slate-500 rounded focus:ring-red-500 bg-white dark:bg-slate-700/50" />
+                                    <span className="text-sm text-slate-700 dark:text-slate-300 select-none">Đánh dấu "Hot" (Nổi bật)</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" id="isInBanner" name="isInBanner" checked={!!storyData.isInBanner} onChange={handleStoryChange} className="h-4 w-4 text-amber-600 border-slate-300 dark:border-slate-500 rounded focus:ring-amber-500 bg-white dark:bg-slate-700/50" />
+                                    <span className="text-sm text-slate-700 dark:text-slate-300 select-none">Hiển thị trên Banner</span>
+                                </label>
                             </div>
                         </div>
+                        <div><label htmlFor="description" className={labelStyles}>Mô tả</label><textarea id="description" name="description" value={storyData.description || ''} onChange={handleStoryChange} rows={6} className={inputStyles + " min-h-[100px]"}></textarea></div>
                     </div>
                 </div>
-                <textarea name="description" value={storyData.description || ''} onChange={handleStoryChange} placeholder="Mô tả" rows={4} className={inputStyles}></textarea>
-                {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-                <button type="submit" disabled={isSaving} className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-md hover:opacity-90 transition-opacity shadow disabled:opacity-70 disabled:cursor-not-allowed">
-                    {isSaving ? <ArrowPathIcon className="h-5 w-5 animate-spin" /> : (isNewStory ? 'Lưu Truyện' : 'Cập nhật thông tin')}
-                </button>
+                <div className="sm:hidden pt-4 border-t border-slate-200 dark:border-slate-700">
+                     <button type="submit" disabled={isSaving || imageUploading} className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity shadow disabled:opacity-70 disabled:cursor-not-allowed">
+                        {isSaving ? <ArrowPathIcon className="h-5 w-5 animate-spin" /> : <PlusIcon className="h-5 w-5" />}
+                        {isNewStory ? 'Lưu Truyện' : 'Cập nhật thông tin'}
+                    </button>
+                 </div>
             </form>
-      
+
+            {/* Quản lý Tập & Chương */}
             {!isNewStory && storyId && (
-                <div className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-lg space-y-4">
-                    <h2 className="text-xl font-semibold border-b border-slate-200 dark:border-slate-700 pb-3 mb-4">Quản lý Tập & Chương</h2>
-                    <form onSubmit={handleAddVolume} className="flex gap-2 mb-6 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                        <input type="text" value={newVolumeTitle} onChange={(e) => setNewVolumeTitle(e.target.value)} placeholder="Tên tập mới (ví dụ: Tập 1)" className={inputStyles} required />
-                        <button type="submit" className="flex-shrink-0 flex items-center gap-1 px-3 py-2 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 text-sm transition-colors"><PlusIcon className="h-4 w-4"/> Thêm Tập</button>
+                <div className="bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-lg shadow-lg space-y-6 border border-slate-200 dark:border-slate-700">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 dark:border-slate-700 pb-4 mb-6">
+                        <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-100 whitespace-nowrap">Quản lý Tập & Chương</h2>
+                        {/* --- Ô TÌM KIẾM CHƯƠNG --- */}
+                        <div className="relative w-full sm:w-72">
+                            <input
+                                type="text"
+                                placeholder="Tìm chương trong danh sách..."
+                                value={adminChapterSearchTerm}
+                                onChange={e => setAdminChapterSearchTerm(e.target.value)}
+                                className={inputStyles + " pl-10 text-sm"} // Added pl-10
+                            />
+                             <MagnifyingGlassIcon className="h-5 w-5 text-slate-400 dark:text-stone-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        </div>
+                        {/* --- KẾT THÚC Ô TÌM KIẾM --- */}
+                    </div>
+
+                    <form onSubmit={handleAddVolume} className="flex flex-col sm:flex-row gap-3 mb-6 p-4 bg-slate-50 dark:bg-slate-700/30 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
+                        <input type="text" value={newVolumeTitle} onChange={(e) => setNewVolumeTitle(e.target.value)} placeholder="Tên tập mới (ví dụ: Tập 1: Mở Đầu)" className={inputStyles + " flex-grow"} required />
+                        <button type="submit" className="flex-shrink-0 flex items-center justify-center gap-1.5 px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 text-sm transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-slate-800"><PlusIcon className="h-4 w-4"/> Thêm Tập</button>
                     </form>
-                    <div className="space-y-6">
-                        {storyData.volumes?.map((vol, volIndex) => (
-                            <div key={vol.id} className="border border-slate-200 dark:border-slate-700 rounded-lg">
-                                <div className="flex justify-between items-center p-3 bg-slate-100 dark:bg-slate-900/50 rounded-t-lg">
+
+                    <div className="space-y-5">
+                        {/* --- SỬ DỤNG filteredVolumes --- */}
+                        {filteredVolumes && filteredVolumes.length > 0 ? filteredVolumes.map((vol, volIndex) => (
+                            <div key={vol.id} className="border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm overflow-hidden">
+                                <div className="flex flex-wrap justify-between items-center gap-2 p-3 bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-700/70 border-b border-slate-200 dark:border-slate-600">
                                     <div className="flex items-center gap-2">
-                                        <div className="flex flex-col">
+                                         <div className="flex flex-col bg-white dark:bg-slate-600 p-0.5 rounded border border-slate-200 dark:border-slate-500">
+                                            {/* Corrected onClick handlers */}
                                             <MoveButton direction="up" disabled={volIndex === 0} onClick={() => handleMove('up', 'volume', { volumeId: vol.id })} ariaLabel={`Di chuyển tập ${vol.title} lên trên`} />
-                                            <MoveButton direction="down" disabled={volIndex === (storyData.volumes?.length ?? 0) - 1} onClick={() => handleMove('down', 'volume', { volumeId: vol.id })} ariaLabel={`Di chuyển tập ${vol.title} xuống dưới`} />
+                                            <div className="h-px bg-slate-200 dark:bg-slate-500 my-0.5"></div>
+                                            <MoveButton direction="down" disabled={volIndex === (filteredVolumes.length ?? 1) - 1} onClick={() => handleMove('down', 'volume', { volumeId: vol.id })} ariaLabel={`Di chuyển tập ${vol.title} xuống dưới`} />
                                         </div>
-                                        <span className="font-bold text-lg">{vol.title}</span>
+                                        <span className="font-semibold text-base text-slate-800 dark:text-slate-100">{vol.title}</span>
                                     </div>
-                                    <div className="space-x-1">
-                                        <Link to={`/admin/story/${storyId}/volume/${vol.id}/chapter/new`} className="inline-flex items-center gap-1 px-2 py-1 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600 text-xs transition-colors"><PlusIcon className="h-3 w-3"/> Thêm chương</Link>
-                                        <button aria-label={`Sửa tên tập ${vol.title}`} onClick={() => handleVolumeTitleChange(vol.id)} className="p-2 rounded-md text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-700"><PencilIcon className="h-4 w-4"/></button>
-                                        <button aria-label={`Xóa tập ${vol.title}`} onClick={() => handleVolumeDelete(vol.id)} className="p-2 rounded-md text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-700"><TrashIcon className="h-4 w-4"/></button>
+                                    <div className="flex items-center gap-1.5">
+                                        <Link
+                                            to={`/admin/story/${storyId}/volume/${vol.id}/chapter/new`}
+                                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-500 text-white font-medium rounded-md hover:bg-blue-600 text-xs transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 dark:focus:ring-offset-slate-800"
+                                            title="Thêm chương mới"
+                                        >
+                                            <PlusIcon className="h-3.5 w-3.5"/> <span className="hidden sm:inline">Chương</span>
+                                        </Link>
+                                        <button
+                                            title={`Sửa tên tập`}
+                                            onClick={() => handleVolumeTitleChange(vol.id)}
+                                            className="p-1.5 rounded-md text-slate-500 hover:bg-slate-300 dark:text-slate-400 dark:hover:bg-slate-600 transition-colors focus:outline-none focus:ring-1 focus:ring-slate-400"
+                                        >
+                                            <PencilIcon className="h-4 w-4"/>
+                                        </button>
+                                        <button
+                                            title={`Xóa tập`}
+                                            onClick={() => handleVolumeDelete(vol.id, vol.title)}
+                                            className="p-1.5 rounded-md text-red-500 hover:bg-red-100 dark:hover:bg-slate-600 transition-colors focus:outline-none focus:ring-1 focus:ring-red-400"
+                                        >
+                                            <TrashIcon className="h-4 w-4"/>
+                                        </button>
                                     </div>
                                 </div>
-                                <div className="space-y-2 p-3">
-                                    {vol.chapters.map((chap, chapIndex) => (
-                                        <div key={chap.id} className="flex justify-between items-center p-2 pl-3 bg-slate-50 dark:bg-slate-700/50 rounded-md group">
-                                            <div className="flex items-center gap-2">
-                                                <div className="flex flex-col opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <MoveButton direction="up" disabled={chapIndex === 0} onClick={() => handleMove('up', 'chapter', { volumeId: vol.id, chapterId: chap.id })} ariaLabel={`Di chuyển chương ${chap.title} lên trên`} />
-                                                    <MoveButton direction="down" disabled={chapIndex === vol.chapters.length - 1} onClick={() => handleMove('down', 'chapter', { volumeId: vol.id, chapterId: chap.id })} ariaLabel={`Di chuyển chương ${chap.title} xuống dưới`} />
+                                <div className="bg-white dark:bg-slate-800/50">
+                                    {/* --- CẬP NHẬT LOGIC RENDER CHAPTERS --- */}
+                                    {vol.chapters && vol.chapters.length > 0 ? (
+                                        <ul className="divide-y divide-slate-100 dark:divide-slate-700">
+                                            {vol.chapters.map((chap, chapIndex) => (
+                                            <li key={chap.id} className="flex justify-between items-center p-2 pl-3 group hover:bg-orange-50 dark:hover:bg-slate-700/50 transition-colors duration-150">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                     <div className="flex flex-col opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                                                        {/* Corrected onClick handlers */}
+                                                        <MoveButton direction="up" disabled={chapIndex === 0} onClick={() => handleMove('up', 'chapter', { volumeId: vol.id, chapterId: chap.id })} ariaLabel={`Di chuyển chương ${chap.title} lên trên`} />
+                                                        <MoveButton direction="down" disabled={chapIndex === vol.chapters.length - 1} onClick={() => handleMove('down', 'chapter', { volumeId: vol.id, chapterId: chap.id })} ariaLabel={`Di chuyển chương ${chap.title} xuống dưới`} />
+                                                    </div>
+                                                    <span className="font-medium text-sm text-slate-800 dark:text-slate-200 truncate" title={chap.title}>{chap.title}</span>
+                                                     {chap.isRaw && (
+                                                        <span className="ml-1.5 flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 bg-amber-200 text-amber-800 dark:bg-amber-900 dark:text-amber-300 rounded-full">RAW</span>
+                                                      )}
                                                 </div>
-                                                <span className="font-medium">{chap.title}</span>
-                                            </div>
-                                            <div className="space-x-2">
-                                                <Link aria-label={`Sửa chương ${chap.title}`} to={`/admin/story/${storyId}/volume/${vol.id}/chapter/edit/${chap.id}`} className="inline-block p-1 rounded-full text-indigo-600 hover:bg-indigo-100 dark:hover:bg-slate-600"><PencilIcon className="h-5 w-5"/></Link>
-                                                <button aria-label={`Xóa chương ${chap.title}`} onClick={() => handleChapterDelete(vol.id, chap.id)} className="p-1 rounded-full text-red-600 hover:bg-red-100 dark:hover:bg-slate-600"><TrashIcon className="h-5 w-5"/></button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {vol.chapters.length === 0 && <p className="text-center text-slate-500 dark:text-slate-400 py-4">Chưa có chương nào trong tập này.</p>}
+                                                <div className="flex-shrink-0 flex items-center gap-1 ml-2">
+                                                    <Link
+                                                        title={`Sửa chương`}
+                                                        to={`/admin/story/${storyId}/volume/${vol.id}/chapter/edit/${chap.id}`}
+                                                        className="p-1.5 rounded-full text-indigo-600 hover:bg-indigo-100 dark:text-indigo-400 dark:hover:bg-slate-600 transition-colors focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                                                    >
+                                                        <PencilIcon className="h-4 w-4"/>
+                                                    </Link>
+                                                    <button
+                                                        title={`Xóa chương`}
+                                                        onClick={() => handleChapterDelete(vol.id, chap.id, chap.title)}
+                                                        className="p-1.5 rounded-full text-red-500 hover:bg-red-100 dark:hover:bg-slate-600 transition-colors focus:outline-none focus:ring-1 focus:ring-red-400"
+                                                    >
+                                                        <TrashIcon className="h-4 w-4"/>
+                                                    </button>
+                                                </div>
+                                            </li>
+                                        ))}
+                                        </ul>
+                                    ) : (
+                                        // Hiển thị nếu tập này không có chương nào *khớp với tìm kiếm*
+                                         adminChapterSearchTerm ? <p className="text-center text-xs italic text-slate-500 dark:text-slate-400 py-3 px-2">Không có chương nào khớp trong tập này.</p> :
+                                         // Hiển thị nếu tập này *thực sự* không có chương nào (khi không tìm kiếm)
+                                         <p className="text-center text-sm text-slate-500 dark:text-slate-400 py-4 px-2">Chưa có chương nào.</p>
+                                     )}
+                                    {/* --- KẾT THÚC CẬP NHẬT --- */}
                                 </div>
                             </div>
-                        ))}
-                        {(storyData.volumes?.length || 0) === 0 && <p className="text-center text-slate-500 dark:text-slate-400 py-4">Chưa có tập nào.</p>}
+                        )) : (
+                             <p className="text-center text-slate-500 dark:text-slate-400 py-8">
+                                {adminChapterSearchTerm ? 'Không tìm thấy tập/chương nào phù hợp.' : 'Chưa có tập nào được thêm.'}
+                            </p>
+                         )}
                     </div>
                 </div>
             )}
@@ -373,3 +494,4 @@ const handleStorySubmit = async (e: React.FormEvent) => {
 };
 
 export default StoryEditPage;
+
