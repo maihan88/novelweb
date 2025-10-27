@@ -10,15 +10,16 @@ import CommentSection from '../components/CommentSection.tsx';
 import LoadingSpinner from '../components/LoadingSpinner.tsx';
 import {
     ArrowLeftIcon, ArrowRightIcon,
-    HomeIcon, XMarkIcon
+    HomeIcon
 } from '@heroicons/react/24/solid';
 import { useAuth } from '../contexts/AuthContext.tsx';
+import { useLocalStorage } from '../hooks/useLocalStorage.tsx';
 
 const ReadingProgressBar: React.FC<{ progress: number }> = React.memo(({ progress }) => {
     return (
-        <div className="fixed top-0 left-0 w-full h-1 bg-slate-200 dark:bg-slate-700 z-50">
+        <div className="fixed top-0 left-0 w-full h-1 bg-slate-200 dark:bg-slate-700 z-[60]">
             <div
-                className="h-1 bg-orange-900 dark:bg-amber-200 origin-left"
+                className="h-1 bg-orange-600 dark:bg-amber-400 origin-left"
                 style={{
                     transform: `scaleX(${progress / 100})`,
                     transition: 'transform 200ms ease-out',
@@ -30,91 +31,64 @@ const ReadingProgressBar: React.FC<{ progress: number }> = React.memo(({ progres
 });
 ReadingProgressBar.displayName = 'ReadingProgressBar';
 
-const AutoScrollWarning: React.FC<{ isVisible: boolean; onClose: () => void }> = ({ isVisible, onClose }) => {
-    useEffect(() => {
-        if (isVisible) {
-            const timer = setTimeout(onClose, 3000);
-            return () => clearTimeout(timer);
-        }
-    }, [isVisible, onClose]);
-
-    if (!isVisible) return null;
-
-    return (
-        <div className="fixed top-16 left-1/2 transform -translate-x-1/2 z-50 bg-orange-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 animate-bounce">
-            <span className="text-sm font-medium">Hãy hủy kích hoạt auto scroll trước rồi mới chuyển trang, bạn nhé!</span>
-            <button onClick={onClose} className="p-1 hover:bg-orange-700 rounded">
-                <XMarkIcon className="h-4 w-4" />
-            </button>
-        </div>
-    );
-};
-
 const FloatingNavBar: React.FC<{
     story: Story;
     currentChapterId: string;
     prevChapter?: Chapter | null;
     nextChapter?: Chapter | null;
     isVisible: boolean;
-    isAutoScrolling: boolean;
-    onAutoScrollWarning: () => void;
-}> = ({ story, currentChapterId, prevChapter, nextChapter, isVisible, isAutoScrolling, onAutoScrollWarning }) => {
+}> = ({ story, currentChapterId, prevChapter, nextChapter, isVisible }) => {
     const navigate = useNavigate();
-    
+
     const handleChapterSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        if (isAutoScrolling) {
-            onAutoScrollWarning();
-            return;
-        }
         const newChapterId = e.target.value;
         if (newChapterId) navigate(`/story/${story.id}/chapter/${newChapterId}`);
     };
 
     const handleNavigation = (e: React.MouseEvent<HTMLAnchorElement>) => {
-        if (isAutoScrolling) {
-            e.preventDefault();
-            onAutoScrollWarning();
-        }
     };
 
-    const navButtonClasses = "p-3 rounded-md bg-white/10 hover:bg-white/20 backdrop-blur-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
-    
+    const navButtonClasses = `p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-opacity-50`;
+    const disabledClasses = "opacity-40 cursor-not-allowed pointer-events-none";
+
     return (
         <div className={`fixed top-0 left-0 w-full p-2 z-50 transition-transform duration-300 ease-in-out ${isVisible ? 'translate-y-0' : '-translate-y-full'}`}>
-            <div className="container mx-auto max-w-3xl flex items-center gap-2 text-white bg-black/50 p-2 rounded-lg shadow-lg">
-                <Link 
-                    to={`/story/${story.id}`} 
-                    className={navButtonClasses} 
+            <div className="container mx-auto max-w-3xl flex items-center gap-2 text-white bg-black/60 backdrop-blur-md p-2 rounded-xl shadow-lg border border-white/10">
+                <Link
+                    to={`/story/${story.id}`}
+                    className={navButtonClasses}
                     aria-label="Về trang truyện"
                     onClick={handleNavigation}
                 >
                     <HomeIcon className="h-5 w-5" />
                 </Link>
-                <Link 
-                    to={prevChapter ? `/story/${story.id}/chapter/${prevChapter.id}` : '#'} 
-                    className={navButtonClasses} 
-                    aria-disabled={!prevChapter} 
+                <Link
+                    to={prevChapter ? `/story/${story.id}/chapter/${prevChapter.id}` : '#'}
+                    className={`${navButtonClasses} ${!prevChapter ? disabledClasses : ''}`}
+                    aria-disabled={!prevChapter}
                     aria-label="Chương trước"
                     onClick={handleNavigation}
                 >
                     <ArrowLeftIcon className="h-5 w-5" />
                 </Link>
-                <select 
-                    value={currentChapterId} 
-                    onChange={handleChapterSelect} 
-                    className="w-full flex-grow px-3 py-2 border-0 rounded-md bg-white/10 text-white focus:ring-2 focus:ring-amber-300 transition appearance-none text-center" 
+                <select
+                    value={currentChapterId}
+                    onChange={handleChapterSelect}
+                    className="w-full flex-grow px-3 py-2 border-0 rounded-lg bg-white/10 text-white focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-opacity-50 transition appearance-none text-center text-sm cursor-pointer hover:bg-white/20"
                     aria-label="Chọn chương"
                 >
                     {story.volumes.map(volume => (
-                        <optgroup label={volume.title} key={volume.id} className="bg-stone-800">
-                            {volume.chapters.map(chap => (<option key={chap.id} value={chap.id}>{chap.title}</option>))}
+                        <optgroup label={volume.title} key={volume.id} className="bg-stone-800 text-stone-200 font-semibold">
+                            {volume.chapters.map(chap => (
+                                <option key={chap.id} value={chap.id} className="font-normal">{chap.title}</option>
+                            ))}
                         </optgroup>
                     ))}
                 </select>
-                <Link 
-                    to={nextChapter ? `/story/${story.id}/chapter/${nextChapter.id}` : '#'} 
-                    className={navButtonClasses} 
-                    aria-disabled={!nextChapter} 
+                <Link
+                    to={nextChapter ? `/story/${story.id}/chapter/${nextChapter.id}` : '#'}
+                    className={`${navButtonClasses} ${!nextChapter ? disabledClasses : ''}`}
+                    aria-disabled={!nextChapter}
                     aria-label="Chương sau"
                     onClick={handleNavigation}
                 >
@@ -134,73 +108,76 @@ const ReaderPage: React.FC = () => {
 
     const [story, setStory] = useState<Story | null>(null);
     const [loading, setLoading] = useState(true);
-    const [preferences, setPreferences] = useState<ReaderPreferences>({ fontSize: 18, fontFamily: 'font-serif', lineHeight: 1.7 });
-    const [isAutoScrolling, setIsAutoScrolling] = useState(false);
-    const [showAutoScrollWarning, setShowAutoScrollWarning] = useState(false);
-    
+
+    const [preferences, setPreferences] = useLocalStorage<ReaderPreferences>('readerPreferences', {
+        fontSize: 18,
+        fontFamily: 'font-serif',
+        lineHeight: 1.7,
+    });
+
     const [scrollPercent, setScrollPercent] = useState(0);
     const progressRef = useRef(0);
     const viewIncrementedRef = useRef(false);
     const readerContentRef = useRef<HTMLDivElement>(null);
     const [isFloatingNavVisible, setIsFloatingNavVisible] = useState(false);
     const lastTap = useRef(0);
-    const scrollInterval = useRef<number | null>(null);
-    const didRestoreBookmarkRef = useRef(false);
 
-    // --- BẮT ĐẦU SỬA LỖI VÒNG LẶP ---
-    // 1. Tạo một ref để giữ phiên bản mới nhất của hàm updateBookmark
     const updateBookmarkRef = useRef(updateBookmark);
     useEffect(() => {
         updateBookmarkRef.current = updateBookmark;
     });
 
-    // 2. Tối ưu hóa dependency `currentUser` thành một giá trị boolean ổn định hơn
     const isAdmin = useMemo(() => currentUser?.role === 'admin', [currentUser]);
-    // --- KẾT THÚC SỬA LỖI VÒNG LẶP ---
 
-    // Effect 1: Lấy dữ liệu truyện
     useEffect(() => {
         if (!storyId) return;
         setLoading(true);
         getStoryById(storyId).then(fetchedStory => {
             setStory(fetchedStory || null);
             setLoading(false);
-        });
+        }).catch(() => setLoading(false));
     }, [storyId, getStoryById]);
 
-    // Effect 2: Reset và khôi phục vị trí cuộn
     useEffect(() => {
         viewIncrementedRef.current = false;
-        didRestoreBookmarkRef.current = false;
-        window.scrollTo(0, 0); // Luôn cuộn lên đầu khi chương thay đổi
+        window.scrollTo(0, 0);
 
         const savedBookmark = storyId ? bookmarks[storyId] : null;
         if (savedBookmark && savedBookmark.chapterId === chapterId) {
-             setTimeout(() => {
-                if (readerContentRef.current) {
-                    const contentTop = readerContentRef.current.offsetTop;
-                    const contentHeight = readerContentRef.current.scrollHeight;
-                    const viewportHeight = window.innerHeight;
-                    if (contentHeight > viewportHeight) {
-                        const maxScrollInContent = contentHeight - viewportHeight;
-                        const targetScrollInContent = (maxScrollInContent * savedBookmark.progress) / 100;
-                        const targetScrollPosition = contentTop + targetScrollInContent;
-                        window.scrollTo({ top: targetScrollPosition, behavior: 'auto' });
+            requestAnimationFrame(() => {
+                 setTimeout(() => {
+                    if (readerContentRef.current) {
+                        const contentTop = readerContentRef.current.offsetTop;
+                        const contentHeight = readerContentRef.current.scrollHeight;
+                        const viewportHeight = window.innerHeight;
+                        if (contentHeight > viewportHeight) {
+                            const maxScrollInContent = contentHeight - viewportHeight;
+                            const targetScrollInContent = (maxScrollInContent * savedBookmark.progress) / 100;
+                            const targetScrollPosition = contentTop + targetScrollInContent;
+                            window.scrollTo({ top: targetScrollPosition, behavior: 'auto' });
+                             progressRef.current = savedBookmark.progress;
+                             setScrollPercent(savedBookmark.progress);
+                        } else {
+                            progressRef.current = 100;
+                            setScrollPercent(100);
+                        }
                     }
-                }
-            }, 100);
+                 }, 50);
+            });
+        } else {
+             progressRef.current = 0;
+             setScrollPercent(0);
         }
-    }, [storyId, chapterId]); // Chỉ chạy khi chapterId hoặc storyId thay đổi
+    }, [storyId, chapterId, bookmarks]);
 
-    // Effect 3: Quản lý scroll, view, và chống copy (ĐÃ ĐƯỢC SỬA)
     useEffect(() => {
         if (!story || !storyId || !chapterId) return;
 
-        if (!viewIncrementedRef.current && !isAdmin) { // Sử dụng biến `isAdmin`
+        if (!viewIncrementedRef.current && !isAdmin) {
             incrementChapterView(storyId, chapterId);
             viewIncrementedRef.current = true;
         }
-        
+
         const preventAction = (e: Event) => e.preventDefault();
         const contentEl = readerContentRef.current;
         if (contentEl) {
@@ -216,22 +193,23 @@ const ReaderPage: React.FC = () => {
             const contentHeight = contentElement.scrollHeight;
             const viewportHeight = window.innerHeight;
             const currentScrollTop = window.pageYOffset;
-            
+
             let percentage = 0;
             if (contentHeight <= viewportHeight) {
                 percentage = 100;
             } else {
-                const scrollStartInContent = Math.max(0, currentScrollTop - contentTop);
-                const maxScrollInContent = contentHeight - viewportHeight;
-                percentage = Math.min(100, (scrollStartInContent / maxScrollInContent) * 100);
+                 const scrollStartInContent = Math.max(0, currentScrollTop - contentTop);
+                 const maxScrollInContent = contentHeight - viewportHeight;
+                 percentage = maxScrollInContent > 0 ? Math.min(100, (scrollStartInContent / maxScrollInContent) * 100) : 100;
             }
-            
+
             progressRef.current = percentage;
             setScrollPercent(percentage);
         };
 
         window.addEventListener('scroll', handleScroll, { passive: true });
-        
+         handleScroll();
+
         return () => {
             window.removeEventListener('scroll', handleScroll);
             if (contentEl) {
@@ -240,63 +218,23 @@ const ReaderPage: React.FC = () => {
             }
 
             if (storyId && chapterId) {
-                const finalProgress = progressRef.current >= 98 ? 100 : progressRef.current;
-                // Gọi hàm lưu bookmark thông qua ref
+                 const finalProgress = Math.round(progressRef.current >= 99 ? 100 : progressRef.current);
                 updateBookmarkRef.current(storyId, chapterId, finalProgress);
             }
         };
-    // Dependency array đã được dọn dẹp để phá vỡ vòng lặp
-    }, [story, storyId, chapterId, isAdmin, incrementChapterView]); 
-    
-    // ... các useEffect và hàm xử lý còn lại không thay đổi ...
-
-    const stopAutoScroll = useCallback(() => {
-        if (scrollInterval.current) clearInterval(scrollInterval.current);
-        scrollInterval.current = null;
-        setIsAutoScrolling(false);
-    }, []);
-    
-    const toggleAutoScroll = useCallback(() => {
-        if (isAutoScrolling) {
-            stopAutoScroll();
-        } else {
-            setIsAutoScrolling(true);
-            scrollInterval.current = window.setInterval(() => {
-                if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 10) {
-                    stopAutoScroll();
-                } else {
-                    window.scrollBy({ top: 1, behavior: 'auto' });
-                }
-            }, 50);
-        }
-    }, [isAutoScrolling, stopAutoScroll]);
-    
-    useEffect(() => {
-        const stopOnInteraction = () => { if (isAutoScrolling) stopAutoScroll(); };
-        window.addEventListener('wheel', stopOnInteraction, { passive: true });
-        window.addEventListener('touchmove', stopOnInteraction, { passive: true });
-        window.addEventListener('keydown', stopOnInteraction);
-        return () => {
-            window.removeEventListener('wheel', stopOnInteraction);
-            window.removeEventListener('touchmove', stopOnInteraction);
-            window.removeEventListener('keydown', stopOnInteraction);
-        };
-    }, [isAutoScrolling, stopAutoScroll]);
+    }, [story, storyId, chapterId, isAdmin, incrementChapterView]);
 
     const handleTapZoneClick = (event: React.MouseEvent<HTMLDivElement>) => {
-        if (window.getSelection()?.toString() || (event.target as HTMLElement).closest('a, button')) {
+        if (window.getSelection()?.toString() || (event.target as HTMLElement).closest('a, button, select, [data-control-button]')) {
             return;
         }
         const now = Date.now();
-        if (now - lastTap.current < 300) {
+        if (now - lastTap.current < 350) {
             setIsFloatingNavVisible(p => !p);
         }
         lastTap.current = now;
     };
 
-    const handleAutoScrollWarning = useCallback(() => setShowAutoScrollWarning(true), []);
-    const hideAutoScrollWarning = useCallback(() => setShowAutoScrollWarning(false), []);
-    
     const { chapter, prevChapter, nextChapter } = useMemo(() => {
         if (!story || !chapterId) return { chapter: undefined, prevChapter: null, nextChapter: null };
         const allChapters = story.volumes.flatMap(v => v.chapters);
@@ -308,69 +246,67 @@ const ReaderPage: React.FC = () => {
             nextChapter: index < allChapters.length - 1 ? allChapters[index + 1] : null,
         };
     }, [story, chapterId]);
-    
-    const cleanedContent = useMemo(() => {
+
+     const cleanedContent = useMemo(() => {
         if (!chapter?.content) return '';
         return chapter.content.replace(/line-height:[^;"]*;/g, '');
     }, [chapter?.content]);
 
-    const contentStyle = useMemo(() => ({ 
-        fontSize: `${preferences.fontSize}px`, 
-        lineHeight: preferences.lineHeight 
+    const contentStyle = useMemo(() => ({
+        fontSize: `${preferences.fontSize}px`,
+        lineHeight: preferences.lineHeight
     }), [preferences.fontSize, preferences.lineHeight]);
-    
-    const navButtonBaseClasses = "flex items-center justify-center gap-2 px-4 py-2 border rounded-md transition-colors duration-200";
-    const navButtonEnabledClasses = "border-orange-300 dark:border-amber-300 hover:bg-orange-100 dark:hover:bg-amber-200/50";
-    const navButtonDisabledClasses = "border-orange-200 dark:border-amber-100/50 bg-orange-50 dark:bg-amber-800/10 text-slate-400 dark:text-stone-500 cursor-not-allowed";
-    
+
+    const navButtonBaseClasses = "flex items-center justify-center gap-2 px-4 py-2 border rounded-md transition-colors duration-200 text-sm font-medium";
+    const navButtonEnabledClasses = "border-orange-300 dark:border-stone-600 text-slate-700 dark:text-stone-300 hover:bg-orange-50 dark:hover:bg-stone-700";
+    const navButtonDisabledClasses = "border-slate-200 dark:border-stone-700 bg-slate-50 dark:bg-stone-800 text-slate-400 dark:text-stone-500 cursor-not-allowed";
+
     const handleChapterSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        if (isAutoScrolling) {
-            handleAutoScrollWarning();
-            return;
-        }
         const newChapterId = e.target.value;
         if (newChapterId) navigate(`/story/${storyId}/chapter/${newChapterId}`);
     };
 
     const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-        if (isAutoScrolling) {
-            e.preventDefault();
-            handleAutoScrollWarning();
-        }
     };
-    
-    if (loading) return <div className="flex justify-center items-center h-screen bg-white dark:bg-slate-950"><LoadingSpinner /></div>;
-    if (!story || !chapter) return <div className="flex justify-center items-center h-screen bg-white dark:bg-slate-950 text-red-500">Không tìm thấy truyện hoặc chương.</div>;
+
+    if (loading) return <div className="flex justify-center items-center h-screen bg-white dark:bg-stone-950"><LoadingSpinner /></div>;
+    if (!story || !chapter) return <div className="flex justify-center items-center h-screen bg-white dark:bg-stone-950 text-red-500">Không tìm thấy truyện hoặc chương.</div>;
 
     return (
-        <div className="bg-white dark:bg-stone-950 min-h-full">
+        <div className="bg-white dark:bg-stone-950 min-h-full transition-colors duration-300">
             <ReadingProgressBar progress={scrollPercent} />
-            <AutoScrollWarning isVisible={showAutoScrollWarning} onClose={hideAutoScrollWarning} />
-            <FloatingNavBar 
-                story={story} 
-                currentChapterId={chapterId!} 
-                prevChapter={prevChapter} 
-                nextChapter={nextChapter} 
+            <FloatingNavBar
+                story={story}
+                currentChapterId={chapterId!}
+                prevChapter={prevChapter}
+                nextChapter={nextChapter}
                 isVisible={isFloatingNavVisible}
-                isAutoScrolling={isAutoScrolling}
-                onAutoScrollWarning={handleAutoScrollWarning}
             />
-            <div onClick={handleTapZoneClick} className="max-w-3xl mx-auto animate-fade-in px-4 sm:px-6 lg:px-8 py-12">
+            <div onClick={handleTapZoneClick} className="max-w-3xl mx-auto animate-fade-in px-4 sm:px-6 lg:px-8 py-16 sm:py-20 min-h-screen">
                 <div className="text-center mb-10">
-                    <Link to={`/story/${story.id}`} className="text-orange-600 dark:text-amber-200 hover:underline">{story.title}</Link>
-                    <h1 className="text-3xl sm:text-4xl font-bold font-serif mt-2 text-slate-900 dark:text-white">{chapter.title}</h1>
+                    <Link
+                        to={`/story/${story.id}`}
+                        className="text-orange-600 dark:text-amber-400 hover:underline text-sm sm:text-base"
+                    >
+                         {story.title}
+                     </Link>
+                    <h1 className="text-3xl sm:text-4xl font-bold font-serif mt-2 text-slate-900 dark:text-white leading-tight">
+                        {chapter.title}
+                    </h1>
                 </div>
+
                 <div
                     ref={readerContentRef}
-                    className={`max-w-none text-slate-800 dark:text-slate-200 transition-all duration-300 ${preferences.fontFamily} chapter-content prevent-copy`}
+                    className={`max-w-none text-slate-800 dark:text-stone-200 transition-all duration-300 ${preferences.fontFamily} chapter-content prevent-copy`}
                     style={contentStyle}
                     dangerouslySetInnerHTML={{ __html: cleanedContent }}
                 />
-                <div className="mt-12 pt-6 border-t border-slate-300 dark:border-slate-700">
+
+                <div className="mt-12 pt-8 border-t border-slate-200 dark:border-stone-700">
                     <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
                         {prevChapter ? (
-                            <Link 
-                                to={`/story/${story.id}/chapter/${prevChapter.id}`} 
+                            <Link
+                                to={`/story/${story.id}/chapter/${prevChapter.id}`}
                                 className={`${navButtonBaseClasses} ${navButtonEnabledClasses}`}
                                 onClick={handleNavClick}
                             >
@@ -383,23 +319,23 @@ const ReaderPage: React.FC = () => {
                                 <span>Chương trước</span>
                             </div>
                         )}
-                        <select 
-                            value={chapterId} 
-                            onChange={handleChapterSelect} 
-                            className="w-full sm:w-auto flex-grow px-3 py-2 border rounded-md bg-white dark:bg-stone-800 border-slate-300 dark:border-stone-600 focus:ring-2 focus:ring-stone-500 transition" 
+                        <select
+                            value={chapterId}
+                            onChange={handleChapterSelect}
+                            className="w-full sm:w-auto flex-grow px-3 py-2 border rounded-md bg-white dark:bg-stone-800 border-slate-300 dark:border-stone-600 text-slate-700 dark:text-stone-300 focus:ring-2 focus:ring-orange-500 transition appearance-none text-sm text-center cursor-pointer hover:border-slate-400 dark:hover:border-stone-500"
                             aria-label="Chọn chương"
                         >
                             {story.volumes.map(volume => (
-                                <optgroup label={volume.title} key={volume.id}>
+                                <optgroup label={volume.title} key={volume.id} className="bg-white dark:bg-stone-900 font-semibold">
                                     {volume.chapters.map(chap => (
-                                        <option key={chap.id} value={chap.id}>{chap.title}</option>
+                                        <option key={chap.id} value={chap.id} className="font-normal">{chap.title}</option>
                                     ))}
                                 </optgroup>
                             ))}
                         </select>
                         {nextChapter ? (
-                            <Link 
-                                to={`/story/${story.id}/chapter/${nextChapter.id}`} 
+                            <Link
+                                to={`/story/${story.id}/chapter/${nextChapter.id}`}
                                 className={`${navButtonBaseClasses} ${navButtonEnabledClasses}`}
                                 onClick={handleNavClick}
                             >
@@ -414,13 +350,12 @@ const ReaderPage: React.FC = () => {
                         )}
                     </div>
                 </div>
+
                 {storyId && chapterId && <CommentSection storyId={storyId} chapterId={chapterId} />}
             </div>
-            <ReaderControls 
-                preferences={preferences} 
-                setPreferences={setPreferences} 
-                isAutoScrolling={isAutoScrolling} 
-                toggleAutoScroll={toggleAutoScroll} 
+            <ReaderControls
+                preferences={preferences}
+                setPreferences={setPreferences}
             />
         </div>
     );
