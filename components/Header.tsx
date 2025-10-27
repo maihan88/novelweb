@@ -1,166 +1,171 @@
-import React, { useState, useEffect, useRef} from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import ThemeToggle from './ThemeToggle.tsx';
 import { useAuth } from '../contexts/AuthContext.tsx';
-import { Bars3Icon, XMarkIcon, HeartIcon, ArrowRightEndOnRectangleIcon, MagnifyingGlassIcon } from '@heroicons/react/24/solid';
-
+import { Bars3Icon, XMarkIcon, HeartIcon, MagnifyingGlassIcon, UserCircleIcon, ArrowLeftEndOnRectangleIcon } from '@heroicons/react/24/solid';
 const Header: React.FC = () => {
   const location = useLocation();
   const { currentUser, logout } = useAuth();
-   const navigate = useNavigate();
+  const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [localSearch, setLocalSearch] = useState('');
-  
-  // Đóng menu mobile mỗi khi chuyển trang
+
   useEffect(() => {
     setIsMenuOpen(false);
   }, [location.pathname]);
 
-    // --- THÊM LOGIC ẨN/HIỆN HEADER ---
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  const [isScrolled, setIsScrolled] = useState(false);
   const lastScrollY = useRef(0);
 
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-      // Chỉ ẩn header khi không ở trên cùng và đang cuộn xuống
-      if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
-        setIsHeaderVisible(false);
+      if (currentScrollY <= 50) {
+          setIsHeaderVisible(true);
+          setIsScrolled(false);
       } else {
-        setIsHeaderVisible(true);
+          setIsScrolled(true); 
+          if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
+            setIsHeaderVisible(false);
+          } else if (currentScrollY < lastScrollY.current) {
+            setIsHeaderVisible(true);
+          }
       }
       lastScrollY.current = currentScrollY;
     };
-    
+
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-  // --- KẾT THÚC LOGIC ---
 
-    const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (!localSearch.trim()) return;
-    navigate(`/search?q=${encodeURIComponent(localSearch.trim())}`)};
-  
-  // Hàm tạo class cho link, đã được bạn tối ưu
-  const getLinkClass = (path: string, isMobile: boolean = false) => {
-    const isActive = location.pathname === path || (path === '/admin' && location.pathname.startsWith('/admin'));
-    const baseMobile = `block py-3 text-lg text-center w-full rounded-md transition-colors`;
-    const baseDesktop = `px-3 py-2 text-sm font-medium rounded-md transition-colors`;
-    
-    if (isMobile) {
-      return `${baseMobile} ${isActive ? 'bg-orange-200 dark:bg-stone-700 font-semibold text-orange-900 dark:text-amber-100' : 'hover:bg-yellow-50 dark:hover:bg-stone-700'}`;
-    }
-    return `${baseDesktop} ${isActive ? 'font-semibold text-orange-900 dark:text-amber-200' : 'hover:bg-stone-300/70 dark:hover:bg-stone-700'}`;
+    navigate(`/search?q=${encodeURIComponent(localSearch.trim())}`);
+    setIsMenuOpen(false);
   };
 
-  // Component NavLinks đã được bạn tối ưu
+  const getLinkClass = (path: string, isMobile: boolean = false) => {
+    const isActive = location.pathname === path || (path === '/admin' && location.pathname.startsWith('/admin'));
+    const baseMobile = `block py-3 px-4 text-base font-medium rounded-lg transition-colors duration-150`;
+    const baseDesktop = `px-3 py-1.5 text-sm font-medium rounded-md transition-colors duration-150 hover:bg-orange-100/70 dark:hover:bg-stone-700/70`;
+
+    if (isMobile) {
+      return `${baseMobile} ${isActive ? 'bg-orange-100 dark:bg-stone-700 text-orange-700 dark:text-amber-200' : 'text-slate-700 dark:text-stone-300 hover:bg-orange-50 dark:hover:bg-stone-700/50'}`;
+    }
+    return `${baseDesktop} ${isActive ? 'text-orange-700 dark:text-amber-200 font-semibold' : 'text-slate-700 dark:text-stone-300'}`;
+  };
+
+  const donateClasses = (isMobile: boolean = false) => {
+      const base = isMobile
+        ? `block py-3 px-4 text-base font-medium rounded-lg transition-colors duration-150 flex items-center justify-center gap-2`
+        : `flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors duration-150`;
+      return `${base} text-red-600 dark:text-red-400 bg-red-100/60 dark:bg-red-900/40 hover:bg-red-100 dark:hover:bg-red-900/60 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-1 dark:focus:ring-offset-stone-900`;
+  };
+
   const NavLinks: React.FC<{ isMobile?: boolean }> = ({ isMobile = false }) => (
     <>
       <Link to="/" className={getLinkClass('/', isMobile)}>Trang Chủ</Link>
       {currentUser?.role === 'admin' && (
         <Link to="/admin" className={getLinkClass('/admin', isMobile)}>Quản Trị</Link>
       )}
-      <Link to="/donate" className={
-        isMobile 
-        ? `${getLinkClass('/donate', isMobile)} text-red-600 dark:text-red-400`
-        : "flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/50 hover:bg-red-200 dark:hover:bg-red-900 transition-colors"
-      }>
-        <HeartIcon className="h-4 w-4 inline-block mr-1" />
+      <Link to="/donate" className={donateClasses(isMobile)}>
+        <HeartIcon className="h-4 w-4" />
         Ủng hộ
       </Link>
     </>
   );
 
-    // Thêm class để điều khiển hiệu ứng ẩn/hiện
   const headerClasses = `
-    bg-orange-200 dark:bg-stone-900 sticky top-0 z-40 w-full border-b border-stone-300 dark:border-stone-800
-    transition-transform duration-300 ease-in-out
+    bg-orange-100/80 dark:bg-stone-900/80 backdrop-blur-md sticky top-0 z-40 w-full
+    border-b border-orange-200/50 dark:border-stone-800/50
+    transition-all duration-300 ease-in-out
+    ${isScrolled ? 'shadow-md' : 'shadow-none'}
     ${isHeaderVisible ? 'translate-y-0' : '-translate-y-full'}
   `;
 
   return (
       <header className={headerClasses}>
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          <Link to="/" className="text-2xl font-bold font-serif text-amber-900 dark:text-amber-100">
+          <Link to="/" className="text-2xl font-bold font-serif text-orange-900 dark:text-amber-200 hover:opacity-80 transition-opacity">
             SukemNovel
           </Link>
-          
-   {/* Desktop Navigation - ĐÃ DI CHUYỂN SANG PHẢI */}
-          <div className="hidden md:flex items-center gap-2">
+
+          <div className="hidden md:flex items-center gap-4">
             <form onSubmit={handleSearch} className="relative">
                 <input
                     type="text"
-                    placeholder="Tìm kiếm..."
+                    placeholder="Tìm truyện..."
                     value={localSearch}
                     onChange={e => setLocalSearch(e.target.value)}
-                    className="w-40 lg:w-64 py-1.5 px-4 border border-amber-700 dark:border-stone-600 rounded-full bg-amber-50 dark:bg-stone-800 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition text-sm"
+                    className="w-48 lg:w-64 py-1.5 pl-9 pr-4 border border-orange-200 dark:border-stone-700 rounded-full bg-white/70 dark:bg-stone-800/70 focus:ring-2 focus:ring-orange-400 focus:border-transparent transition text-sm placeholder-slate-400 dark:placeholder-stone-500 shadow-sm" // Style input
                 />
-                <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2" aria-label="Tìm kiếm">
-                    <MagnifyingGlassIcon className="h-4 w-4 text-stone-600"/>
+                <button type="submit" className="absolute left-2.5 top-1/2 -translate-y-1/2 p-1" aria-label="Tìm kiếm">
+                    <MagnifyingGlassIcon className="h-4 w-4 text-slate-400 dark:text-stone-500"/>
                 </button>
             </form>
-            <nav className="flex items-center gap-1 text-stone-800 dark:text-stone-200">
-                <Link to="/" className={getLinkClass('/')}>Trang Chủ</Link>
-                {currentUser?.role === 'admin' && (
-                    <Link to="/admin" className={getLinkClass('/admin')}>Quản Trị</Link>
-                )}
-                <Link to="/donate" className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md text-red-600 dark:text-red-400 bg-red-100/50 dark:bg-red-900/50 hover:bg-red-100 dark:hover:bg-red-900 transition-colors">
-                    <HeartIcon className="h-4 w-4" />
-                    Ủng hộ
-                </Link>
+            <nav className="flex items-center gap-1">
+                <NavLinks />
             </nav>
-            <div className="w-px h-6 bg-amber-300 dark:bg-stone-700 mx-2"></div>
-            {currentUser ? (
-              <div className="flex items-center gap-4">
-                <Link to="/profile" className="font-semibold text-stone-800 dark:text-stone-200 hover:text-orange-500 text-sm">
-                  {currentUser.username}
-                </Link>
-                <button onClick={logout} className="text-sm font-medium">Đăng xuất</button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Link to="/login" className={getLinkClass('/login')}>Đăng Nhập</Link>
-                <Link to="/register" className="px-4 py-1.5 text-sm font-semibold text-orange-600 border border-orange-600 rounded-full hover:bg-orange-50 dark:text-orange-400 dark:border-orange-400 dark:hover:bg-orange-900/50 transition-colors">
-                  Đăng Ký
-                </Link>
-              </div>
-            )}
-            <ThemeToggle />
+            <div className="w-px h-6 bg-orange-200 dark:bg-stone-700"></div>
+            <div className="flex items-center gap-3">
+              {currentUser ? (
+                <>
+                  <Link to="/profile" className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 dark:text-stone-200 hover:text-orange-600 dark:hover:text-amber-300 transition-colors">
+                    <UserCircleIcon className="h-5 w-5"/>
+                    <span>{currentUser.username}</span>
+                  </Link>
+                  <button onClick={logout} className="p-1.5 rounded-md hover:bg-red-100 dark:hover:bg-red-900/50 text-slate-500 dark:text-stone-400 hover:text-red-600 dark:hover:text-red-400 transition-colors" aria-label="Đăng xuất">
+                      <ArrowLeftEndOnRectangleIcon className="h-5 w-5"/>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link to="/login" className={getLinkClass('/login')}>Đăng Nhập</Link>
+                  <Link to="/register" className="px-3 py-1.5 text-sm font-semibold text-orange-600 border border-orange-500 rounded-full hover:bg-orange-50 dark:text-amber-300 dark:border-amber-400 dark:hover:bg-amber-900/30 transition-colors shadow-sm">
+                    Đăng Ký
+                  </Link>
+                </>
+              )}
+              <ThemeToggle />
+            </div>
           </div>
 
-          {/* Mobile Menu Button */}
-          <div className="md:hidden flex items-center text-amber-900 dark:text-amber-100">
+          <div className="md:hidden flex items-center gap-2 text-orange-900 dark:text-amber-100">
             <ThemeToggle />
-            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="ml-2 p-2" aria-label="Mở menu">
+            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 -mr-2" aria-label="Mở menu">
               {isMenuOpen ? <XMarkIcon className="h-6 w-6" /> : <Bars3Icon className="h-6 w-6" />}
             </button>
           </div>
         </div>
       </div>
-      
-      {/* Mobile Menu Panel */}
-      {isMenuOpen && (
-         <nav className="md:hidden absolute top-full left-0 w-full bg-orange-100 dark:bg-stone-800 shadow-lg p-4 space-y-2 border-t border-amber-200 dark:border-stone-800">
-            <form onSubmit={handleSearch} className="relative mb-4">
+
+      <div className={`md:hidden absolute top-full left-0 w-full bg-orange-50 dark:bg-stone-800 shadow-lg border-t border-orange-200 dark:border-stone-700 transition-all duration-300 ease-in-out overflow-hidden ${isMenuOpen ? 'max-h-screen opacity-100 py-4' : 'max-h-0 opacity-0 py-0'}`}>
+         <nav className="px-4 space-y-3">
+            <form onSubmit={handleSearch} className="relative mb-3">
                 <input
                     type="text"
                     placeholder="Tìm kiếm truyện..."
                     value={localSearch}
                     onChange={e => setLocalSearch(e.target.value)}
-                    className="w-full py-3 px-4 border border-amber-300 dark:border-stone-700 rounded-lg bg-amber-50 dark:bg-stone-800 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition text-base"
+                    className="w-full py-2.5 pl-10 pr-4 border border-orange-200 dark:border-stone-600 rounded-lg bg-white dark:bg-stone-700 focus:ring-2 focus:ring-orange-400 focus:border-transparent transition text-base shadow-sm"
                 />
-                <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2" aria-label="Tìm kiếm">
-                    <MagnifyingGlassIcon className="h-5 w-5 text-stone-400"/>
+                <button type="submit" className="absolute left-3 top-1/2 -translate-y-1/2 p-1" aria-label="Tìm kiếm">
+                    <MagnifyingGlassIcon className="h-5 w-5 text-slate-400 dark:text-stone-400"/>
                 </button>
             </form>
             <NavLinks isMobile={true}/>
-            <div className="border-t border-amber-200 dark:border-stone-700 !my-3"></div>
+            <div className="border-t border-orange-200 dark:border-stone-700 !my-3"></div>
             {currentUser ? (
               <>
-                <Link to="/profile" className={getLinkClass('/profile', true)}>Hồ sơ của bạn</Link>
-                <button onClick={logout} className={`${getLinkClass('', true)} text-red-500 w-full`}>Đăng xuất</button>
+                <Link to="/profile" className={`${getLinkClass('/profile', true)} flex items-center justify-center gap-2`}>
+                    <UserCircleIcon className="h-5 w-5"/> Hồ sơ
+                </Link>
+                <button onClick={logout} className={`${getLinkClass('', true)} text-red-600 dark:text-red-400 w-full flex items-center justify-center gap-2`}>
+                    <ArrowLeftEndOnRectangleIcon className="h-5 w-5"/> Đăng xuất
+                </button>
               </>
             ) : (
               <>
@@ -169,7 +174,7 @@ const Header: React.FC = () => {
               </>
             )}
         </nav>
-      )}
+      </div>
     </header>
   );
 };
