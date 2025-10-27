@@ -1,13 +1,11 @@
-// maihan88/novelweb/novelweb-30378715fdd33fd98f7c1318544ef93eab22c598/types.ts
-
 export interface Chapter {
   _id: string;
   id: string;
   title: string;
   content: string;
-  createdAt: string; // ISO Date string
+  createdAt: string;
   views: number;
-  isRaw?: boolean; // Optional field to indicate if the chapter is raw
+  isRaw?: boolean;
 }
 
 export interface Volume {
@@ -33,8 +31,8 @@ export interface Story {
   ratingsCount: number;
   isHot?: boolean;
   isInBanner?: boolean;
-  createdAt: string; // ISO Date string
-  lastUpdatedAt: string; // ISO Date string
+  createdAt: string;
+  lastUpdatedAt: string;
 }
 
 export type ReaderFont = 'font-serif' | 'font-sans' | 'font-mono';
@@ -45,19 +43,17 @@ export interface ReaderPreferences {
   lineHeight: number;
 }
 
-// --- BẮT ĐẦU THÊM MỚI ---
 export interface Bookmark {
   chapterId: string;
   progress: number;
-  lastRead: string; // ISO Date string
+  lastRead: string;
 }
-// --- KẾT THÚC THÊM MỚI ---
 
 export interface User {
   _id: string;
   id: string;
   username: string;
-  password?: string; // Should not be stored in plain text in a real app
+  password?: string;
   role: 'admin' | 'user';
 }
 
@@ -71,5 +67,5 @@ export interface Comment {
   parentId: string | null;
   text: string;
   timestamp: string;
-  replies?: Comment[]; // Mảng chứa các bình luận trả lời
+  replies?: Comment[];
 }
