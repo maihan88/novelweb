@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom'; // <-- THÊM IMPORT LINK
+import { Link } from 'react-router-dom'; // <-- THÊM IMPORT LINK//
 import { Comment } from '../types';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { TrashIcon, ArrowUturnLeftIcon } from '@heroicons/react/24/solid';
