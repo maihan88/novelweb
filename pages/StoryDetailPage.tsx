@@ -228,7 +228,7 @@ const StoryDetailPage: React.FC = () => {
               {/* Container cho mô tả */}
               <div className="relative pr-2 text-slate-700 dark:text-slate-300 leading-relaxed text-sm sm:text-base space-y-3">
                   {/* Nội dung mô tả với line-clamp */}
-                  <div className={`transition-all duration-300 ease-in-out ${!isDescriptionExpanded ? 'line-clamp-5 md:line-clamp-none' : ''}`}>
+                  <div className={`transition-all duration-300 ease-in-out ${!isDescriptionExpanded ? 'line-clamp-5' : ''}`}>
                       {descriptionParagraphs.length > 0 ? (
                           descriptionParagraphs.map((paragraph, index) => (
                               <p key={index}>{paragraph || '\u00A0'}</p> // '\u00A0' để giữ dòng trống
@@ -241,7 +241,7 @@ const StoryDetailPage: React.FC = () => {
                   {descriptionNeedsExpansion && (
                        <button
                           onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
-                          className="md:hidden mt-2 text-orange-600 dark:text-amber-400 hover:underline text-sm font-medium flex items-center gap-1"
+                          className="mt-2 text-orange-600 dark:text-amber-400 hover:underline text-sm font-medium flex items-center gap-1"
                           aria-expanded={isDescriptionExpanded}
                       >
                           {isDescriptionExpanded ? 'Thu gọn' : 'Xem thêm'}
