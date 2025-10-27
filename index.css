@@ -1,3 +1,25 @@
 @import "tailwindcss";
 
 @config "./tailwind.config.js";
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px; /* Hoặc kích thước bạn muốn */
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent; /* Hoặc màu nền nhẹ */
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.5); /* Màu thumb xám mờ */
+  border-radius: 20px;
+  border: 3px solid transparent; /* Tạo khoảng cách nếu cần */
+}
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(113, 113, 122, 0.5); /* Màu thumb tối hơn cho dark mode */
+}
+.custom-scrollbar {
+    scrollbar-width: thin; /* Cho Firefox */
+    scrollbar-color: rgba(156, 163, 175, 0.5) transparent; /* Cho Firefox */
+}
+ .dark .custom-scrollbar {
+    scrollbar-color: rgba(113, 113, 122, 0.5) transparent; /* Cho Firefox dark mode */
+}
