@@ -1,3 +1,4 @@
+// maihan88/novelweb/novelweb-d14588e6d469796ca4d76fea103c02df2ebaa5a1/components/HeroBanner.tsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Story } from '../types.ts';
@@ -9,10 +10,11 @@ interface HeroBannerProps {
 
 const HeroBanner: React.FC<HeroBannerProps> = ({ stories, interval = 7000 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
+  // --- THÊM STATE ĐỂ THEO DÕI SLIDE TRƯỚC ĐÓ ---
   const [previousIndex, setPreviousIndex] = useState<number | null>(null);
 
   const changeSlide = useCallback((newIndex: number) => {
-      setPreviousIndex(currentIndex);
+      setPreviousIndex(currentIndex); // Lưu lại index hiện tại thành index cũ
       setCurrentIndex(newIndex);
   }, [currentIndex]);
 
@@ -65,15 +67,19 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ stories, interval = 7000 }) => 
       {stories.map((story, index) => {
          const isUp = index % 2 === 0;
          const animationClass = isUp ? 'animate-pan-up' : 'animate-pan-down';
+         // Class để "ghim" vị trí cuối của animation
          const endPositionClass = isUp ? 'bg-[50%_20%]' : 'bg-[50%_80%]';
 
          const isActive = index === currentIndex;
          const isPrevious = index === previousIndex;
 
-         let dynamicClasses = 'opacity-0';
+         // --- LOGIC CLASS MỚI ĐỂ GIẢI QUYẾT VẤN ĐỀ ---
+         let dynamicClasses = 'opacity-0'; // Mặc định là ẩn
          if (isActive) {
+             // Slide đang chạy thì có animation và hiện ra
              dynamicClasses = `opacity-100 ${animationClass}`;
          } else if (isPrevious) {
+             // Slide vừa chạy xong (đang fade out) thì bị ghim vị trí và ẩn đi
              dynamicClasses = `opacity-0 ${endPositionClass}`;
          }
 
