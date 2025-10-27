@@ -9,7 +9,7 @@ import StarRating from '../components/StarRating.tsx';
 import { Story, Chapter } from '../types.ts';
 import {
     PencilIcon, BookOpenIcon, HeartIcon, CalendarDaysIcon, EyeIcon, UserIcon, TagIcon,
-    ListBulletIcon, MagnifyingGlassIcon, ArrowLeftIcon, ChevronDownIcon, ChevronUpIcon // Thêm icon mở rộng
+    ListBulletIcon, MagnifyingGlassIcon, ArrowLeftIcon, ChevronDownIcon, ChevronUpIcon
 } from '@heroicons/react/24/solid';
 
 const StoryDetailPage: React.FC = () => {
@@ -24,7 +24,7 @@ const StoryDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [chapterSearchTerm, setChapterSearchTerm] = useState('');
-  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false); // State cho mô tả
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false); // State cho mô tả mobile
 
   // Derived states and memos
   const isUserFavorite = storyId ? isFavorite(storyId) : false;
@@ -117,7 +117,7 @@ const StoryDetailPage: React.FC = () => {
     ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 ring-1 ring-inset ring-green-600/20 dark:ring-green-500/30'
     : 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300 ring-1 ring-inset ring-orange-600/20 dark:ring-orange-500/30';
   const descriptionParagraphs = story.description?.split('\n') || [];
-  const descriptionNeedsExpansion = descriptionParagraphs.length > 5; // Kiểm tra xem mô tả có dài không
+  const descriptionNeedsExpansion = descriptionParagraphs.length > 5; // Vẫn dùng để quyết định có hiện nút trên mobile không
 
   // --- RENDER UI ---
   return (
@@ -222,13 +222,22 @@ const StoryDetailPage: React.FC = () => {
                 </div>
             )}
 
-            {/* Mô tả với giới hạn dòng */}
+            {/* Mô tả với giới hạn dòng/cuộn */}
             <div className="pt-2">
               <h2 className="text-xl font-semibold mb-3 font-serif text-slate-800 dark:text-slate-100">Mô tả</h2>
               {/* Container cho mô tả */}
-              <div className="relative pr-2 text-slate-700 dark:text-slate-300 leading-relaxed text-sm sm:text-base space-y-3">
-                  {/* Nội dung mô tả với line-clamp */}
-                  <div className={`transition-all duration-300 ease-in-out ${!isDescriptionExpanded ? 'line-clamp-5' : ''}`}>
+              <div className="relative text-slate-700 dark:text-slate-300 leading-relaxed text-sm sm:text-base space-y-3">
+                  {/* --- START: ĐIỀU CHỈNH LOGIC CLASS --- */}
+                  <div className={`
+                        overflow-hidden /* Cần cho line-clamp hoạt động */
+                        ${!isDescriptionExpanded ? 'line-clamp-5' : ''} /* Giới hạn dòng mobile khi chưa mở rộng */
+                        md:line-clamp-none /* Bỏ giới hạn dòng trên desktop */
+                        md:max-h-87 /* Giới hạn chiều cao desktop */
+                        md:overflow-y-auto /* Bật cuộn desktop */
+                        md:pr-3 /* Padding cho scrollbar desktop */
+                        md:custom-scrollbar /* Style scrollbar desktop */
+                    `}>
+                  {/* --- END: ĐIỀU CHỈNH LOGIC CLASS --- */}
                       {descriptionParagraphs.length > 0 ? (
                           descriptionParagraphs.map((paragraph, index) => (
                               <p key={index}>{paragraph || '\u00A0'}</p> // '\u00A0' để giữ dòng trống
@@ -241,7 +250,7 @@ const StoryDetailPage: React.FC = () => {
                   {descriptionNeedsExpansion && (
                        <button
                           onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
-                          className="mt-2 text-orange-600 dark:text-amber-400 hover:underline text-sm font-medium flex items-center gap-1"
+                          className="md:hidden mt-2 text-orange-600 dark:text-amber-400 hover:underline text-sm font-medium flex items-center gap-1" // Giữ nguyên md:hidden
                           aria-expanded={isDescriptionExpanded}
                       >
                           {isDescriptionExpanded ? 'Thu gọn' : 'Xem thêm'}
@@ -276,7 +285,7 @@ const StoryDetailPage: React.FC = () => {
               </div>
           </div>
           {/* Danh sách tập/chương */}
-          <div className="space-y-4 max-h-[45rem] overflow-y-auto pr-3 -mr-1 custom-scrollbar"> {/* Thêm scrollbar tùy chỉnh nếu cần */}
+          <div className="space-y-4 max-h-[45rem] overflow-y-auto pr-3 -mr-1 custom-scrollbar"> {/* Giữ nguyên scrollbar ở đây */}
               {filteredVolumes.length > 0 ? filteredVolumes.map(volume => (
                 <div key={volume.id} className="bg-white dark:bg-stone-800/50 border border-slate-200 dark:border-stone-700/50 rounded-lg overflow-hidden shadow-sm">
                   {/* Tên tập */}
@@ -345,4 +354,3 @@ const StoryDetailPage: React.FC = () => {
 };
 
 export default StoryDetailPage;
-//
