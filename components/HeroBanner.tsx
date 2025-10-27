@@ -1,4 +1,3 @@
-// maihan88/novelweb/novelweb-d14588e6d469796ca4d76fea103c02df2ebaa5a1/components/HeroBanner.tsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Story } from '../types.ts';
@@ -10,11 +9,10 @@ interface HeroBannerProps {
 
 const HeroBanner: React.FC<HeroBannerProps> = ({ stories, interval = 7000 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
-  // --- THÊM STATE ĐỂ THEO DÕI SLIDE TRƯỚC ĐÓ ---
   const [previousIndex, setPreviousIndex] = useState<number | null>(null);
 
   const changeSlide = useCallback((newIndex: number) => {
-      setPreviousIndex(currentIndex); // Lưu lại index hiện tại thành index cũ
+      setPreviousIndex(currentIndex);
       setCurrentIndex(newIndex);
   }, [currentIndex]);
 
@@ -67,19 +65,15 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ stories, interval = 7000 }) => 
       {stories.map((story, index) => {
          const isUp = index % 2 === 0;
          const animationClass = isUp ? 'animate-pan-up' : 'animate-pan-down';
-         // Class để "ghim" vị trí cuối của animation
          const endPositionClass = isUp ? 'bg-[50%_20%]' : 'bg-[50%_80%]';
 
          const isActive = index === currentIndex;
          const isPrevious = index === previousIndex;
 
-         // --- LOGIC CLASS MỚI ĐỂ GIẢI QUYẾT VẤN ĐỀ ---
-         let dynamicClasses = 'opacity-0'; // Mặc định là ẩn
+         let dynamicClasses = 'opacity-0';
          if (isActive) {
-             // Slide đang chạy thì có animation và hiện ra
              dynamicClasses = `opacity-100 ${animationClass}`;
          } else if (isPrevious) {
-             // Slide vừa chạy xong (đang fade out) thì bị ghim vị trí và ẩn đi
              dynamicClasses = `opacity-0 ${endPositionClass}`;
          }
 
@@ -119,7 +113,7 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ stories, interval = 7000 }) => 
           {firstChapterId && (
             <Link
                 to={`/story/${currentStory.id}/chapter/${firstChapterId}`}
-                className="mt-6 sm:mt-8 inline-block px-8 py-2.5 sm:px-10 sm:py-3 bg-orange-900 dark:bg-amber-100 dark:text-stone-900 text-orange-100 font-bold rounded-3xl shadow-lg hover:opacity-90 transition-all duration-300 hover:scale-105"
+                className="mt-4 sm:mt-5 inline-block px-6 py-2 sm:px-8 sm:py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold rounded-full shadow-lg hover:shadow-amber-500/40 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-400 dark:focus:ring-offset-stone-900"
             >
                 Đọc Ngay &rarr;
             </Link>
