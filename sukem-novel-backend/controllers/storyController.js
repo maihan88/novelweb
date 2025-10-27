@@ -130,6 +130,7 @@ exports.createStory = async (req, res) => {
     }
 };
 
+// maihan88/novelweb/novelweb-1aa31bbe4701b2fd8fb84d63e6e8af92c7097cf6/sukem-novel-backend/controllers/storyController.js
 // @desc    Update a story
 // @route   PUT /api/stories/:id
 // @access  Private/Admin
@@ -147,15 +148,15 @@ exports.updateStory = async (req, res) => {
             story.status = status || story.status;
             story.isHot = isHot !== undefined ? isHot : story.isHot;
             story.isInBanner = isInBanner !== undefined ? isInBanner : story.isInBanner;
-            
+
             if (tags !== undefined) {
                  story.tags = typeof tags === 'string' ? tags.split(',').map(tag => tag.trim()).filter(Boolean) : (Array.isArray(tags) ? tags : []);
             }
             if (alias !== undefined) {
                  story.alias = typeof alias === 'string' ? alias.split(',').map(name => name.trim()).filter(Boolean) : (Array.isArray(alias) ? alias : []);
             }
-            
-            story.lastUpdatedAt = new Date();
+
+            // story.lastUpdatedAt = new Date(); // <--- ĐÃ XÓA/COMMENT DÒNG NÀY
 
             const updatedStory = await story.save(); // Middleware pre('save') sẽ chạy ở đây nếu title thay đổi
             res.json(updatedStory); // Trả về truyện đã được cập nhật (có thể có id mới)
@@ -164,8 +165,8 @@ exports.updateStory = async (req, res) => {
         }
     } catch (error) {
         console.error('Detailed error updating story:', error);
-        res.status(500).json({ 
-            message: "Server Error", 
+        res.status(500).json({
+            message: "Server Error",
             error: error.message
         });
     }
