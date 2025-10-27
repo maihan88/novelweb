@@ -1,5 +1,3 @@
-// src/pages/admin/StoryEditPage.tsx
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useStories } from '../../contexts/StoryContext.tsx';
