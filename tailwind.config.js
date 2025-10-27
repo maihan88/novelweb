@@ -20,7 +20,7 @@ export default {
                 800: '#155e75',
                 900: '#164e63',
                 950: '#083344',
-              }
+              },
             },
             fontFamily: {
               'serif': ['"Source Serif 4"', 'serif'],
@@ -29,10 +29,8 @@ export default {
             },
             animation: {
               'fade-in': 'fadeIn 0.5s ease-in-out',
-              // --- SỬA TẠI ĐÂY ---
               'pan-up': 'pan-up 7s ease-in-out forwards',
               'pan-down': 'pan-down 7s ease-in-out forwards',
-              // --- KẾT THÚC SỬA ĐỔI ---
             },
             keyframes: {
               fadeIn: {
