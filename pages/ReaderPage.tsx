@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Story, Chapter, ReaderPreferences } from '../types';
+import { Story, Chapter, ReaderPreferences, ReaderTheme } from '../types';
 import { useStories } from '../contexts/StoryContext.tsx';
 import { useUserPreferences } from '../contexts/UserPreferencesContext.tsx';
 import ReaderControls from '../components/ReaderControls.tsx';
@@ -15,7 +15,9 @@ import {
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { useLocalStorage } from '../hooks/useLocalStorage.tsx';
 
+// --- ReadingProgressBar (Không đổi) ---
 const ReadingProgressBar: React.FC<{ progress: number }> = React.memo(({ progress }) => {
+    // ... (giữ nguyên code)
     return (
         <div className="fixed top-0 left-0 w-full h-1 bg-slate-200 dark:bg-slate-700 z-[60]">
             <div
@@ -31,6 +33,7 @@ const ReadingProgressBar: React.FC<{ progress: number }> = React.memo(({ progres
 });
 ReadingProgressBar.displayName = 'ReadingProgressBar';
 
+// --- FloatingNavBar (Không đổi) ---
 const FloatingNavBar: React.FC<{
     story: Story;
     currentChapterId: string;
@@ -38,6 +41,7 @@ const FloatingNavBar: React.FC<{
     nextChapter?: Chapter | null;
     isVisible: boolean;
 }> = ({ story, currentChapterId, prevChapter, nextChapter, isVisible }) => {
+    // ... (giữ nguyên code)
     const navigate = useNavigate();
 
     const handleChapterSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -99,6 +103,24 @@ const FloatingNavBar: React.FC<{
     );
 };
 
+// --- Mapping theme sang class Tailwind (Không đổi) ---
+const themeClasses: Record<ReaderTheme, string> = {
+    light: 'bg-white text-slate-800',
+    sepia: 'bg-[#fbf0d9] text-[#5f4b32]',
+    dark: 'bg-stone-900 text-stone-200'
+};
+
+// --- CẬP NHẬT: Mapping margin sang class PADDING và MAX-WIDTH ---
+const marginSettings: Record<number, { padding: string; maxWidth: string }> = {
+    0:  { padding: 'px-1 sm:px-2',   maxWidth: 'max-w-none' },    // Lề nhỏ nhất, gần full màn hình
+    5:  { padding: 'px-3 sm:px-4',   maxWidth: 'max-w-4xl' },    // Lề nhỏ
+    10: { padding: 'px-4 sm:px-6',   maxWidth: 'max-w-3xl' },    // Lề mặc định
+    15: { padding: 'px-6 sm:px-10',  maxWidth: 'max-w-2xl' },    // Lề vừa
+    20: { padding: 'px-8 sm:px-14',  maxWidth: 'max-w-xl' }     // Lề lớn nhất
+};
+// --- KẾT THÚC CẬP NHẬT ---
+
+
 const ReaderPage: React.FC = () => {
     const { storyId, chapterId } = useParams<{ storyId: string, chapterId: string }>();
     const navigate = useNavigate();
@@ -111,8 +133,10 @@ const ReaderPage: React.FC = () => {
 
     const [preferences, setPreferences] = useLocalStorage<ReaderPreferences>('readerPreferences', {
         fontSize: 18,
-        fontFamily: 'font-serif',
+        fontFamily: 'font-reader-lora',
         lineHeight: 1.7,
+        margin: 10,
+        theme: 'light',
     });
 
     const [scrollPercent, setScrollPercent] = useState(0);
@@ -129,6 +153,7 @@ const ReaderPage: React.FC = () => {
 
     const isAdmin = useMemo(() => currentUser?.role === 'admin', [currentUser]);
 
+    // Các useEffect khác (Không đổi)
     useEffect(() => {
         if (!storyId) return;
         setLoading(true);
@@ -141,10 +166,9 @@ const ReaderPage: React.FC = () => {
     useEffect(() => {
         viewIncrementedRef.current = false;
         window.scrollTo(0, 0);
-
         const savedBookmark = storyId ? bookmarks[storyId] : null;
         if (savedBookmark && savedBookmark.chapterId === chapterId) {
-            requestAnimationFrame(() => {
+             requestAnimationFrame(() => {
                  setTimeout(() => {
                     if (readerContentRef.current) {
                         const contentTop = readerContentRef.current.offsetTop;
@@ -172,28 +196,23 @@ const ReaderPage: React.FC = () => {
 
     useEffect(() => {
         if (!story || !storyId || !chapterId) return;
-
         if (!viewIncrementedRef.current && !isAdmin) {
             incrementChapterView(storyId, chapterId);
             viewIncrementedRef.current = true;
         }
-
         const preventAction = (e: Event) => e.preventDefault();
         const contentEl = readerContentRef.current;
         if (contentEl) {
             contentEl.addEventListener('contextmenu', preventAction);
             contentEl.addEventListener('copy', preventAction);
         }
-
         const handleScroll = () => {
             const contentElement = readerContentRef.current;
             if (!contentElement) return;
-
             const contentTop = contentElement.offsetTop;
             const contentHeight = contentElement.scrollHeight;
             const viewportHeight = window.innerHeight;
             const currentScrollTop = window.pageYOffset;
-
             let percentage = 0;
             if (contentHeight <= viewportHeight) {
                 percentage = 100;
@@ -202,21 +221,17 @@ const ReaderPage: React.FC = () => {
                  const maxScrollInContent = contentHeight - viewportHeight;
                  percentage = maxScrollInContent > 0 ? Math.min(100, (scrollStartInContent / maxScrollInContent) * 100) : 100;
             }
-
             progressRef.current = percentage;
             setScrollPercent(percentage);
         };
-
         window.addEventListener('scroll', handleScroll, { passive: true });
          handleScroll();
-
         return () => {
             window.removeEventListener('scroll', handleScroll);
             if (contentEl) {
                 contentEl.removeEventListener('contextmenu', preventAction);
                 contentEl.removeEventListener('copy', preventAction);
             }
-
             if (storyId && chapterId) {
                  const finalProgress = Math.round(progressRef.current >= 99 ? 100 : progressRef.current);
                 updateBookmarkRef.current(storyId, chapterId, finalProgress);
@@ -224,6 +239,8 @@ const ReaderPage: React.FC = () => {
         };
     }, [story, storyId, chapterId, isAdmin, incrementChapterView]);
 
+
+    // handleTapZoneClick (Không đổi)
     const handleTapZoneClick = (event: React.MouseEvent<HTMLDivElement>) => {
         if (window.getSelection()?.toString() || (event.target as HTMLElement).closest('a, button, select, [data-control-button]')) {
             return;
@@ -235,6 +252,7 @@ const ReaderPage: React.FC = () => {
         lastTap.current = now;
     };
 
+    // useMemo chapter, prev/next (Không đổi)
     const { chapter, prevChapter, nextChapter } = useMemo(() => {
         if (!story || !chapterId) return { chapter: undefined, prevChapter: null, nextChapter: null };
         const allChapters = story.volumes.flatMap(v => v.chapters);
@@ -247,33 +265,50 @@ const ReaderPage: React.FC = () => {
         };
     }, [story, chapterId]);
 
+
+     // cleanedContent (Không đổi)
      const cleanedContent = useMemo(() => {
         if (!chapter?.content) return '';
         return chapter.content.replace(/line-height:[^;"]*;/g, '');
     }, [chapter?.content]);
 
+    // contentStyle (Không đổi)
     const contentStyle = useMemo(() => ({
         fontSize: `${preferences.fontSize}px`,
         lineHeight: preferences.lineHeight
     }), [preferences.fontSize, preferences.lineHeight]);
 
+
+    // navButton styles (Không đổi)
     const navButtonBaseClasses = "flex items-center justify-center gap-2 px-4 py-2 border rounded-md transition-colors duration-200 text-sm font-medium";
+    // ... (rest of nav button styles are unchanged)
     const navButtonEnabledClasses = "border-orange-300 dark:border-stone-600 text-slate-700 dark:text-stone-300 hover:bg-orange-50 dark:hover:bg-stone-700";
     const navButtonDisabledClasses = "border-slate-200 dark:border-stone-700 bg-slate-50 dark:bg-stone-800 text-slate-400 dark:text-stone-500 cursor-not-allowed";
 
+
+    // handleChapterSelect, handleNavClick (Không đổi)
     const handleChapterSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newChapterId = e.target.value;
         if (newChapterId) navigate(`/story/${storyId}/chapter/${newChapterId}`);
     };
 
-    const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    };
+    const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>) => {};
 
+    // Loading/Error states (Không đổi)
     if (loading) return <div className="flex justify-center items-center h-screen bg-white dark:bg-stone-950"><LoadingSpinner /></div>;
     if (!story || !chapter) return <div className="flex justify-center items-center h-screen bg-white dark:bg-stone-950 text-red-500">Không tìm thấy truyện hoặc chương.</div>;
 
+    // --- Lấy class cho theme và margin/padding ---
+    const currentThemeClass = themeClasses[preferences.theme] || themeClasses.light;
+    // Đảm bảo margin có giá trị hợp lệ, nếu không thì dùng mặc định (10)
+    const currentMarginSetting = marginSettings[preferences.margin] || marginSettings[10];
+    const contentContainerClasses = `mx-auto animate-fade-in py-16 sm:py-20 min-h-screen ${currentMarginSetting.padding} ${currentMarginSetting.maxWidth}`;
+    // --- KẾT THÚC ---
+
+
     return (
-        <div className="bg-white dark:bg-stone-950 min-h-full transition-colors duration-300">
+        // --- ÁP DỤNG THEME CLASS ---
+        <div className={`min-h-full transition-colors duration-300 ${currentThemeClass}`}>
             <ReadingProgressBar progress={scrollPercent} />
             <FloatingNavBar
                 story={story}
@@ -282,68 +317,99 @@ const ReaderPage: React.FC = () => {
                 nextChapter={nextChapter}
                 isVisible={isFloatingNavVisible}
             />
-            <div onClick={handleTapZoneClick} className="max-w-3xl mx-auto animate-fade-in px-4 sm:px-6 lg:px-8 py-16 sm:py-20 min-h-screen">
-                <div className="text-center mb-10">
+            {/* --- ÁP DỤNG PADDING VÀ MAX-WIDTH CLASS --- */}
+            <div onClick={handleTapZoneClick} className={contentContainerClasses}>
+                {/* Header chương */}
+                <div className={`text-center mb-10 ${preferences.theme === 'sepia' ? 'text-[#5f4b32]' : 'text-slate-900 dark:text-white'}`}>
                     <Link
                         to={`/story/${story.id}`}
-                        className="text-orange-600 dark:text-amber-400 hover:underline text-sm sm:text-base"
+                        className={`${preferences.theme === 'sepia' ? 'text-[#8c6d46]' : 'text-orange-600 dark:text-amber-400'} hover:underline text-sm sm:text-base`}
                     >
                          {story.title}
                      </Link>
-                    <h1 className="text-3xl sm:text-4xl font-bold font-serif mt-2 text-slate-900 dark:text-white leading-tight">
+                    <h1 className={`text-3xl sm:text-4xl font-bold font-serif mt-2 leading-tight`}>
                         {chapter.title}
                     </h1>
                 </div>
 
+                {/* Nội dung truyện */}
                 <div
                     ref={readerContentRef}
-                    className={`max-w-none text-slate-800 dark:text-stone-200 transition-all duration-300 ${preferences.fontFamily} chapter-content prevent-copy`}
+                    className={`max-w-none transition-all duration-300 ${preferences.fontFamily} chapter-content prevent-copy ${
+                        preferences.theme === 'light' ? 'text-slate-800' :
+                        preferences.theme === 'sepia' ? 'text-[#5f4b32]' :
+                        'text-stone-200'
+                    }`}
                     style={contentStyle}
                     dangerouslySetInnerHTML={{ __html: cleanedContent }}
                 />
 
-                <div className="mt-12 pt-8 border-t border-slate-200 dark:border-stone-700">
+                {/* Navigation cuối chương (Không đổi) */}
+                <div className={`mt-12 pt-8 border-t ${preferences.theme === 'sepia' ? 'border-[#dcd3c1]' : 'border-slate-200 dark:border-stone-700'}`}>
                     <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
+                        {/* Prev Button */}
                         {prevChapter ? (
-                            <Link
+                             <Link
                                 to={`/story/${story.id}/chapter/${prevChapter.id}`}
-                                className={`${navButtonBaseClasses} ${navButtonEnabledClasses}`}
+                                className={`flex items-center justify-center gap-2 px-4 py-2 border rounded-md transition-colors duration-200 text-sm font-medium ${
+                                    preferences.theme === 'light' ? 'border-orange-300 text-slate-700 hover:bg-orange-50' :
+                                    preferences.theme === 'sepia' ? 'border-[#c8b79a] text-[#5f4b32] hover:bg-[#f5e9d3]' :
+                                    'border-stone-600 text-stone-300 hover:bg-stone-700'
+                                }`}
                                 onClick={handleNavClick}
                             >
                                 <ArrowLeftIcon className="h-4 w-4" />
                                 <span>Chương trước</span>
                             </Link>
                         ) : (
-                            <div className={`${navButtonBaseClasses} ${navButtonDisabledClasses}`}>
+                             <div className={`flex items-center justify-center gap-2 px-4 py-2 border rounded-md text-sm font-medium cursor-not-allowed ${
+                                 preferences.theme === 'light' ? 'border-slate-200 bg-slate-50 text-slate-400' :
+                                 preferences.theme === 'sepia' ? 'border-[#dcd3c1] bg-[#f5e9d3]/50 text-[#a0927c]' :
+                                 'border-stone-700 bg-stone-800 text-stone-500'
+                             }`}>
                                 <ArrowLeftIcon className="h-4 w-4" />
                                 <span>Chương trước</span>
                             </div>
                         )}
+                        {/* Chapter Select */}
                         <select
                             value={chapterId}
                             onChange={handleChapterSelect}
-                            className="w-full sm:w-auto flex-grow px-3 py-2 border rounded-md bg-white dark:bg-stone-800 border-slate-300 dark:border-stone-600 text-slate-700 dark:text-stone-300 focus:ring-2 focus:ring-orange-500 transition appearance-none text-sm text-center cursor-pointer hover:border-slate-400 dark:hover:border-stone-500"
+                            className={`w-full sm:w-auto flex-grow px-3 py-2 border rounded-md transition appearance-none text-sm text-center cursor-pointer ${
+                                preferences.theme === 'light' ? 'bg-white border-slate-300 text-slate-700 hover:border-slate-400 focus:ring-orange-500' :
+                                preferences.theme === 'sepia' ? 'bg-[#fbf0d9] border-[#dcd3c1] text-[#5f4b32] hover:border-[#c8b79a] focus:ring-[#c8a063]' :
+                                'bg-stone-800 border-stone-600 text-stone-300 hover:border-stone-500 focus:ring-amber-500'
+                            }`}
                             aria-label="Chọn chương"
                         >
                             {story.volumes.map(volume => (
-                                <optgroup label={volume.title} key={volume.id} className="bg-white dark:bg-stone-900 font-semibold">
+                                <optgroup label={volume.title} key={volume.id} className={`${preferences.theme === 'dark' ? 'bg-stone-900' : preferences.theme === 'sepia' ? 'bg-[#fbf0d9]' : 'bg-white'} font-semibold`}>
                                     {volume.chapters.map(chap => (
                                         <option key={chap.id} value={chap.id} className="font-normal">{chap.title}</option>
                                     ))}
                                 </optgroup>
                             ))}
                         </select>
+                        {/* Next Button */}
                         {nextChapter ? (
-                            <Link
+                             <Link
                                 to={`/story/${story.id}/chapter/${nextChapter.id}`}
-                                className={`${navButtonBaseClasses} ${navButtonEnabledClasses}`}
+                                className={`flex items-center justify-center gap-2 px-4 py-2 border rounded-md transition-colors duration-200 text-sm font-medium ${
+                                    preferences.theme === 'light' ? 'border-orange-300 text-slate-700 hover:bg-orange-50' :
+                                    preferences.theme === 'sepia' ? 'border-[#c8b79a] text-[#5f4b32] hover:bg-[#f5e9d3]' :
+                                    'border-stone-600 text-stone-300 hover:bg-stone-700'
+                                }`}
                                 onClick={handleNavClick}
                             >
                                 <span>Chương tiếp</span>
                                 <ArrowRightIcon className="h-4 w-4" />
                             </Link>
                         ) : (
-                            <div className={`${navButtonBaseClasses} ${navButtonDisabledClasses}`}>
+                             <div className={`flex items-center justify-center gap-2 px-4 py-2 border rounded-md text-sm font-medium cursor-not-allowed ${
+                                 preferences.theme === 'light' ? 'border-slate-200 bg-slate-50 text-slate-400' :
+                                 preferences.theme === 'sepia' ? 'border-[#dcd3c1] bg-[#f5e9d3]/50 text-[#a0927c]' :
+                                 'border-stone-700 bg-stone-800 text-stone-500'
+                             }`}>
                                 <span>Chương tiếp</span>
                                 <ArrowRightIcon className="h-4 w-4" />
                             </div>
@@ -351,6 +417,7 @@ const ReaderPage: React.FC = () => {
                     </div>
                 </div>
 
+                {/* CommentSection (Không đổi logic) */}
                 {storyId && chapterId && <CommentSection storyId={storyId} chapterId={chapterId} />}
             </div>
             <ReaderControls
