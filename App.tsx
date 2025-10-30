@@ -30,7 +30,7 @@ const AppContent: React.FC = () => {
   const mainClasses = [
     'flex-grow',
     'w-full',
-    isReaderPage ? '' : 'container mx-auto px-4 sm:px-6 md:px-8 py-8'
+    isReaderPage ? '' : 'container mx-auto px-4 sm:px-6 md:px-6 py-6'
   ].join(' ');
   
   return (
