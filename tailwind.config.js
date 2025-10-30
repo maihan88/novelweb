@@ -23,9 +23,17 @@ export default {
               },
             },
             fontFamily: {
-              'serif': ['"Source Serif 4"', 'serif'],
-              'sans': ['"Inter"', 'sans-serif'],
-              'mono': ['"Inconsolata"', 'monospace'],
+              // --- KHÔI PHỤC FONT MẶC ĐỊNH ---
+              'sans': ['"Inter"', 'sans-serif'], // Font chính cho UI
+              'serif': ['"Source Serif 4"', 'serif'], // Font serif phụ (nếu dùng ở đâu đó)
+              'mono': ['"Inconsolata"', 'monospace'], // Font mono phụ (nếu dùng)
+              // --- KẾT THÚC KHÔI PHỤC ---
+
+              // --- ĐỊNH NGHĨA FONT CHO READER (SỬ DỤNG KEY MỚI) ---
+              'reader-times': ['"Times New Roman"', 'Times', 'serif'],
+              'reader-lora': ['"Lora"', 'serif'],
+              'reader-antiqua': ['"Book Antiqua"', 'Palatino', 'Palatino Linotype', 'serif'],
+              // --- KẾT THÚC ĐỊNH NGHĨA READER ---
             },
             animation: {
               'fade-in': 'fadeIn 0.5s ease-in-out',
@@ -50,3 +58,4 @@ export default {
   },
   plugins: [],
 }
+
