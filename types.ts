@@ -35,12 +35,19 @@ export interface Story {
   lastUpdatedAt: string;
 }
 
-export type ReaderFont = 'font-serif' | 'font-sans' | 'font-mono';
+// --- CẬP NHẬT ReaderFont VỚI KEY MỚI ---
+export type ReaderFont = 'font-reader-times' | 'font-reader-lora' | 'font-reader-antiqua';
+// Tailwind tự động tạo class dạng `font-<key>`, ví dụ: font-reader-times
+// --- KẾT THÚC CẬP NHẬT ---
+
+export type ReaderTheme = 'light' | 'sepia' | 'dark';
 
 export interface ReaderPreferences {
   fontSize: number;
-  fontFamily: ReaderFont;
+  fontFamily: ReaderFont; // Giờ sẽ là một trong các giá trị 'font-reader-*'
   lineHeight: number;
+  margin: number;
+  theme: ReaderTheme;
 }
 
 export interface Bookmark {
