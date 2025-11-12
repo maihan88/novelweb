@@ -1,7 +1,6 @@
-
 const Story = require('../models/storyModel');
 
-// Hàm slugify
+// Hàm slugify (giữ nguyên)
 const slugify = (text) => {
   if (!text) return '';
   return text
@@ -20,7 +19,14 @@ const slugify = (text) => {
 // @access  Public
 exports.getAllStories = async (req, res) => {
     try {
-        const stories = await Story.find({}).sort({ lastUpdatedAt: -1 });
+        // --- START: THAY ĐỔI QUAN TRỌNG ---
+        // Sử dụng .select() để loại bỏ trường 'content' lồng sâu
+        // Điều này giảm đáng kể kích thước payload trả về
+        const stories = await Story.find({})
+            .sort({ lastUpdatedAt: -1 })
+            .select('-volumes.chapters.content'); // <--- DÒNG NÀY ĐƯỢC THÊM VÀO
+        // --- END: THAY ĐỔI QUAN TRỌNG ---
+            
         res.json(stories);
     } catch (error) {
         console.error('Error fetching stories:', error);
@@ -33,6 +39,7 @@ exports.getAllStories = async (req, res) => {
 // @access  Public
 exports.getStoryById = async (req, res) => {
     try {
+        // Hàm này cần lấy TOÀN BỘ nội dung, nên chúng ta KHÔNG dùng .select ở đây
         const story = await Story.findOne({ id: req.params.id });
         if (story) {
             res.json(story);
@@ -56,13 +63,11 @@ exports.createStory = async (req, res) => {
     try {
         const { title, author, description, coverImage, tags, status, isHot, isInBanner, alias } = req.body;
 
-        // Validation
         if (!title || !author || !coverImage) {
             console.log('Validation failed:', { title: !!title, author: !!author, coverImage: !!coverImage });
             return res.status(400).json({ message: 'Vui lòng cung cấp đủ Tên truyện, Tác giả và Ảnh bìa' });
         }
 
-        // Process arrays
         const tagsArray = tags && typeof tags === 'string' ? tags.split(',').map(tag => tag.trim()).filter(Boolean) : (Array.isArray(tags) ? tags : []);
         const aliasArray = alias && typeof alias === 'string' ? alias.split(',').map(name => name.trim()).filter(Boolean) : (Array.isArray(alias) ? alias : []);
 
@@ -78,7 +83,6 @@ exports.createStory = async (req, res) => {
             isInBanner
         });
 
-        // Create story object
         const storyData = {
             title,
             author,
@@ -106,7 +110,6 @@ exports.createStory = async (req, res) => {
         console.error('Error message:', error.message);
         console.error('Error stack:', error.stack);
         
-        // MongoDB specific errors
         if (error.name === 'ValidationError') {
             console.error('Validation errors:', error.errors);
             return res.status(400).json({ 
@@ -130,7 +133,6 @@ exports.createStory = async (req, res) => {
     }
 };
 
-// maihan88/novelweb/novelweb-1aa31bbe4701b2fd8fb84d63e6e8af92c7097cf6/sukem-novel-backend/controllers/storyController.js
 // @desc    Update a story
 // @route   PUT /api/stories/:id
 // @access  Private/Admin
@@ -156,10 +158,8 @@ exports.updateStory = async (req, res) => {
                  story.alias = typeof alias === 'string' ? alias.split(',').map(name => name.trim()).filter(Boolean) : (Array.isArray(alias) ? alias : []);
             }
 
-            // story.lastUpdatedAt = new Date(); // <--- ĐÃ XÓA/COMMENT DÒNG NÀY
-
-            const updatedStory = await story.save(); // Middleware pre('save') sẽ chạy ở đây nếu title thay đổi
-            res.json(updatedStory); // Trả về truyện đã được cập nhật (có thể có id mới)
+            const updatedStory = await story.save(); 
+            res.json(updatedStory);
         } else {
             res.status(404).json({ message: 'Story not found' });
         }
