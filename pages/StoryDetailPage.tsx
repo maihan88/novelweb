@@ -244,60 +244,75 @@ const StoryDetailPage: React.FC = () => {
       </div>
 
       {/* Card thông tin truyện */}
-      <div className="bg-white dark:bg-stone-900 rounded-lg shadow-xl overflow-hidden mx-4 sm:mx-0 border border-slate-100 dark:border-stone-800">
+      <div className="bg-white dark:bg-stone-900 rounded-lg shadow-xl overflow-hidden mx-0 sm:mx-0 border border-slate-100 dark:border-stone-800">
         {/* Phần thông tin cơ bản */}
         <div className="flex flex-col md:flex-row gap-6 p-4 sm:p-6 md:gap-8 md:p-8">
 
-          {/* Cột trái: Chỉ Ảnh bìa (Di chuyển nút ra ngoài) */}
-          <div className="w-full md:w-1/3 flex-shrink-0">
-            <img className="h-auto w-full rounded-lg shadow-lg aspect-[2/3] object-cover border border-slate-200 dark:border-stone-700" src={story.coverImage} alt={`Bìa truyện ${story.title}`} />
-            {/* --- Chỉ hiển thị nút desktop ở đây --- */}
-            <div className="hidden md:block">
-              <ActionButtons />
-            </div>
+          {/* Cột trái: Chỉ Ảnh bìa */}
+          <div className="w-full md:w-1/3 flex-shrink-0 flex flex-col items-center">
+            <img className="w-45 h-auto sm:w-80 rounded-lg shadow-lg aspect-[2/3] object-cover border border-slate-200 dark:border-stone-700" src={story.coverImage} alt={`Bìa truyện ${story.title}`} />
+              <div className="hidden md:block w-45 sm:w-80">
+                  <ActionButtons />
+              </div>
           </div>
 
           {/* Cột phải: Thông tin chi tiết (giữ nguyên cấu trúc bên trong) */}
-          <div className="w-full md:w-2/3 space-y-6">
+          <div className="w-full md:w-2/3 space-y-3 md:space-y-6">
             {/* Tên truyện, trạng thái, tên khác */}
-            <div>
+            <div className="text-center md:text-left">
               <span className={`text-xs sm:text-sm font-semibold px-3 py-1 rounded-full ${statusClasses} inline-block mb-3`}>
                   {story.status}
               </span>
-              <h1 className="text-3xl md:text-4xl font-bold font-serif text-slate-900 dark:text-white leading-tight">{story.title}</h1>
+              <h1 className="text-2xl md:text-4xl font-bold font-serif text-slate-900 dark:text-white leading-tight mb-2">{story.title}</h1>
               {story.alias && story.alias.length > 0 && <p className="mt-2 text-sm sm:text-base text-slate-500 dark:text-slate-400 italic">{Array.isArray(story.alias) ? story.alias.join(' · ') : story.alias}</p>}
             </div>
 
-            {/* Thông tin metadata - ĐÃ CẬP NHẬT RESPONSIVE */}
-            <div className="flex flex-row flex-wrap items-center justify-between gap-x-4 gap-y-3 text-sm border-t border-b border-slate-100 dark:border-stone-800 py-3 sm:py-4 sm:grid sm:grid-cols-3 sm:justify-start sm:gap-x-4 sm:gap-y-3"> {/* Áp dụng flex cho mobile, grid cho sm trở lên */}
-                {/* Tác giả */}
-                <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                    <UserIcon className="h-5 w-5 text-orange-500 dark:text-orange-400 flex-shrink-0"/>
-                    <div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400">Tác giả</div>
-                        <div className="font-medium">{story.author}</div>
-                    </div>
-                </div>
-                {/* Lượt xem */}
-                <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                    <EyeIcon className="h-5 w-5 text-blue-500 dark:text-blue-400 flex-shrink-0"/>
-                    <div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400">Lượt xem</div>
-                        <div className="font-medium">{story.views.toLocaleString('vi-VN')}</div>
-                    </div>
-                </div>
-                {/* Số chương */}
-                <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                    <ListBulletIcon className="h-5 w-5 text-green-500 dark:text-green-400 flex-shrink-0"/>
-                    <div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400">Số chương</div>
-                        <div className="font-medium">{totalChapters}</div>
-                    </div>
-                </div>
-            </div>
+{/* Thông tin metadata - COMPACT MOBILE VERSION */}
+<div className="grid grid-cols-3 gap-x-1 gap-y-2 border-t border-b border-slate-100 dark:border-stone-800 py-3 mt-3 sm:gap-x-4 sm:py-4">
+    {/* Tác giả */}
+    <div className="flex flex-col items-center justify-center px-1 border-r border-slate-100 dark:border-stone-800 last:border-0 sm:border-0 sm:flex-row sm:justify-start sm:px-0">
+        <div className="flex items-center gap-1 sm:gap-2 text-slate-500 dark:text-slate-400 mb-0.5 sm:mb-0">
+            <UserIcon className="h-3 w-3 sm:h-5 sm:w-5 text-orange-500"/>
+            <span className="text-[10px] sm:text-xs uppercase tracking-wide">Tác giả</span>
+        </div>
+        <div className="text-[11px] sm:text-sm font-bold text-slate-800 dark:text-slate-200 truncate max-w-full sm:ml-2">
+            {story.author}
+        </div>
+    </div>
+
+    {/* Lượt xem */}
+    <div className="flex flex-col items-center justify-center px-1 border-r border-slate-100 dark:border-stone-800 last:border-0 sm:border-0 sm:flex-row sm:justify-start sm:px-0">
+        <div className="flex items-center gap-1 sm:gap-2 text-slate-500 dark:text-slate-400 mb-0.5 sm:mb-0">
+            <EyeIcon className="h-3 w-3 sm:h-5 sm:w-5 text-blue-500"/>
+            <span className="text-[10px] sm:text-xs uppercase tracking-wide">Lượt xem</span>
+        </div>
+        <div className="text-[11px] sm:text-sm font-bold text-slate-800 dark:text-slate-200 sm:ml-2">
+            {story.views.toLocaleString('vi-VN')}
+        </div>
+    </div>
+
+    {/* Số chương */}
+    <div className="flex flex-col items-center justify-center px-1 sm:flex-row sm:justify-start sm:px-0">
+        <div className="flex items-center gap-1 sm:gap-2 text-slate-500 dark:text-slate-400 mb-0.5 sm:mb-0">
+            <ListBulletIcon className="h-3 w-3 sm:h-5 sm:w-5 text-green-500"/>
+            <span className="text-[10px] sm:text-xs uppercase tracking-wide">Chương</span>
+        </div>
+        <div className="text-[11px] sm:text-sm font-bold text-slate-800 dark:text-slate-200 sm:ml-2">
+            {totalChapters}
+        </div>
+    </div>
+</div>
 
              {/* Đánh giá */}
-            <div><StarRating rating={story.rating} count={story.ratingsCount} userRating={userRating} onRate={handleRating} /></div>
+{/* Đánh giá - Căn giữa trên mobile, căn trái trên desktop */}
+            <div className="flex justify-center md:justify-start pt-1 pb-2">
+                <StarRating 
+                    rating={story.rating} 
+                    count={story.ratingsCount} 
+                    userRating={userRating} 
+                    onRate={handleRating} 
+                />
+            </div>
 
              {/* Tags */}
             {story.tags && story.tags.length > 0 && (
