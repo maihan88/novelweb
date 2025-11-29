@@ -96,7 +96,7 @@ const Header: React.FC = () => {
 
   return (
       <header className={headerClasses}>
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8"> {/* Thêm responsive padding */}
+      <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"> {/* Thêm responsive padding */}
         <div className="flex justify-between items-center h-16"> {/* Giữ chiều cao */}
           {/* Logo */}
           <Link to="/" className="text-2xl font-bold font-serif text-orange-900 dark:text-amber-200 hover:opacity-80 transition-opacity">
