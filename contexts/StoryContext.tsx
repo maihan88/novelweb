@@ -69,20 +69,18 @@ export const StoryProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   }, []);
   
-  const addRatingToStory = useCallback(async (storyId: string, rating: number) => {
-    setStories(prevStories => prevStories.map(story => {
-      if (story.id === storyId) {
-        const newRatingsCount = story.ratingsCount + 1;
-        const newTotalRating = story.rating * story.ratingsCount + rating;
-        const newAverageRating = newTotalRating / newRatingsCount;
-        return { 
-          ...story, 
-          ratingsCount: newRatingsCount, 
-          rating: newAverageRating 
-        };
-      }
-      return story;
-    }));
+const addRatingToStory = useCallback(async (storyId: string, rating: number) => {
+    try {
+        // Gọi API backend
+        const updatedStory = await storyService.rateStory(storyId, rating);
+        
+        setStories(prevStories => prevStories.map(story => 
+            story.id === storyId ? updatedStory : story
+        ));
+    } catch (err) {
+        console.error("Lỗi khi gửi đánh giá:", err);
+        throw err; // Ném lỗi để component UI (StoryDetailPage) có thể bắt và hiển thị thông báo
+    }
   }, []);
   
   const addStory = useCallback(async (storyData: Omit<Story, 'id' | '_id' | 'volumes'|'views'|'createdAt'|'lastUpdatedAt'|'rating'|'ratingsCount'>): Promise<Story> => {
