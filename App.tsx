@@ -7,7 +7,6 @@ import { StoryProvider } from './contexts/StoryContext.tsx';
 import { CommentProvider } from './contexts/CommentContext.tsx';
 import UserRoute from './components/UserRoute.tsx';
 import AdminRoutes from './components/AdminRoutes.tsx';
-
 import Header from './components/Header.tsx';
 import Footer from './components/Footer.tsx';
 import HomePage from './pages/HomePage.tsx';
@@ -30,7 +29,7 @@ const AppContent: React.FC = () => {
   const mainClasses = [
     'flex-grow',
     'w-full',
-    isReaderPage ? '' : 'container mx-auto px-4 sm:px-6 md:px-6 py-6'
+    isReaderPage ? '' : 'container mx-auto max-w-7xl px-4 sm:px-6 md:px-6 py-6'
   ].join(' ');
   
   return (
