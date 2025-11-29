@@ -34,6 +34,11 @@ export const createStory = async (storyData: Partial<Story>): Promise<Story> => 
     }
 };
 
+export const rateStory = async (storyId: string, rating: number): Promise<Story> => {
+    const response = await api.post(`/stories/${storyId}/rating`, { rating });
+    return response.data; 
+};
+
 export const updateStory = async (id: string, storyData: Partial<Story>): Promise<Story> => {
     const response = await api.put(`/stories/${id}`, storyData);
     return response.data;
