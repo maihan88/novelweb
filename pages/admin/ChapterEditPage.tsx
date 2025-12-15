@@ -2,12 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useStories } from '../../contexts/StoryContext.tsx';
 import { Story, Chapter } from '../../types.ts';
-import { CheckIcon, ArrowPathIcon, ExclamationTriangleIcon, PlusIcon, PencilIcon, CheckCircleIcon, XMarkIcon } from '@heroicons/react/24/solid'; // Thêm CheckCircleIcon, XMarkIcon
+import { CheckIcon, ArrowPathIcon, ExclamationTriangleIcon, PlusIcon, PencilIcon, CheckCircleIcon, XMarkIcon } from '@heroicons/react/24/solid';
 import { ArrowUturnLeftIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner.tsx';
 import CustomEditor from '../../components/CustomEditor.tsx';
 
-// --- HÀM GỢI Ý TIÊU ĐỀ --- (Sửa lại)
+// --- HÀM GỢI Ý TIÊU ĐỀ --- (Giữ nguyên)
 const getNextChapterTitle = (currentTitle: string): string => {
     const match = currentTitle.match(/^(.*?)([:\s-])?(\d+)$/);
     if (match) {
@@ -32,7 +32,7 @@ const SaveNotification: React.FC<{ message: string; onDismiss: () => void }> = (
     }, [onDismiss]);
 
     return (
-        <div className="fixed bottom-5 right-5 z-50 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 animate-fade-in"> {/* Đổi màu nền đậm hơn */}
+        <div className="fixed bottom-5 right-5 z-50 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 animate-fade-in">
             <CheckCircleIcon className="h-5 w-5" />
             <span className="text-sm font-medium">{message}</span>
             <button onClick={onDismiss} className="ml-2 p-1 hover:bg-green-700 rounded-full">
@@ -88,11 +88,15 @@ const ChapterEditPage: React.FC = () => {
             setContent(currentChapter.content);
             setIsRaw(!!currentChapter.isRaw);
         } else {
+            // --- LOGIC TẠO MỚI ---
             const allChapters = currentStory.volumes.flatMap(v => v.chapters);
             const lastChapter = allChapters.length > 0 ? allChapters[allChapters.length - 1] : null;
              const lastChapterInVolume = currentVolume.chapters.length > 0 ? currentVolume.chapters[currentVolume.chapters.length - 1] : null;
             setTitle(lastChapterInVolume ? getNextChapterTitle(lastChapterInVolume.title) : (lastChapter ? getNextChapterTitle(lastChapter.title) : `${currentVolume.title} - Chương 1`));
-            setContent('<p>Nội dung chương mới...</p>');
+            
+            // [SỬA ĐỔI 1]: Để content rỗng thay vì text mặc định
+            setContent(''); 
+            
             setIsRaw(true);
         }
     } catch (error: any) {
@@ -124,8 +128,8 @@ const ChapterEditPage: React.FC = () => {
         try {
             if (isNew) {
                 const newChapter = await addChapterToVolume(storyId, volumeId, { title, content, isRaw });
-                currentChapterId = newChapter.id; // Cập nhật ID
-                setIsNew(false); // Chuyển sang mode sửa
+                currentChapterId = newChapter.id;
+                setIsNew(false);
                  navigate(`/admin/story/${storyId}/volume/${volumeId}/chapter/edit/${newChapter.id}`, { replace: true });
                 setSaveSuccessMessage(`Đã thêm chương "${title}"!`);
 
@@ -140,11 +144,14 @@ const ChapterEditPage: React.FC = () => {
             if (andContinue === 'close') {
                 setTimeout(() => navigate(`/admin/story/edit/${storyId}`), 1000);
             } else if (andContinue === 'new') {
-                 const updatedStory = await getStoryById(storyId); // Load lại
+                 const updatedStory = await getStoryById(storyId);
                  const allChapters = updatedStory?.volumes.flatMap(v => v.chapters) || [];
                  const lastChapter = allChapters.length > 0 ? allChapters[allChapters.length - 1] : null;
                 setTitle(lastChapter ? getNextChapterTitle(lastChapter.title) : 'Chương tiếp theo');
-                setContent('<p>Nội dung chương tiếp theo...</p>');
+                
+                // [SỬA ĐỔI 2]: Để content rỗng khi chọn "Lưu & Soạn mới"
+                setContent('');
+                
                 setIsRaw(true);
                 setEditorKey(Date.now());
                 setIsNew(true);
@@ -166,16 +173,15 @@ const ChapterEditPage: React.FC = () => {
         } catch (err: any) {
             setError('Lưu chương thất bại: ' + (err.message || 'Lỗi không xác định'));
             console.error(err);
-            setSaveSuccessMessage(null); // Đảm bảo không hiển thị thông báo thành công nếu có lỗi
-            window.scrollTo({ top: 0, behavior: 'smooth' }); // Cuộn lên đầu
+            setSaveSuccessMessage(null);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         } finally {
             setIsSaving(false);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [storyId, volumeId, chapterId, title, content, isRaw, isNew, getStoryById, addChapterToVolume, updateChapterInVolume, navigate]); // Bỏ story?.volumes
+    }, [storyId, volumeId, chapterId, title, content, isRaw, isNew, getStoryById, addChapterToVolume, updateChapterInVolume, navigate]);
 
 
-  // --- RENDER UI ---
+  // --- RENDER UI (Giữ nguyên) ---
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-screen -mt-16">
@@ -184,7 +190,6 @@ const ChapterEditPage: React.FC = () => {
     );
   }
 
-    // Hiển thị lỗi nghiêm trọng (không load được data)
     if (error && !story) {
          return (
              <div className="max-w-xl mx-auto text-center py-16 px-6 bg-red-50 dark:bg-red-900/30 rounded-lg border border-red-200 dark:border-red-700/50">
@@ -215,7 +220,7 @@ const ChapterEditPage: React.FC = () => {
         </p>
       </div>
 
-       {/* Thông báo lỗi (nếu có lỗi khi lưu) */}
+       {/* Thông báo lỗi */}
         {error && (
              <div className="p-3 bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 rounded-r-lg flex items-center gap-3 text-sm text-red-700 dark:text-red-300 shadow-sm">
                 <ExclamationTriangleIcon className="h-6 w-6 flex-shrink-0"/>
@@ -269,11 +274,10 @@ const ChapterEditPage: React.FC = () => {
           <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
             Nội dung chương
           </label>
-          {/* CustomEditor sẽ re-render khi `editorKey` thay đổi */}
           <CustomEditor key={editorKey} value={content} onChange={setContent} />
         </div>
 
-         {/* Nút bấm Lưu - Bố cục flex-wrap để xuống dòng trên mobile */}
+         {/* Nút bấm Lưu */}
         <div className="flex flex-wrap justify-end items-center gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
             {/* Nút Lưu & Đóng */}
             <button
@@ -294,7 +298,6 @@ const ChapterEditPage: React.FC = () => {
                 Lưu & Soạn mới
             </button>
             {/* Nút Lưu & Sửa chương tiếp */}
-            {/* Không hiển thị khi đang tạo mới */}
              {!isNew && (
                 <button
                     onClick={() => handleSave('editNext')}
