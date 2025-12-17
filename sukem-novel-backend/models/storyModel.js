@@ -14,10 +14,9 @@ const slugify = (text) => {
     .replace(/--+/g, '-');
 };
 
-
+// Schema cho Chapter (Không dùng unique ở id)
 const chapterSchema = new mongoose.Schema({
-    // Bỏ unique: true ở đây
-    id: { type: String, required: true },
+    id: { type: String, required: true }, 
     title: { type: String, required: true },
     content: { type: String, required: true },
     createdAt: { type: Date, default: Date.now },
@@ -25,21 +24,23 @@ const chapterSchema = new mongoose.Schema({
     isRaw: { type: Boolean, default: false },
 }, { _id: false });
 
+// Schema cho Volume (Không dùng unique ở id)
 const volumeSchema = new mongoose.Schema({
-    // Bỏ unique: true ở đây
-    id: { type: String, required: true },
+    id: { type: String, required: true }, 
     title: { type: String, required: true },
     chapters: [chapterSchema],
 }, { _id: false });
 
+// Schema cho Story
 const storySchema = new mongoose.Schema({
+    // ID của truyện (unique: true là đúng cho truyện chính)
     id: { type: String, unique: true, index: true },
     title: { type: String, required: true },
-    alias: [String],
+    alias: { type: [String], default: [] },
     author: { type: String, required: true },
     description: String,
     coverImage: { type: String, required: true },
-    tags: [String],
+    tags: { type: [String], default: [] },
     status: { type: String, enum: ['Đang dịch', 'Hoàn thành'], default: 'Đang dịch' },
     volumes: [volumeSchema],
     rating: { type: Number, default: 0 },
@@ -50,7 +51,8 @@ const storySchema = new mongoose.Schema({
     lastUpdatedAt: { type: Date, default: Date.now },
 }, {
     toJSON: { virtuals: true },
-    toObject: { virtuals: true }
+    toObject: { virtuals: true },
+    id: false // Tắt virtual id mặc định
 });
 
 storySchema.virtual('views').get(function() {
@@ -63,20 +65,20 @@ storySchema.virtual('views').get(function() {
   }, 0);
 });
 
-// Middleware tự động tạo slug (Giữ phiên bản nâng cấp)
+// Middleware tự động tạo slug
 storySchema.pre('save', async function(next) {
   if (this.isNew || this.isModified('title')) {
     let baseId = slugify(this.title);
 
-    if (!baseId) {
+    if (!baseId || baseId.length === 0) {
       baseId = `story-${Date.now()}`;
     }
 
     let storyId = baseId;
     let counter = 1;
-    const Story = mongoose.model('Story');
+    const StoryModel = this.constructor;
 
-    while (await Story.countDocuments({ id: storyId }) > 0) {
+    while (await StoryModel.countDocuments({ id: storyId }) > 0) {
       storyId = `${baseId}-${counter}`;
       counter++;
     }
@@ -85,4 +87,24 @@ storySchema.pre('save', async function(next) {
   next();
 });
 
-module.exports = mongoose.model('Story', storySchema);
+const Story = mongoose.model('Story', storySchema);
+
+// --- FIX LỖI QUAN TRỌNG: XÓA INDEX CŨ ---
+// Đoạn code này sẽ chạy một lần để xóa index 'volumes.id_1' gây lỗi duplicate key
+Story.collection.dropIndex('volumes.id_1')
+    .then(() => {
+        console.log('>>> SYSTEM: Đã xóa index cũ gây lỗi (volumes.id_1) thành công.');
+    })
+    .catch((err) => {
+        // Mã lỗi 27 là IndexNotFound (không tìm thấy index), nghĩa là đã sạch sẽ, không cần lo
+        if (err.code !== 27) {
+            // Chỉ log nếu là lỗi khác, để tránh spam console
+            // console.log('Info: Không tìm thấy index volumes.id_1 hoặc đã bị xóa.');
+        }
+    });
+
+// Tương tự, xóa index chapters.id_1 nếu tồn tại (đề phòng)
+Story.collection.dropIndex('volumes.chapters.id_1')
+    .catch(() => {}); 
+
+module.exports = Story;
