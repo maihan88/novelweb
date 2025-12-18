@@ -30,21 +30,23 @@ export interface Story {
   rating: number;
   ratingsCount: number;
   isHot?: boolean;
+  
+  // --- THÊM MỚI ---
   isInBanner?: boolean;
+  bannerPriority?: number;
+  // ----------------
+
   createdAt: string;
   lastUpdatedAt: string;
 }
 
-// --- CẬP NHẬT ReaderFont VỚI KEY MỚI ---
 export type ReaderFont = 'font-reader-times' | 'font-reader-lora' | 'font-reader-antiqua';
-// Tailwind tự động tạo class dạng `font-<key>`, ví dụ: font-reader-times
-// --- KẾT THÚC CẬP NHẬT ---
 
 export type ReaderTheme = 'light' | 'sepia' | 'dark';
 
 export interface ReaderPreferences {
   fontSize: number;
-  fontFamily: ReaderFont; // Giờ sẽ là một trong các giá trị 'font-reader-*'
+  fontFamily: ReaderFont; 
   lineHeight: number;
   margin: number;
   theme: ReaderTheme;
