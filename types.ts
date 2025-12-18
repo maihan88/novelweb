@@ -30,18 +30,35 @@ export interface Story {
   rating: number;
   ratingsCount: number;
   isHot?: boolean;
-  
-  // --- THÊM MỚI ---
   isInBanner?: boolean;
   bannerPriority?: number;
-  // ----------------
-
   createdAt: string;
   lastUpdatedAt: string;
 }
 
-export type ReaderFont = 'font-reader-times' | 'font-reader-lora' | 'font-reader-antiqua';
+// --- THÊM MỚI PHẦN NÀY ---
+export interface PaginationMetadata {
+  page: number;
+  limit: number;
+  totalDocs: number;
+  totalPages: number;
+}
 
+export interface StoriesResponse {
+  stories: Story[];
+  pagination: PaginationMetadata;
+}
+
+export interface StoryFilterParams {
+  page?: number;
+  limit?: number;
+  sort?: 'updated' | 'hot' | 'new' | 'view';
+  status?: string;
+  keyword?: string;
+}
+// -------------------------
+
+export type ReaderFont = 'font-reader-times' | 'font-reader-lora' | 'font-reader-antiqua';
 export type ReaderTheme = 'light' | 'sepia' | 'dark';
 
 export interface ReaderPreferences {
