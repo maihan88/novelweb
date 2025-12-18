@@ -1,24 +1,39 @@
-// maihan88/novelweb/novelweb-d14588e6d469796ca4d76fea103c02df2ebaa5a1/components/HeroBanner.tsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Story } from '../types.ts';
+import { Story } from '../types';
+import * as storyService from '../services/storyService'; // Đã sửa: Bỏ đuôi .ts để tránh lỗi import
 
 interface HeroBannerProps {
-  stories: Story[];
   interval?: number;
 }
 
-const HeroBanner: React.FC<HeroBannerProps> = ({ stories, interval = 7000 }) => {
+const HeroBanner: React.FC<HeroBannerProps> = ({ interval = 7000 }) => {
+  const [stories, setStories] = useState<Story[]>([]);
+  const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
-  // --- THÊM STATE ĐỂ THEO DÕI SLIDE TRƯỚC ĐÓ ---
   const [previousIndex, setPreviousIndex] = useState<number | null>(null);
 
+  // --- TỰ ĐỘNG GỌI API BANNER ---
+  useEffect(() => {
+    const fetchBanners = async () => {
+        try {
+            const data = await storyService.getBannerStories();
+            setStories(data);
+        } catch (error) {
+            console.error('Failed to load banner:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+    fetchBanners();
+  }, []);
+
   const changeSlide = useCallback((newIndex: number) => {
-      setPreviousIndex(currentIndex); // Lưu lại index hiện tại thành index cũ
+      setPreviousIndex(currentIndex);
       setCurrentIndex(newIndex);
   }, [currentIndex]);
 
-  const nextSlide = React.useCallback(() => {
+  const nextSlide = useCallback(() => {
     if (stories.length > 1) {
         const isLastSlide = currentIndex === stories.length - 1;
         const newIndex = isLastSlide ? 0 : currentIndex + 1;
@@ -39,6 +54,20 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ stories, interval = 7000 }) => 
     }
   }, [nextSlide, interval, stories.length]);
 
+  // Tính toán dữ liệu trước khi early return
+  const currentStory = stories[currentIndex];
+
+  const { totalChapters, firstChapterId } = useMemo(() => {
+     if (!currentStory) return { totalChapters: 0, firstChapterId: null };
+     const total = currentStory.volumes?.reduce((acc, vol) => acc + (vol.chapters?.length || 0), 0) || 0;
+     const firstId = currentStory.volumes?.[0]?.chapters?.[0]?.id;
+     return { totalChapters: total, firstChapterId: firstId };
+  }, [currentStory]);
+
+  // Loading skeleton
+  if (loading) return <div className="h-[450px] w-full bg-slate-800 animate-pulse rounded-lg"></div>;
+
+  // Fallback khi chưa có banner nào được set
   if (stories.length === 0) {
     return (
         <div className="text-center rounded-lg p-10 md:p-16 bg-gradient-to-br from-orange-500 via-amber-500 to-orange-400 shadow-2xl shadow-orange-500/30">
@@ -46,20 +75,11 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ stories, interval = 7000 }) => 
             Khám Phá Thế Giới SukemNovel
             </h1>
             <p className="mt-4 max-w-md mx-auto text-base text-orange-100 sm:text-lg md:mt-6 md:text-xl md:max-w-3xl">
-            Đắm chìm trong những câu chuyện hấp dẫn được Sukem đăng tải
+            Đắm chìm trong những câu chuyện hấp dẫn
             </p>
         </div>
     );
   }
-
-  const currentStory = stories[currentIndex];
-
-  const { totalChapters, firstChapterId } = useMemo(() => {
-     if (!currentStory) return { totalChapters: 0, firstChapterId: null };
-     const total = currentStory.volumes.reduce((acc, vol) => acc + vol.chapters.length, 0);
-     const firstId = currentStory.volumes?.[0]?.chapters?.[0]?.id;
-     return { totalChapters: total, firstChapterId: firstId };
-  }, [currentStory]);
 
 
   return (
@@ -67,19 +87,15 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ stories, interval = 7000 }) => 
       {stories.map((story, index) => {
          const isUp = index % 2 === 0;
          const animationClass = isUp ? 'animate-pan-up' : 'animate-pan-down';
-         // Class để "ghim" vị trí cuối của animation
          const endPositionClass = isUp ? 'bg-[50%_20%]' : 'bg-[50%_80%]';
 
          const isActive = index === currentIndex;
          const isPrevious = index === previousIndex;
 
-         // --- LOGIC CLASS MỚI ĐỂ GIẢI QUYẾT VẤN ĐỀ ---
-         let dynamicClasses = 'opacity-0'; // Mặc định là ẩn
+         let dynamicClasses = 'opacity-0'; 
          if (isActive) {
-             // Slide đang chạy thì có animation và hiện ra
              dynamicClasses = `opacity-100 ${animationClass}`;
          } else if (isPrevious) {
-             // Slide vừa chạy xong (đang fade out) thì bị ghim vị trí và ẩn đi
              dynamicClasses = `opacity-0 ${endPositionClass}`;
          }
 
