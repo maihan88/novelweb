@@ -1,6 +1,6 @@
 const Story = require('../models/storyModel');
 
-// Hàm slugify
+// Hàm slugify (giữ nguyên)
 const slugify = (text) => {
   if (!text) return '';
   return text
@@ -14,22 +14,83 @@ const slugify = (text) => {
     .replace(/--+/g, '-');
 };
 
-// @desc    Fetch all stories
+// @desc    Fetch stories with filter, sort and pagination
 // @route   GET /api/stories
 exports.getAllStories = async (req, res) => {
     try {
-        const stories = await Story.find({})
-            .sort({ lastUpdatedAt: -1 })
-            .select('-volumes.chapters.content'); 
-        res.json(stories);
+        // Lấy tham số từ query string (mặc định page 1, limit 12)
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 12;
+        const sortType = req.query.sort || 'updated';
+        const status = req.query.status;
+        const keyword = req.query.keyword;
+
+        // Xây dựng bộ lọc
+        const query = {};
+        
+        if (status && status !== 'all') {
+            query.status = status;
+        }
+
+        if (keyword) {
+            query.$or = [
+                { title: { $regex: keyword, $options: 'i' } },
+                { author: { $regex: keyword, $options: 'i' } }
+            ];
+        }
+
+        // Xử lý sắp xếp
+        let sortOption = {};
+        switch (sortType) {
+            case 'hot':
+                query.isHot = true; 
+                sortOption = { bannerPriority: 1, lastUpdatedAt: -1 };
+                break;
+            case 'new': 
+                sortOption = { createdAt: -1 };
+                break;
+            case 'view': 
+                sortOption = { views: -1, lastUpdatedAt: -1 };
+                break;
+            case 'updated': 
+            default:
+                sortOption = { lastUpdatedAt: -1 };
+                break;
+        }
+
+        const skip = (page - 1) * limit;
+
+        // Chạy song song đếm tổng và lấy dữ liệu
+        const [stories, totalDocs] = await Promise.all([
+            Story.find(query)
+                .sort(sortOption)
+                .skip(skip)
+                .limit(limit)
+                .select('-volumes.chapters.content'), // Tối ưu: không lấy nội dung chương
+            Story.countDocuments(query)
+        ]);
+
+        const totalPages = Math.ceil(totalDocs / limit);
+
+        // Trả về cấu trúc có pagination
+        res.json({
+            stories,
+            pagination: {
+                page,
+                limit,
+                totalDocs,
+                totalPages,
+            }
+        });
+
     } catch (error) {
         console.error('Error fetching stories:', error);
         res.status(500).json({ message: "Server Error" });
     }
 };
 
-// @desc    Fetch a single story by id
-// @route   GET /api/stories/:id
+// ... (Giữ nguyên TẤT CẢ các hàm khác bên dưới: getStoryById, createStory, updateStory, deleteStory, v.v...)
+// ... Lưu ý: Copy lại toàn bộ phần dưới của file cũ vào đây để đảm bảo không mất chức năng
 exports.getStoryById = async (req, res) => {
     try {
         const story = await Story.findOne({ id: req.params.id });
@@ -44,8 +105,6 @@ exports.getStoryById = async (req, res) => {
     }
 };
 
-// @desc    Create a new story
-// @route   POST /api/stories
 exports.createStory = async (req, res) => {
     try {
         const { title, author, description, coverImage, tags, status, isHot, isInBanner, alias } = req.body;
@@ -68,8 +127,6 @@ exports.createStory = async (req, res) => {
     }
 };
 
-// @desc    Update a story
-// @route   PUT /api/stories/:id
 exports.updateStory = async (req, res) => {
     try {
         const story = await Story.findOne({ id: req.params.id });
@@ -95,8 +152,6 @@ exports.updateStory = async (req, res) => {
     }
 };
 
-// @desc    Delete a story
-// @route   DELETE /api/stories/:id
 exports.deleteStory = async (req, res) => {
     try {
         const story = await Story.findOneAndDelete({ id: req.params.id });
@@ -110,8 +165,6 @@ exports.deleteStory = async (req, res) => {
     }
 };
 
-// @desc    Add rating
-// @route   POST /api/stories/:id/rating
 exports.addRating = async (req, res) => {
     try {
         const { rating } = req.body;
@@ -132,8 +185,6 @@ exports.addRating = async (req, res) => {
     }
 };
 
-// @desc    Add volume
-// @route   POST /api/stories/:id/volumes
 exports.addVolume = async (req, res) => {
     try {
         const { title } = req.body;
@@ -151,8 +202,6 @@ exports.addVolume = async (req, res) => {
     }
 };
 
-// @desc    Update volume
-// @route   PUT /api/stories/:id/volumes/:volumeId
 exports.updateVolume = async (req, res) => {
     try {
         const { title } = req.body;
@@ -174,8 +223,6 @@ exports.updateVolume = async (req, res) => {
     }
 };
 
-// @desc    Delete volume
-// @route   DELETE /api/stories/:id/volumes/:volumeId
 exports.deleteVolume = async (req, res) => {
     try {
         const story = await Story.findOne({ id: req.params.id });
@@ -191,8 +238,6 @@ exports.deleteVolume = async (req, res) => {
     }
 };
 
-// @desc    Add chapter
-// @route   POST /api/stories/:id/volumes/:volumeId/chapters
 exports.addChapter = async (req, res) => {
     try {
         const { title, content, isRaw } = req.body;
@@ -216,8 +261,6 @@ exports.addChapter = async (req, res) => {
     }
 };
 
-// @desc    Update chapter
-// @route   PUT /api/stories/:id/volumes/:volumeId/chapters/:chapterId
 exports.updateChapter = async (req, res) => {
     try {
         const { id, volumeId, chapterId } = req.params;
@@ -241,8 +284,6 @@ exports.updateChapter = async (req, res) => {
     }
 };
 
-// @desc    Delete chapter
-// @route   DELETE /api/stories/:id/volumes/:volumeId/chapters/:chapterId
 exports.deleteChapter = async (req, res) => {
     try {
         const story = await Story.findOne({ id: req.params.id });
@@ -263,8 +304,6 @@ exports.deleteChapter = async (req, res) => {
     }
 };
 
-// @desc    Increment chapter view
-// @route   POST /api/stories/:id/chapters/:chapterId/view
 exports.incrementChapterView = async (req, res) => {
     try {
         const { id, chapterId } = req.params;
@@ -280,8 +319,6 @@ exports.incrementChapterView = async (req, res) => {
     }
 };
 
-// @desc    Reorder volumes
-// @route   PUT /api/stories/:id/volumes/reorder
 exports.reorderVolumes = async (req, res) => {
     try {
         const { orderedVolumeIds } = req.body;
@@ -297,8 +334,6 @@ exports.reorderVolumes = async (req, res) => {
     }
 };
 
-// @desc    Reorder chapters
-// @route   PUT /api/stories/:id/volumes/:volumeId/chapters/reorder
 exports.reorderChapters = async (req, res) => {
     try {
         const { orderedChapterIds } = req.body;
@@ -316,10 +351,6 @@ exports.reorderChapters = async (req, res) => {
     }
 };
 
-// --- CÁC HÀM MỚI CHO BANNER ---
-
-// @desc    Lấy danh sách banner (đã sort)
-// @route   GET /api/stories/banner/list
 exports.getBannerStories = async (req, res) => {
     try {
         const stories = await Story.find({ isInBanner: true })
@@ -332,8 +363,6 @@ exports.getBannerStories = async (req, res) => {
     }
 };
 
-// @desc    Cập nhật nhanh cấu hình banner (Admin)
-// @route   PUT /api/stories/:id/banner
 exports.updateStoryBannerConfig = async (req, res) => {
     try {
         const { isInBanner, bannerPriority } = req.body;
