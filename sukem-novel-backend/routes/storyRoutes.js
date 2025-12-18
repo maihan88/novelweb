@@ -16,8 +16,13 @@ const {
     incrementChapterView,
     reorderVolumes,
     reorderChapters,
+    getBannerStories,
+    updateStoryBannerConfig
 } = require('../controllers/storyController');
 const { protect, admin } = require('../middleware/authMiddleware');
+
+// --- ROUTES MỚI CHO BANNER (Đặt lên đầu để tránh conflict ID) ---
+router.get('/banner/list', getBannerStories);
 
 // Public routes
 router.get('/', getAllStories);
@@ -31,6 +36,9 @@ router.post('/:id/rating', protect, addRating);
 router.post('/', protect, admin, createStory);
 router.put('/:id', protect, admin, updateStory);
 router.delete('/:id', protect, admin, deleteStory);
+
+// --- ROUTE ADMIN MỚI ĐỂ CHỈNH BANNER ---
+router.put('/:id/banner', protect, admin, updateStoryBannerConfig);
 
 // Volume management (Admin)
 router.post('/:id/volumes', protect, admin, addVolume);
