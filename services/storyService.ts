@@ -1,13 +1,30 @@
 import api from './api';
-import { Story, Chapter, Volume } from '../types';
+import { Story, Chapter, Volume, StoriesResponse, StoryFilterParams } from '../types';
 
 // Story operations
+// --- SỬA HÀM NÀY ---
 export const getAllStories = async (): Promise<Story[]> => {
-    const response = await api.get('/stories');
-    return response.data;
+    // Giữ tương thích ngược tạm thời, lấy max 1000 truyện
+    const response = await api.get('/stories?limit=1000');
+    return response.data.stories;
 };
 
-// --- THÊM HÀM MỚI ---
+// --- THÊM HÀM MỚI QUAN TRỌNG ---
+export const getStoriesList = async (params: StoryFilterParams): Promise<StoriesResponse> => {
+    const { page = 1, limit = 12, sort = 'updated', status, keyword } = params;
+    
+    const queryParams = new URLSearchParams();
+    queryParams.append('page', page.toString());
+    queryParams.append('limit', limit.toString());
+    queryParams.append('sort', sort);
+    if (status) queryParams.append('status', status);
+    if (keyword) queryParams.append('keyword', keyword);
+
+    const response = await api.get(`/stories?${queryParams.toString()}`);
+    return response.data;
+};
+// ------------------------------
+
 export const getBannerStories = async (): Promise<Story[]> => {
     const response = await api.get('/stories/banner/list');
     return response.data;
@@ -20,7 +37,6 @@ export const updateStoryBannerConfig = async (
     const response = await api.put(`/stories/${id}/banner`, data);
     return response.data;
 };
-// --------------------
 
 export const getStoryById = async (id: string): Promise<Story> => {
     const response = await api.get(`/stories/${id}`);
