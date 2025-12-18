@@ -1,5 +1,5 @@
-import api from './api.ts';
-import { Story, Chapter, Volume } from '../types.ts';
+import api from './api';
+import { Story, Chapter, Volume } from '../types';
 
 // Story operations
 export const getAllStories = async (): Promise<Story[]> => {
@@ -7,31 +7,29 @@ export const getAllStories = async (): Promise<Story[]> => {
     return response.data;
 };
 
+// --- THÊM HÀM MỚI ---
+export const getBannerStories = async (): Promise<Story[]> => {
+    const response = await api.get('/stories/banner/list');
+    return response.data;
+};
+
+export const updateStoryBannerConfig = async (
+    id: string, 
+    data: { isInBanner?: boolean; bannerPriority?: number }
+): Promise<Story> => {
+    const response = await api.put(`/stories/${id}/banner`, data);
+    return response.data;
+};
+// --------------------
+
 export const getStoryById = async (id: string): Promise<Story> => {
     const response = await api.get(`/stories/${id}`);
     return response.data;
 };
 
 export const createStory = async (storyData: Partial<Story>): Promise<Story> => {
-    console.log('=== SERVICE: createStory called ===');
-    console.log('API Base URL:', api.defaults.baseURL);
-    console.log('Story data to send:', JSON.stringify(storyData, null, 2));
-    
-    try {
-        console.log('=== SERVICE: Making POST request to /stories ===');
-        const response = await api.post('/stories', storyData);
-        console.log('=== SERVICE: POST request successful ===');
-        console.log('Response status:', response.status);
-        console.log('Response data:', response.data);
-        return response.data;
-    } catch (error: any) {
-        console.error('=== SERVICE: createStory error ===');
-        console.error('Error config:', error.config);
-        console.error('Error response status:', error.response?.status);
-        console.error('Error response data:', error.response?.data);
-        console.error('Error message:', error.message);
-        throw error;
-    }
+    const response = await api.post('/stories', storyData);
+    return response.data;
 };
 
 export const rateStory = async (storyId: string, rating: number): Promise<Story> => {
