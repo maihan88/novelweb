@@ -1,161 +1,354 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { Story } from '../types';
-import * as storyService from '../services/storyService'; // Đã sửa: Bỏ đuôi .ts để tránh lỗi import
+const Story = require('../models/storyModel');
 
-interface HeroBannerProps {
-  interval?: number;
-}
-
-const HeroBanner: React.FC<HeroBannerProps> = ({ interval = 7000 }) => {
-  const [stories, setStories] = useState<Story[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [previousIndex, setPreviousIndex] = useState<number | null>(null);
-
-  // --- TỰ ĐỘNG GỌI API BANNER ---
-  useEffect(() => {
-    const fetchBanners = async () => {
-        try {
-            const data = await storyService.getBannerStories();
-            setStories(data);
-        } catch (error) {
-            console.error('Failed to load banner:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-    fetchBanners();
-  }, []);
-
-  const changeSlide = useCallback((newIndex: number) => {
-      setPreviousIndex(currentIndex);
-      setCurrentIndex(newIndex);
-  }, [currentIndex]);
-
-  const nextSlide = useCallback(() => {
-    if (stories.length > 1) {
-        const isLastSlide = currentIndex === stories.length - 1;
-        const newIndex = isLastSlide ? 0 : currentIndex + 1;
-        changeSlide(newIndex);
-    }
-  }, [currentIndex, stories.length, changeSlide]);
-  
-  const goToSlide = (slideIndex: number) => {
-      if (slideIndex !== currentIndex) {
-        changeSlide(slideIndex);
-      }
-  }
-
-  useEffect(() => {
-    if (stories.length > 1) {
-      const slideInterval = setInterval(nextSlide, interval);
-      return () => clearInterval(slideInterval);
-    }
-  }, [nextSlide, interval, stories.length]);
-
-  // Tính toán dữ liệu trước khi early return
-  const currentStory = stories[currentIndex];
-
-  const { totalChapters, firstChapterId } = useMemo(() => {
-     if (!currentStory) return { totalChapters: 0, firstChapterId: null };
-     const total = currentStory.volumes?.reduce((acc, vol) => acc + (vol.chapters?.length || 0), 0) || 0;
-     const firstId = currentStory.volumes?.[0]?.chapters?.[0]?.id;
-     return { totalChapters: total, firstChapterId: firstId };
-  }, [currentStory]);
-
-  // Loading skeleton
-  if (loading) return <div className="h-[450px] w-full bg-slate-800 animate-pulse rounded-lg"></div>;
-
-  // Fallback khi chưa có banner nào được set
-  if (stories.length === 0) {
-    return (
-        <div className="text-center rounded-lg p-10 md:p-16 bg-gradient-to-br from-orange-500 via-amber-500 to-orange-400 shadow-2xl shadow-orange-500/30">
-            <h1 className="text-4xl font-extrabold font-serif tracking-tight text-white sm:text-5xl md:text-6xl drop-shadow-lg">
-            Khám Phá Thế Giới SukemNovel
-            </h1>
-            <p className="mt-4 max-w-md mx-auto text-base text-orange-100 sm:text-lg md:mt-6 md:text-xl md:max-w-3xl">
-            Đắm chìm trong những câu chuyện hấp dẫn
-            </p>
-        </div>
-    );
-  }
-
-
-  return (
-    <div className="relative h-[75vh] md:h-[70vh] max-h-[550px] min-h-[450px] w-full overflow-hidden rounded-lg group shadow-2xl bg-slate-900">
-      {stories.map((story, index) => {
-         const isUp = index % 2 === 0;
-         const animationClass = isUp ? 'animate-pan-up' : 'animate-pan-down';
-         const endPositionClass = isUp ? 'bg-[50%_20%]' : 'bg-[50%_80%]';
-
-         const isActive = index === currentIndex;
-         const isPrevious = index === previousIndex;
-
-         let dynamicClasses = 'opacity-0'; 
-         if (isActive) {
-             dynamicClasses = `opacity-100 ${animationClass}`;
-         } else if (isPrevious) {
-             dynamicClasses = `opacity-0 ${endPositionClass}`;
-         }
-
-         return (
-            <div
-                key={story.id}
-                className={`
-                    absolute inset-0 w-full h-full bg-cover 
-                    transition-opacity duration-[1500ms] ease-in-out
-                    ${dynamicClasses}
-                `}
-                style={{ backgroundImage: `url(${story.coverImage})` }}
-            />
-         );
-      })}
-      
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-black/20"></div>
-
-      <div className="relative h-full w-full flex flex-col items-center justify-end gap-4 text-center p-6 pb-12 sm:p-8 sm:pb-16 md:pb-20">
-        <div className="relative z-10 text-white animate-fade-in">
-           <p className="font-semibold text-slate-200">Chapter: {totalChapters}</p>
-           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold font-serif tracking-tight drop-shadow-lg mt-1 sm:mt-2">
-            {currentStory.title}
-          </h1>
-          <p className="mt-3 text-sm sm:text-base text-slate-300 drop-shadow max-w-2xl mx-auto line-clamp-2">
-             {currentStory.alias && currentStory.alias.length > 0
-        ? (Array.isArray(currentStory.alias) ? currentStory.alias.join(' · ') : currentStory.alias)
-        : currentStory.description}
-          </p>
-          <div className="flex flex-wrap gap-2 mt-4 sm:mt-5 justify-center">
-              {currentStory.tags.slice(0, 5).map(tag => (
-                <span key={tag} className="text-xs font-medium border border-white/30 bg-white/10 text-slate-200 px-3 py-1 rounded-full">
-                  {tag}
-                </span>
-              ))}
-          </div>
-          {firstChapterId && (
-            <Link
-                to={`/story/${currentStory.id}/chapter/${firstChapterId}`}
-                className="mt-4 sm:mt-5 inline-block px-6 py-2 sm:px-8 sm:py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold rounded-full shadow-lg hover:shadow-amber-500/40 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-400 dark:focus:ring-offset-stone-900"
-            >
-                Đọc Ngay &rarr;
-            </Link>
-           )}
-        </div>
-      </div>
-     
-       <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex space-x-2">
-        {stories.map((_, index) => (
-          <button
-            key={index}
-            onClick={() => goToSlide(index)}
-            className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${currentIndex === index ? 'bg-white w-6' : 'bg-white/50 hover:bg-white/75'}`}
-            aria-label={`Go to slide ${index + 1}`}
-            disabled={stories.length <= 1}
-          />
-        ))}
-      </div>
-    </div>
-  );
+// Hàm slugify
+const slugify = (text) => {
+  if (!text) return '';
+  return text
+    .toString()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^\w-]+/g, '')
+    .replace(/--+/g, '-');
 };
 
-export default HeroBanner;
+// @desc    Fetch all stories
+// @route   GET /api/stories
+exports.getAllStories = async (req, res) => {
+    try {
+        const stories = await Story.find({})
+            .sort({ lastUpdatedAt: -1 })
+            .select('-volumes.chapters.content'); 
+        res.json(stories);
+    } catch (error) {
+        console.error('Error fetching stories:', error);
+        res.status(500).json({ message: "Server Error" });
+    }
+};
+
+// @desc    Fetch a single story by id
+// @route   GET /api/stories/:id
+exports.getStoryById = async (req, res) => {
+    try {
+        const story = await Story.findOne({ id: req.params.id });
+        if (story) {
+            res.json(story);
+        } else {
+            res.status(404).json({ message: 'Story not found' });
+        }
+    } catch (error) {
+        console.error('Error fetching story:', error);
+        res.status(500).json({ message: "Server Error" });
+    }
+};
+
+// @desc    Create a new story
+// @route   POST /api/stories
+exports.createStory = async (req, res) => {
+    try {
+        const { title, author, description, coverImage, tags, status, isHot, isInBanner, alias } = req.body;
+        if (!title || !author || !coverImage) {
+            return res.status(400).json({ message: 'Vui lòng cung cấp đủ Tên truyện, Tác giả và Ảnh bìa' });
+        }
+        const tagsArray = tags && typeof tags === 'string' ? tags.split(',').map(tag => tag.trim()).filter(Boolean) : (Array.isArray(tags) ? tags : []);
+        const aliasArray = alias && typeof alias === 'string' ? alias.split(',').map(name => name.trim()).filter(Boolean) : (Array.isArray(alias) ? alias : []);
+
+        const storyData = {
+            title, author, description, coverImage, tags: tagsArray, status, isHot, isInBanner, alias: aliasArray, volumes: [],
+        };
+
+        const story = new Story(storyData);
+        const createdStory = await story.save();
+        res.status(201).json(createdStory);
+    } catch (error) {
+        console.error('Create story error:', error);
+        res.status(500).json({ message: "Server Error" });
+    }
+};
+
+// @desc    Update a story
+// @route   PUT /api/stories/:id
+exports.updateStory = async (req, res) => {
+    try {
+        const story = await Story.findOne({ id: req.params.id });
+        if (story) {
+            const { title, author, description, coverImage, tags, status, isHot, isInBanner, alias } = req.body;
+            story.title = title || story.title;
+            story.author = author || story.author;
+            story.description = description !== undefined ? description : story.description;
+            story.coverImage = coverImage || story.coverImage;
+            story.status = status || story.status;
+            story.isHot = isHot !== undefined ? isHot : story.isHot;
+            story.isInBanner = isInBanner !== undefined ? isInBanner : story.isInBanner;
+            if (tags !== undefined) story.tags = typeof tags === 'string' ? tags.split(',').map(tag => tag.trim()).filter(Boolean) : (Array.isArray(tags) ? tags : []);
+            if (alias !== undefined) story.alias = typeof alias === 'string' ? alias.split(',').map(name => name.trim()).filter(Boolean) : (Array.isArray(alias) ? alias : []);
+
+            const updatedStory = await story.save(); 
+            res.json(updatedStory);
+        } else {
+            res.status(404).json({ message: 'Story not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: "Server Error", error: error.message });
+    }
+};
+
+// @desc    Delete a story
+// @route   DELETE /api/stories/:id
+exports.deleteStory = async (req, res) => {
+    try {
+        const story = await Story.findOneAndDelete({ id: req.params.id });
+        if (story) {
+            res.json({ message: 'Story removed' });
+        } else {
+            res.status(404).json({ message: 'Story not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: "Server Error" });
+    }
+};
+
+// @desc    Add rating
+// @route   POST /api/stories/:id/rating
+exports.addRating = async (req, res) => {
+    try {
+        const { rating } = req.body;
+        const story = await Story.findOne({ id: req.params.id });
+        if (story) {
+            const newRatingsCount = story.ratingsCount + 1;
+            const newTotalRating = story.rating * story.ratingsCount + rating;
+            const newAverageRating = newTotalRating / newRatingsCount;
+            story.rating = newAverageRating;
+            story.ratingsCount = newRatingsCount;
+            const updatedStory = await story.save();
+            res.json(updatedStory);
+        } else {
+            res.status(404).json({ message: 'Story not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: "Server Error" });
+    }
+};
+
+// @desc    Add volume
+// @route   POST /api/stories/:id/volumes
+exports.addVolume = async (req, res) => {
+    try {
+        const { title } = req.body;
+        const story = await Story.findOne({ id: req.params.id });
+        if (story) {
+            const newVolume = { id: `vol-${Date.now()}`, title, chapters: [] };
+            story.volumes.push(newVolume);
+            await story.save();
+            res.json(newVolume);
+        } else {
+            res.status(404).json({ message: 'Story not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: "Server Error" });
+    }
+};
+
+// @desc    Update volume
+// @route   PUT /api/stories/:id/volumes/:volumeId
+exports.updateVolume = async (req, res) => {
+    try {
+        const { title } = req.body;
+        const story = await Story.findOne({ id: req.params.id });
+        if (story) {
+            const volume = story.volumes.find(v => v.id === req.params.volumeId);
+            if (volume) {
+                volume.title = title;
+                await story.save();
+                res.json(volume);
+            } else {
+                res.status(404).json({ message: 'Volume not found' });
+            }
+        } else {
+            res.status(404).json({ message: 'Story not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: "Server Error" });
+    }
+};
+
+// @desc    Delete volume
+// @route   DELETE /api/stories/:id/volumes/:volumeId
+exports.deleteVolume = async (req, res) => {
+    try {
+        const story = await Story.findOne({ id: req.params.id });
+        if (story) {
+            story.volumes = story.volumes.filter(v => v.id !== req.params.volumeId);
+            await story.save();
+            res.json({ message: 'Volume removed' });
+        } else {
+            res.status(404).json({ message: 'Story not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: "Server Error" });
+    }
+};
+
+// @desc    Add chapter
+// @route   POST /api/stories/:id/volumes/:volumeId/chapters
+exports.addChapter = async (req, res) => {
+    try {
+        const { title, content, isRaw } = req.body;
+        const story = await Story.findOne({ id: req.params.id });
+        if (story) {
+            const volume = story.volumes.find(v => v.id === req.params.volumeId);
+            if (volume) {
+                const newChapter = { id: `ch-${Date.now()}`, title, content, isRaw: !!isRaw, views: 0 };
+                volume.chapters.push(newChapter);
+                if (!newChapter.isRaw) story.lastUpdatedAt = new Date();
+                await story.save();
+                res.json(newChapter);
+            } else {
+                res.status(404).json({ message: 'Volume not found' });
+            }
+        } else {
+            res.status(404).json({ message: 'Story not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: "Server Error" });
+    }
+};
+
+// @desc    Update chapter
+// @route   PUT /api/stories/:id/volumes/:volumeId/chapters/:chapterId
+exports.updateChapter = async (req, res) => {
+    try {
+        const { id, volumeId, chapterId } = req.params;
+        const { title, content, isRaw } = req.body;
+        const story = await Story.findOne({ id: id });
+        if (!story) return res.status(404).json({ message: 'Không tìm thấy truyện' });
+        const volume = story.volumes.find(v => v.id === volumeId);
+        if (!volume) return res.status(404).json({ message: 'Không tìm thấy tập' });
+        const chapter = volume.chapters.find(c => c.id === chapterId);
+        if (!chapter) return res.status(404).json({ message: 'Không tìm thấy chương' });
+        
+        const wasRaw = chapter.isRaw;
+        chapter.title = title;
+        chapter.content = content;
+        chapter.isRaw = !!isRaw;
+        if (wasRaw && !chapter.isRaw) story.lastUpdatedAt = new Date();
+        await story.save();
+        res.json({ id: chapterId, title, content, isRaw });
+    } catch (error) {
+        res.status(500).json({ message: "Server Error" });
+    }
+};
+
+// @desc    Delete chapter
+// @route   DELETE /api/stories/:id/volumes/:volumeId/chapters/:chapterId
+exports.deleteChapter = async (req, res) => {
+    try {
+        const story = await Story.findOne({ id: req.params.id });
+        if (story) {
+            const volume = story.volumes.find(v => v.id === req.params.volumeId);
+            if (volume) {
+                volume.chapters = volume.chapters.filter(c => c.id !== req.params.chapterId);
+                await story.save();
+                res.json({ message: 'Chapter removed' });
+            } else {
+                res.status(404).json({ message: 'Volume not found' });
+            }
+        } else {
+            res.status(404).json({ message: 'Story not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: "Server Error" });
+    }
+};
+
+// @desc    Increment chapter view
+// @route   POST /api/stories/:id/chapters/:chapterId/view
+exports.incrementChapterView = async (req, res) => {
+    try {
+        const { id, chapterId } = req.params;
+        const result = await Story.updateOne(
+            { "id": id, "volumes.chapters.id": chapterId },
+            { $inc: { "volumes.$[v].chapters.$[c].views": 1 } },
+            { arrayFilters: [{ "v.chapters.id": chapterId }, { "c.id": chapterId }] }
+        );
+        if (result.modifiedCount > 0) res.json({ message: 'Chapter view incremented' });
+        else res.status(404).json({ message: 'Story or Chapter not found' });
+    } catch (error) {
+        res.status(500).json({ message: "Server Error" });
+    }
+};
+
+// @desc    Reorder volumes
+// @route   PUT /api/stories/:id/volumes/reorder
+exports.reorderVolumes = async (req, res) => {
+    try {
+        const { orderedVolumeIds } = req.body;
+        const story = await Story.findOne({ id: req.params.id });
+        if (!story) return res.status(404).json({ message: 'Không tìm thấy truyện' });
+        const reorderedVolumes = orderedVolumeIds.map(volId => story.volumes.find(v => v.id === volId)).filter(Boolean);
+        if (reorderedVolumes.length !== story.volumes.length) return res.status(400).json({ message: 'Danh sách ID tập không hợp lệ' });
+        story.volumes = reorderedVolumes;
+        await story.save();
+        res.json(story.volumes);
+    } catch (error) {
+        res.status(500).json({ message: "Lỗi Server" });
+    }
+};
+
+// @desc    Reorder chapters
+// @route   PUT /api/stories/:id/volumes/:volumeId/chapters/reorder
+exports.reorderChapters = async (req, res) => {
+    try {
+        const { orderedChapterIds } = req.body;
+        const story = await Story.findOne({ id: req.params.id });
+        if (!story) return res.status(404).json({ message: 'Không tìm thấy truyện' });
+        const volume = story.volumes.find(v => v.id === req.params.volumeId);
+        if (!volume) return res.status(404).json({ message: 'Không tìm thấy tập' });
+        const reorderedChapters = orderedChapterIds.map(chapId => volume.chapters.find(c => c.id === chapId)).filter(Boolean);
+        if (reorderedChapters.length !== volume.chapters.length) return res.status(400).json({ message: 'Danh sách ID chương không hợp lệ' });
+        volume.chapters = reorderedChapters;
+        await story.save();
+        res.json(volume.chapters);
+    } catch (error) {
+        res.status(500).json({ message: "Lỗi Server" });
+    }
+};
+
+// --- CÁC HÀM MỚI CHO BANNER ---
+
+// @desc    Lấy danh sách banner (đã sort)
+// @route   GET /api/stories/banner/list
+exports.getBannerStories = async (req, res) => {
+    try {
+        const stories = await Story.find({ isInBanner: true })
+            .sort({ bannerPriority: 1, lastUpdatedAt: -1 })
+            .select('-volumes.chapters.content');
+        res.json(stories);
+    } catch (error) {
+        console.error('Lỗi lấy banner:', error);
+        res.status(500).json({ message: "Server Error" });
+    }
+};
+
+// @desc    Cập nhật nhanh cấu hình banner (Admin)
+// @route   PUT /api/stories/:id/banner
+exports.updateStoryBannerConfig = async (req, res) => {
+    try {
+        const { isInBanner, bannerPriority } = req.body;
+        const story = await Story.findOne({ id: req.params.id });
+
+        if (story) {
+            if (typeof isInBanner !== 'undefined') story.isInBanner = isInBanner;
+            if (typeof bannerPriority !== 'undefined') story.bannerPriority = bannerPriority;
+            const updatedStory = await story.save();
+            res.json({ id: updatedStory.id, title: updatedStory.title, isInBanner: updatedStory.isInBanner, bannerPriority: updatedStory.bannerPriority });
+        } else {
+            res.status(404).json({ message: 'Không tìm thấy truyện' });
+        }
+    } catch (error) {
+        console.error('Lỗi cập nhật banner:', error);
+        res.status(500).json({ message: "Server Error" });
+    }
+};
