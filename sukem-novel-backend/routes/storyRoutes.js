@@ -12,19 +12,24 @@ const {
     deleteChapter,
     getBannerStories,
     updateStoryBannerConfig,
-    getChapterContent, // Thêm hàm này
+    getChapterContent, 
     incrementChapterView,
     reorderVolumes
 } = require('../controllers/storyController');
-const { protect, admin } = require('../middleware/authMiddleware');
+// Import thêm optionalAuth
+const { protect, admin, optionalAuth } = require('../middleware/authMiddleware');
 
 router.get('/banner/list', getBannerStories);
 
 // Public
 router.get('/', getAllStories);
 router.get('/:id', getStoryById);
-// API MỚI QUAN TRỌNG: Lấy nội dung chương
-router.get('/:id/chapters/:chapterId', getChapterContent);
+
+// --- SỬA Ở ĐÂY ---
+// Thêm optionalAuth để Controller biết ai đang đọc (Khách hay Admin)
+router.get('/:id/chapters/:chapterId', optionalAuth, getChapterContent);
+// -----------------
+
 router.post('/:id/chapters/:chapterId/view', incrementChapterView);
 
 // Admin
@@ -39,7 +44,7 @@ router.put('/:id/volumes/reorder', protect, admin, reorderVolumes);
 
 // Chapters
 router.post('/:id/volumes/:volumeId/chapters', protect, admin, addChapter);
-router.put('/:id/volumes/:volumeId/chapters/:chapterId', protect, admin, updateChapter); // URL cũ
-router.delete('/:id/volumes/:volumeId/chapters/:chapterId', protect, admin, deleteChapter); // URL cũ
+router.put('/:id/volumes/:volumeId/chapters/:chapterId', protect, admin, updateChapter); 
+router.delete('/:id/volumes/:volumeId/chapters/:chapterId', protect, admin, deleteChapter);
 
 module.exports = router;
