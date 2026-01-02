@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useStories } from '../../contexts/StoryContext';
+import { getChapterContent } from '../../services/storyService'; // Import trực tiếp service
 import { Story, Chapter } from '../../types';
 import { 
-  CheckIcon, 
   ArrowPathIcon, 
   ExclamationTriangleIcon, 
   PlusIcon, 
@@ -18,7 +18,7 @@ import { ArrowUturnLeftIcon, InformationCircleIcon } from '@heroicons/react/24/o
 import LoadingSpinner from '../../components/LoadingSpinner';
 import CustomEditor from '../../components/CustomEditor';
 
-// --- HÀM GỢI Ý TIÊU ĐỀ ---
+// --- HÀM GỢI Ý TIÊU ĐỀ (Giữ nguyên) ---
 const getNextChapterTitle = (currentTitle: string): string => {
     const match = currentTitle.match(/^(.*?)([:\s-])?(\d+)$/);
     if (match) {
@@ -36,7 +36,7 @@ const getNextChapterTitle = (currentTitle: string): string => {
     return currentTitle + ' (Tiếp theo)';
 };
 
-// --- COMPONENT THÔNG BÁO ---
+// --- COMPONENT THÔNG BÁO (Giữ nguyên) ---
 const SaveNotification: React.FC<{ message: string; onDismiss: () => void }> = ({ message, onDismiss }) => {
     useEffect(() => {
         const timer = setTimeout(onDismiss, 3000);
@@ -54,16 +54,15 @@ const SaveNotification: React.FC<{ message: string; onDismiss: () => void }> = (
     );
 };
 
-// --- COMPONENT BUTTON TOOLTIP ---
-// Helper nhỏ để tạo tooltip khi hover
+// --- COMPONENT BUTTON TOOLTIP (Giữ nguyên) ---
 const TooltipButton: React.FC<{
     onClick: () => void;
     disabled?: boolean;
     className?: string;
     icon: React.ReactNode;
-    label: string; // Text hiện trên PC
-    tooltip: string; // Text hiện tooltip
-    colorClass: string; // Class màu
+    label: string;
+    tooltip: string;
+    colorClass: string;
 }> = ({ onClick, disabled, className, icon, label, tooltip, colorClass }) => (
     <button
         onClick={onClick}
@@ -73,7 +72,6 @@ const TooltipButton: React.FC<{
         {icon}
         <span className="hidden lg:inline font-semibold text-sm">{label}</span>
         
-        {/* Tooltip */}
         <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-slate-800 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
             {tooltip}
         </span>
@@ -83,17 +81,16 @@ const TooltipButton: React.FC<{
 const ChapterEditPage: React.FC = () => {
   const { storyId, volumeId, chapterId } = useParams<{ storyId: string; volumeId: string; chapterId?: string }>();
   const navigate = useNavigate();
+  // Vẫn dùng context cho các thao tác Story/Add/Update
   const { getStoryById, addChapterToVolume, updateChapterInVolume } = useStories();
 
   const [story, setStory] = useState<Story | null>(null);
   const [volumeTitle, setVolumeTitle] = useState('');
   
-  // Form State
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [isRaw, setIsRaw] = useState(false);
   
-  // UI State
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isNew, setIsNew] = useState(!chapterId);
@@ -101,7 +98,6 @@ const ChapterEditPage: React.FC = () => {
   const [error, setError] = useState('');
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
 
-  // Navigation State
   const [prevChapterId, setPrevChapterId] = useState<string | null>(null);
   const [nextChapterId, setNextChapterId] = useState<string | null>(null);
 
@@ -114,6 +110,7 @@ const ChapterEditPage: React.FC = () => {
     setSaveSuccessMessage(null);
     try {
         setIsLoading(true);
+        // 1. Lấy thông tin truyện và volume (Metadata)
         const currentStory = await getStoryById(storyId);
         if (!currentStory) throw new Error('Không tìm thấy truyện!');
         setStory(currentStory);
@@ -127,15 +124,14 @@ const ChapterEditPage: React.FC = () => {
 
         // --- Logic tính toán Next/Prev Chapter ---
         if (editingExisting) {
+            // currentVolume.chapters ở đây chỉ chứa LIST (id, title) không có content
             const chapterIndex = currentVolume.chapters.findIndex(c => c.id === chapterId);
             if (chapterIndex !== -1) {
-                // Chương trước
                 if (chapterIndex > 0) {
                     setPrevChapterId(currentVolume.chapters[chapterIndex - 1].id);
                 } else {
                     setPrevChapterId(null);
                 }
-                // Chương sau
                 if (chapterIndex < currentVolume.chapters.length - 1) {
                     setNextChapterId(currentVolume.chapters[chapterIndex + 1].id);
                 } else {
@@ -147,13 +143,16 @@ const ChapterEditPage: React.FC = () => {
             setNextChapterId(null);
         }
 
-        if (editingExisting) {
-            const currentChapter = currentVolume.chapters.find(c => c.id === chapterId);
-            if (!currentChapter) throw new Error('Không tìm thấy chương!');
-            setTitle(currentChapter.title);
-            setContent(currentChapter.content);
-            setIsRaw(!!currentChapter.isRaw);
+        // 2. LẤY NỘI DUNG CHƯƠNG (Phần thay đổi quan trọng)
+        if (editingExisting && chapterId) {
+            // Gọi API riêng để lấy full content
+            const fullChapter = await getChapterContent(storyId, chapterId);
+            
+            setTitle(fullChapter.title);
+            setContent(fullChapter.content); // Content giờ đã có
+            setIsRaw(!!fullChapter.isRaw);
         } else {
+            // Tạo mới
             const allChapters = currentStory.volumes.flatMap(v => v.chapters);
             const lastChapter = allChapters.length > 0 ? allChapters[allChapters.length - 1] : null;
              const lastChapterInVolume = currentVolume.chapters.length > 0 ? currentVolume.chapters[currentVolume.chapters.length - 1] : null;
@@ -173,7 +172,7 @@ const ChapterEditPage: React.FC = () => {
     loadData();
   }, [loadData]);
 
-  // Hàm chuyển hướng nhanh (Nav)
+  // Hàm chuyển hướng nhanh
   const handleNavigateChapter = (targetId: string | null) => {
       if (!targetId) return;
       navigate(`/admin/story/${storyId}/volume/${volumeId}/chapter/edit/${targetId}`);
@@ -200,6 +199,7 @@ const ChapterEditPage: React.FC = () => {
                 setSaveSuccessMessage(`Đã thêm chương "${title}"!`);
 
             } else if (currentChapterId) {
+                // Update chapter
                 const chapterToUpdate: Omit<Chapter, 'createdAt' | 'views' | '_id'> = { id: currentChapterId, title, content, isRaw };
                 await updateChapterInVolume(storyId, volumeId, chapterToUpdate);
                  setSaveSuccessMessage(`Đã cập nhật chương "${title}"!`);
@@ -210,6 +210,7 @@ const ChapterEditPage: React.FC = () => {
             if (action === 'close') {
                 setTimeout(() => navigate(`/admin/story/edit/${storyId}`), 500);
             } else if (action === 'new') {
+                 // Refresh lại story để lấy list mới nhất
                  const updatedStory = await getStoryById(storyId);
                  const allChapters = updatedStory?.volumes.flatMap(v => v.chapters) || [];
                  const lastChapter = allChapters.length > 0 ? allChapters[allChapters.length - 1] : null;
@@ -229,7 +230,7 @@ const ChapterEditPage: React.FC = () => {
                     const nextChapter = allChaptersWithVolume[currentIndex + 1];
                     navigate(`/admin/story/${storyId}/volume/${nextChapter.volumeId}/chapter/edit/${nextChapter.id}`);
                  } else {
-                     setSaveSuccessMessage(`Đã lưu. Đây là chương cuối cùng.`);
+                      setSaveSuccessMessage(`Đã lưu. Đây là chương cuối cùng.`);
                  }
             } 
 
@@ -243,8 +244,7 @@ const ChapterEditPage: React.FC = () => {
         }
     }, [storyId, volumeId, chapterId, title, content, isRaw, isNew, getStoryById, addChapterToVolume, updateChapterInVolume, navigate]);
 
-
-  // --- RENDER UI ---
+  // --- RENDER UI (Giữ nguyên phần render như code cũ của bạn) ---
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-screen -mt-16">
@@ -253,6 +253,13 @@ const ChapterEditPage: React.FC = () => {
     );
   }
 
+  // ... (Phần render JSX bên dưới giữ nguyên y hệt code cũ, không cần thay đổi gì vì logic state đã xử lý ở trên)
+  
+  // Để tiết kiệm không gian, tôi chỉ paste lại đoạn render nếu bạn cần, 
+  // nhưng cơ bản là giữ nguyên phần return (...) cũ của bạn.
+  
+  // Lưu ý: Chỉ cần copy đoạn logic loadData ở trên là quan trọng nhất.
+  
     if (error && !story) {
          return (
              <div className="max-w-xl mx-auto text-center py-16 px-6 bg-red-50 dark:bg-red-900/30 rounded-lg border border-red-200 dark:border-red-700/50">
@@ -268,7 +275,7 @@ const ChapterEditPage: React.FC = () => {
 
 
   return (
-    <div className="max-w-5xl mx-auto animate-fade-in space-y-6 p-4 sm:p-6 lg:p-8 pb-40"> {/* Padding bottom lớn để tránh Floating Dock */}
+    <div className="max-w-5xl mx-auto animate-fade-in space-y-6 p-4 sm:p-6 lg:p-8 pb-40">
       
       {/* Header trang */}
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
@@ -348,13 +355,10 @@ const ChapterEditPage: React.FC = () => {
            <SaveNotification message={saveSuccessMessage} onDismiss={() => setSaveSuccessMessage(null)} />
        )}
 
-      {/* ===================================================================================== */}
-      {/* --- SUPER FLOATING DOCK (THANH CÔNG CỤ TỔNG HỢP) --- */}
-      {/* ===================================================================================== */}
+      {/* Floating Dock */}
       <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-40 max-w-[95vw]">
         <div className="flex items-center gap-2 p-2 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200/60 dark:border-slate-700/60 ring-1 ring-black/5">
             
-            {/* 1. Nút Prev (Chỉ hiện khi sửa) */}
             {!isNew && (
                 <button
                     onClick={() => handleNavigateChapter(prevChapterId)}
@@ -366,13 +370,9 @@ const ChapterEditPage: React.FC = () => {
                 </button>
             )}
 
-            {/* Vách ngăn */}
             {!isNew && <div className="w-px h-6 bg-slate-300 dark:bg-slate-600 mx-1"></div>}
 
-            {/* 2. CỤM NÚT LƯU (MAIN ACTIONS) */}
             <div className="flex items-center gap-2">
-                
-                {/* 2a. Lưu & Thêm Mới (Màu Xanh Dương) */}
                 <TooltipButton
                     onClick={() => handleSave('new')}
                     disabled={isSaving}
@@ -382,7 +382,6 @@ const ChapterEditPage: React.FC = () => {
                     tooltip="Lưu và Tạo chương mới"
                 />
 
-                {/* 2b. Lưu & Sửa Tiếp (Màu Tím) - Chỉ hiện khi đang sửa, hoặc khi tạo mới mà muốn sửa tiếp thì logic cần handle sau (nhưng ở đây ẩn khi tạo mới cho gọn) */}
                 {!isNew && (
                     <TooltipButton
                         onClick={() => handleSave('editNext')}
@@ -394,21 +393,18 @@ const ChapterEditPage: React.FC = () => {
                     />
                 )}
 
-                {/* 2c. Lưu & Đóng (Màu Xanh Lá - Nút thoát) */}
                 <TooltipButton
                     onClick={() => handleSave('close')}
                     disabled={isSaving}
                     colorClass="bg-emerald-600 hover:bg-emerald-700 text-white"
-                    icon={isSaving ? <ArrowPathIcon className="h-5 w-5 animate-spin" /> : <ListBulletIcon className="h-5 w-5" />} // Icon List để biểu thị quay về danh sách
+                    icon={isSaving ? <ArrowPathIcon className="h-5 w-5 animate-spin" /> : <ListBulletIcon className="h-5 w-5" />}
                     label="Lưu & Thoát"
                     tooltip="Lưu và Quay lại danh sách"
                 />
             </div>
 
-            {/* Vách ngăn */}
             {!isNew && <div className="w-px h-6 bg-slate-300 dark:bg-slate-600 mx-1"></div>}
 
-            {/* 3. Nút Next (Chỉ hiện khi sửa) */}
             {!isNew && (
                 <button
                     onClick={() => handleNavigateChapter(nextChapterId)}
