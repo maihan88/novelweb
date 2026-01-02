@@ -6,50 +6,40 @@ const {
     createStory,
     updateStory,
     deleteStory,
-    addRating,
     addVolume,
-    updateVolume,
-    deleteVolume,
     addChapter,
     updateChapter,
     deleteChapter,
-    incrementChapterView,
-    reorderVolumes,
-    reorderChapters,
     getBannerStories,
-    updateStoryBannerConfig
+    updateStoryBannerConfig,
+    getChapterContent, // Thêm hàm này
+    incrementChapterView,
+    reorderVolumes
 } = require('../controllers/storyController');
 const { protect, admin } = require('../middleware/authMiddleware');
 
-// --- ROUTES MỚI CHO BANNER (Đặt lên đầu để tránh conflict ID) ---
 router.get('/banner/list', getBannerStories);
 
-// Public routes
+// Public
 router.get('/', getAllStories);
 router.get('/:id', getStoryById);
+// API MỚI QUAN TRỌNG: Lấy nội dung chương
+router.get('/:id/chapters/:chapterId', getChapterContent);
 router.post('/:id/chapters/:chapterId/view', incrementChapterView);
 
-// Protected routes
-router.post('/:id/rating', protect, addRating);
-
-// Admin routes
+// Admin
 router.post('/', protect, admin, createStory);
 router.put('/:id', protect, admin, updateStory);
 router.delete('/:id', protect, admin, deleteStory);
-
-// --- ROUTE ADMIN MỚI ĐỂ CHỈNH BANNER ---
 router.put('/:id/banner', protect, admin, updateStoryBannerConfig);
 
-// Volume management (Admin)
+// Volumes
 router.post('/:id/volumes', protect, admin, addVolume);
 router.put('/:id/volumes/reorder', protect, admin, reorderVolumes);
-router.put('/:id/volumes/:volumeId', protect, admin, updateVolume);
-router.delete('/:id/volumes/:volumeId', protect, admin, deleteVolume);
 
-// Chapter management (Admin)
+// Chapters
 router.post('/:id/volumes/:volumeId/chapters', protect, admin, addChapter);
-router.put('/:id/volumes/:volumeId/chapters/reorder', protect, admin, reorderChapters);
-router.put('/:id/volumes/:volumeId/chapters/:chapterId', protect, admin, updateChapter);
-router.delete('/:id/volumes/:volumeId/chapters/:chapterId', protect, admin, deleteChapter);
+router.put('/:id/volumes/:volumeId/chapters/:chapterId', protect, admin, updateChapter); // URL cũ
+router.delete('/:id/volumes/:volumeId/chapters/:chapterId', protect, admin, deleteChapter); // URL cũ
 
 module.exports = router;
