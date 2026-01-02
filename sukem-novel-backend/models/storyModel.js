@@ -1,7 +1,6 @@
-// sukem-novel-backend/models/storyModel.js
 const mongoose = require('mongoose');
 
-// --- GIỮ NGUYÊN HÀM SLUGIFY VÀ CÁC SCHEMA CHAPTER/VOLUME CŨ ---
+// --- GIỮ NGUYÊN HÀM SLUGIFY CỦA BẠN ---
 const slugify = (text) => {
   if (!text) return '';
   return text
@@ -15,22 +14,13 @@ const slugify = (text) => {
     .replace(/--+/g, '-');
 };
 
-const chapterSchema = new mongoose.Schema({
-    id: { type: String, required: true }, 
-    title: { type: String, required: true },
-    content: { type: String, required: true },
-    createdAt: { type: Date, default: Date.now },
-    views: { type: Number, default: 0 },
-    isRaw: { type: Boolean, default: false },
-}, { _id: false });
-
+// --- SỬA VOLUME SCHEMA: BỎ CHAPTERS ARRAY ---
 const volumeSchema = new mongoose.Schema({
     id: { type: String, required: true }, 
     title: { type: String, required: true },
-    chapters: [chapterSchema],
+    // chapters: [] -> ĐÃ XÓA. Dữ liệu này giờ nằm ở bảng Chapter
 }, { _id: false });
 
-// --- SCHEMA STORY CHÍNH ---
 const storySchema = new mongoose.Schema({
     id: { type: String, unique: true, index: true },
     title: { type: String, required: true },
@@ -40,57 +30,53 @@ const storySchema = new mongoose.Schema({
     coverImage: { type: String, required: true },
     tags: { type: [String], default: [] },
     status: { type: String, enum: ['Đang dịch', 'Hoàn thành'], default: 'Đang dịch' },
+    
+    // Vẫn giữ volumes để làm mục lục, nhưng nó rất nhẹ
     volumes: [volumeSchema],
+    
     rating: { type: Number, default: 0 },
     ratingsCount: { type: Number, default: 0 },
-    isHot: { type: Boolean, default: false },
     
-    // --- CẬP NHẬT PHẦN NÀY ---
+    // --- GIỮ NGUYÊN CÁC TRƯỜNG LOGIC CỦA BẠN ---
+    isHot: { type: Boolean, default: false },
     isInBanner: { type: Boolean, default: false },
-    bannerPriority: { type: Number, default: 0 }, // Số càng nhỏ ưu tiên càng cao
-    // -------------------------
-
+    bannerPriority: { type: Number, default: 0 },
+    
     createdAt: { type: Date, default: Date.now },
     lastUpdatedAt: { type: Date, default: Date.now },
+    
+    // Cache tổng view để không phải tính toán mỗi lần query
+    totalViews: { type: Number, default: 0 } 
 }, {
+    timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
     id: false
 });
 
-// Index hỗn hợp để lấy danh sách banner nhanh nhất và đúng thứ tự
+// Index cho chức năng sort/filter
 storySchema.index({ isInBanner: 1, bannerPriority: 1 });
+storySchema.index({ isHot: 1, lastUpdatedAt: -1 });
+storySchema.index({ lastUpdatedAt: -1 });
 
-storySchema.virtual('views').get(function() {
-  if (!this.volumes || this.volumes.length === 0) {
-    return 0;
-  }
-  return this.volumes.reduce((totalViews, volume) => {
-    const volumeViews = volume.chapters.reduce((volTotal, chapter) => volTotal + chapter.views, 0);
-    return totalViews + volumeViews;
-  }, 0);
-});
-
+// Slugify logic cũ
 storySchema.pre('save', async function(next) {
   if (this.isNew || this.isModified('title')) {
-    let baseId = slugify(this.title);
-    if (!baseId || baseId.length === 0) baseId = `story-${Date.now()}`;
-    let storyId = baseId;
-    let counter = 1;
-    const StoryModel = this.constructor;
-    while (await StoryModel.countDocuments({ id: storyId }) > 0) {
-      storyId = `${baseId}-${counter}`;
-      counter++;
+    if (!this.id) { // Chỉ tạo ID nếu chưa có
+        let baseId = slugify(this.title);
+        if (!baseId || baseId.length === 0) baseId = `story-${Date.now()}`;
+        let storyId = baseId;
+        let counter = 1;
+        const StoryModel = this.constructor;
+        while (await StoryModel.countDocuments({ id: storyId }) > 0) {
+          storyId = `${baseId}-${counter}`;
+          counter++;
+        }
+        this.id = storyId;
     }
-    this.id = storyId;
   }
   next();
 });
 
 const Story = mongoose.model('Story', storySchema);
-
-// Xóa index cũ để tránh lỗi (Code cũ của bạn)
-Story.collection.dropIndex('volumes.id_1').catch(() => {});
-Story.collection.dropIndex('volumes.chapters.id_1').catch(() => {}); 
-
 module.exports = Story;
