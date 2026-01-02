@@ -1,40 +1,65 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { HashRouter, Routes, Route, useLocation } from 'react-router-dom';
-import { ThemeProvider } from './contexts/ThemeContext.tsx';
-import { AuthProvider } from './contexts/AuthContext.tsx';
-import { UserPreferencesProvider } from './contexts/UserPreferencesContext.tsx';
-import { StoryProvider } from './contexts/StoryContext.tsx';
-import { CommentProvider } from './contexts/CommentContext.tsx';
-import UserRoute from './components/UserRoute.tsx';
-import AdminRoutes from './components/AdminRoutes.tsx';
-import Header from './components/Header.tsx';
-import Footer from './components/Footer.tsx';
-import HomePage from './pages/HomePage.tsx';
-import StoryDetailPage from './pages/StoryDetailPage.tsx';
-import ReaderPage from './pages/ReaderPage.tsx';
-import AdminDashboardPage from './pages/admin/AdminDashboardPage.tsx';
-import StoryEditPage from './pages/admin/StoryEditPage.tsx';
-import ChapterEditPage from './pages/admin/ChapterEditPage.tsx';
-import LoginPage from './pages/LoginPage.tsx';
-import RegisterPage from './pages/RegisterPage.tsx';
-import ProfilePage from './pages/ProfilePage.tsx';
-import ProtectedRoute from './components/ProtectedRoute.tsx';
-import DonatePage from './pages/DonatePage.tsx';
-import SearchPage from './pages/SearchPage.tsx';
+import { ThemeProvider } from './contexts/ThemeContext';
+import { AuthProvider } from './contexts/AuthContext';
+import { UserPreferencesProvider } from './contexts/UserPreferencesContext';
+import { StoryProvider } from './contexts/StoryContext';
+import { CommentProvider } from './contexts/CommentContext';
+import UserRoute from './components/UserRoute';
+import AdminRoutes from './components/AdminRoutes';
+import Header from './components/Header';
+import Footer from './components/Footer';
+import HomePage from './pages/HomePage';
+import StoryDetailPage from './pages/StoryDetailPage';
+import ReaderPage from './pages/ReaderPage';
+import AdminDashboardPage from './pages/admin/AdminDashboardPage';
+import StoryEditPage from './pages/admin/StoryEditPage';
+import ChapterEditPage from './pages/admin/ChapterEditPage';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import ProfilePage from './pages/ProfilePage';
+import ProtectedRoute from './components/ProtectedRoute';
+import DonatePage from './pages/DonatePage';
+import SearchPage from './pages/SearchPage';
+
+const BackgroundDecoration = React.memo(() => (
+  <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none select-none">
+    {/* Họa tiết nhiễu hạt (Noise): Giảm opacity để nhẹ mắt hơn */}
+    <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 mix-blend-overlay"></div>
+    
+    {/* Đốm sáng: Thêm 'will-change-transform' và 'transform-gpu' để chạy mượt trên Mobile */}
+    <div className="absolute top-[-10%] left-[-10%] w-[20rem] sm:w-[40rem] h-[20rem] sm:h-[40rem] bg-orange-400/20 dark:bg-orange-600/10 rounded-full blur-[60px] sm:blur-[100px] mix-blend-multiply dark:mix-blend-screen animate-blob will-change-transform transform-gpu"></div>
+    <div className="absolute top-[20%] right-[-10%] w-[18rem] sm:w-[35rem] h-[18rem] sm:h-[35rem] bg-amber-300/20 dark:bg-indigo-600/10 rounded-full blur-[60px] sm:blur-[100px] mix-blend-multiply dark:mix-blend-screen animate-blob animation-delay-2000 will-change-transform transform-gpu"></div>
+    <div className="absolute bottom-[-10%] left-[20%] w-[22rem] sm:w-[45rem] h-[22rem] sm:h-[45rem] bg-rose-300/20 dark:bg-rose-600/10 rounded-full blur-[60px] sm:blur-[100px] mix-blend-multiply dark:mix-blend-screen animate-blob animation-delay-4000 will-change-transform transform-gpu"></div>
+  </div>
+));
 
 const AppContent: React.FC = () => {
   const location = useLocation();
   const isReaderPage = location.pathname.includes('/chapter/');
 
-  const mainClasses = [
-    'flex-grow',
-    'w-full',
-    isReaderPage ? '' : 'container mx-auto max-w-7xl px-4 sm:px-6 md:px-6 py-6'
-  ].join(' ');
+  // Tính toán class cho Main Content
+  const mainClasses = useMemo(() => {
+    const baseClasses = 'flex-grow w-full relative z-10'; // relative & z-10 để nổi lên trên nền
+    
+    if (isReaderPage) {
+      // Trang đọc truyện: Cần padding-top để tránh Header (h-20 ~ 80px)
+      return `${baseClasses} pt-20`; 
+    }
+    
+    // Các trang khác: Container giới hạn chiều rộng + Padding top lớn hơn để thoáng
+    // pt-24 (96px) cho mobile, pt-28 (112px) cho desktop -> Đảm bảo không dính Header
+    return `${baseClasses} container mx-auto max-w-7xl px-4 sm:px-6 md:px-6 pt-24 sm:pt-28 pb-12`;
+  }, [isReaderPage]);
   
   return (
-    <div key={location.pathname} className="min-h-screen flex flex-col font-sans text-slate-800 dark:text-slate-200">
+    <div className="min-h-screen flex flex-col font-sans text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-900 transition-colors duration-300 relative selection:bg-orange-500/30">
+      
+      {/* Nền trang trí đã tối ưu */}
+      <BackgroundDecoration />
+
       <Header />
+      
       <main className={mainClasses}>
         <Routes>
           {/* Public Routes */}
@@ -46,7 +71,7 @@ const AppContent: React.FC = () => {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/donate" element={<DonatePage />} />
           
-            {/* User Routes */}
+          {/* User Routes */}
           <Route 
               path="/profile" 
               element={<UserRoute><ProfilePage /></UserRoute>} 
@@ -54,7 +79,7 @@ const AppContent: React.FC = () => {
 
           {/* Admin Routes */}
           <Route
-              path="/admin/*" // Dùng * để bảo vệ tất cả các route con của admin
+              path="/admin/*"
               element={<ProtectedRoute><AdminRoutes /></ProtectedRoute>}
           />
 
@@ -76,7 +101,9 @@ const AppContent: React.FC = () => {
           />
         </Routes>
       </main>
-      <Footer />
+      
+      {/* Chỉ hiện Footer ở trang thường, trang đọc truyện có thể ẩn nếu muốn tập trung */}
+      {!isReaderPage && <Footer />}
     </div>
   );
 }
