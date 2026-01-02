@@ -3,6 +3,7 @@ const Chapter = require('../models/chapterModel');
 
 // @desc    Lấy danh sách stories (Home/Search)
 // @route   GET /api/stories
+// @desc    Lấy danh sách stories (Home/Search)
 exports.getAllStories = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
@@ -12,11 +13,7 @@ exports.getAllStories = async (req, res) => {
         const keyword = req.query.keyword;
 
         const query = {};
-        
-        if (status && status !== 'all') {
-            query.status = status;
-        }
-
+        if (status && status !== 'all') query.status = status;
         if (keyword) {
             query.$or = [
                 { title: { $regex: keyword, $options: 'i' } },
@@ -24,7 +21,6 @@ exports.getAllStories = async (req, res) => {
                 { alias: { $regex: keyword, $options: 'i' } }
             ];
         }
-
         if (req.query.isHot === 'true') query.isHot = true;
 
         let sortOption = {};
@@ -47,15 +43,31 @@ exports.getAllStories = async (req, res) => {
 
         const skip = (page - 1) * limit;
 
-        // Bây giờ Story rất nhẹ vì không chứa content chương
-        // Không sợ lỗi Memory Limit nữa
-        const [stories, totalDocs] = await Promise.all([
-            Story.find(query).sort(sortOption).skip(skip).limit(limit),
+        // 1. Lấy danh sách truyện cơ bản
+        const [storiesRaw, totalDocs] = await Promise.all([
+            Story.find(query).sort(sortOption).skip(skip).limit(limit).lean(),
             Story.countDocuments(query)
         ]);
 
+        // 2. [QUAN TRỌNG] Tìm chương mới nhất cho từng truyện
+        // Dùng Promise.all để chạy song song cho nhanh
+        const storiesWithLatest = await Promise.all(storiesRaw.map(async (story) => {
+            // Tìm chương mới nhất (không phải Raw) của truyện này
+            const latestChapter = await Chapter.findOne({ 
+                storyId: story._id,
+                isRaw: false // Chỉ lấy chương đã xuất bản
+            })
+            .select('title createdAt id') // Chỉ lấy thông tin cần thiết hiển thị
+            .sort({ createdAt: -1 }); // Mới nhất lên đầu
+
+            return {
+                ...story,
+                latestChapter: latestChapter || null // Gắn thêm field này
+            };
+        }));
+
         res.json({
-            stories,
+            stories: storiesWithLatest,
             pagination: {
                 page, limit, totalDocs,
                 totalPages: Math.ceil(totalDocs / limit),
@@ -68,38 +80,32 @@ exports.getAllStories = async (req, res) => {
     }
 };
 
-// @desc    Lấy chi tiết Story (Quan trọng: Ghép Chapters vào Volumes)
+// @desc    Lấy chi tiết Story (Ghép Chapters vào Volumes)
 // @route   GET /api/stories/:id
 exports.getStoryById = async (req, res) => {
     try {
-        // 1. Lấy thông tin Story (chỉ có volume headers)
-        const story = await Story.findOne({ id: req.params.id }).lean(); // .lean() để trả về plain JS object, dễ modify
+        const story = await Story.findOne({ id: req.params.id }).lean();
         
         if (!story) {
             return res.status(404).json({ message: 'Story not found' });
         }
 
-        // 2. Lấy toàn bộ Chapters thuộc truyện này (Chỉ lấy info, KHÔNG lấy content)
         const chapters = await Chapter.find({ storyId: story._id })
-            .select('id title volumeId views isRaw createdAt') // Select fields nhẹ
+            .select('id title volumeId views isRaw createdAt')
             .sort({ createdAt: 1 })
             .lean();
 
-        // 3. Ghép Chapters vào đúng Volume của nó
-        // Logic này giúp Frontend nhận dữ liệu Y HỆT cấu trúc cũ
         if (story.volumes && story.volumes.length > 0) {
             story.volumes = story.volumes.map(vol => {
                 const volChapters = chapters.filter(c => c.volumeId === vol.id);
                 return {
                     ...vol,
-                    chapters: volChapters // Nhét chapters vào lại volume
+                    chapters: volChapters
                 };
             });
         }
 
-        // Tính lại view ảo nếu cần
         story.views = story.totalViews; 
-
         res.json(story);
     } catch (error) {
         console.error('Error getStoryById:', error);
@@ -107,25 +113,29 @@ exports.getStoryById = async (req, res) => {
     }
 };
 
-// @desc    Lấy NỘI DUNG 1 chương (API Mới để đọc truyện)
+// @desc    Lấy NỘI DUNG 1 chương
 // @route   GET /api/stories/:id/chapters/:chapterId
-// API này Frontend phải gọi khi vào đọc truyện
 exports.getChapterContent = async (req, res) => {
     try {
-        // Tìm chapter theo ID chương (vẫn dùng slug id cũ của bạn)
         const chapter = await Chapter.findOne({ id: req.params.chapterId });
         
         if (!chapter) return res.status(404).json({ message: 'Chapter not found' });
 
-        // Tăng view
-        chapter.views += 1;
-        await chapter.save();
+        // --- LOGIC VIEW MỚI ---
+        // req.user có được nhờ optionalAuth middleware
+        const isAdmin = req.user && req.user.role === 'admin';
 
-        // Update view tổng cho truyện (chạy background, không await để phản hồi nhanh)
-        Story.findByIdAndUpdate(chapter.storyId, { 
-            $inc: { totalViews: 1 },
-            lastUpdatedAt: new Date()
-        }).exec();
+        // Chỉ tính view nếu KHÔNG phải Admin
+        if (!isAdmin) {
+            chapter.views += 1;
+            await chapter.save();
+
+            // Update view tổng cho truyện (không update lastUpdatedAt khi đọc)
+            Story.findByIdAndUpdate(chapter.storyId, { 
+                $inc: { totalViews: 1 }
+            }).exec();
+        }
+        // ---------------------
 
         res.json(chapter);
     } catch (error) {
@@ -133,12 +143,11 @@ exports.getChapterContent = async (req, res) => {
     }
 };
 
-// --- CÁC HÀM ADMIN (Cần cập nhật logic tách bảng) ---
+// --- CÁC HÀM ADMIN ---
 
 exports.createStory = async (req, res) => {
     try {
         const { title, author, description, coverImage, tags, status, isHot, isInBanner, alias } = req.body;
-        
         const tagsArray = Array.isArray(tags) ? tags : (tags ? tags.split(',') : []);
         
         const story = new Story({
@@ -177,7 +186,6 @@ exports.updateStory = async (req, res) => {
     }
 };
 
-// Thêm Volume (Giữ nguyên logic cũ, chỉ lưu metadata vào Story)
 exports.addVolume = async (req, res) => {
     try {
         const story = await Story.findOne({ id: req.params.id });
@@ -197,7 +205,7 @@ exports.addVolume = async (req, res) => {
     }
 };
 
-// Thêm Chapter (LOGIC THAY ĐỔI NHIỀU NHẤT)
+// Thêm Chapter (Đã sửa logic Raw)
 exports.addChapter = async (req, res) => {
     try {
         const { title, content, isRaw } = req.body;
@@ -208,10 +216,9 @@ exports.addChapter = async (req, res) => {
         const volumeExists = story.volumes.find(v => v.id === req.params.volumeId);
         if (!volumeExists) return res.status(404).json({ message: 'Volume not found' });
 
-        // Tạo Chapter mới trong bảng Chapter
         const newChapter = new Chapter({
-            storyId: story._id, // Link với Story
-            volumeId: req.params.volumeId, // Link với Volume
+            storyId: story._id,
+            volumeId: req.params.volumeId,
             id: `ch-${Date.now()}`,
             title,
             content,
@@ -221,9 +228,13 @@ exports.addChapter = async (req, res) => {
 
         await newChapter.save();
 
-        // Cập nhật thời gian update của truyện
-        story.lastUpdatedAt = new Date();
-        await story.save();
+        // --- LOGIC MỚI ---
+        // Chỉ cập nhật 'lastUpdatedAt' nếu chương này KHÔNG phải là Nháp (Raw)
+        if (!isRaw) {
+            story.lastUpdatedAt = new Date();
+            await story.save();
+        }
+        // -----------------
 
         res.json(newChapter);
     } catch (error) {
@@ -232,10 +243,9 @@ exports.addChapter = async (req, res) => {
     }
 };
 
-// Update Chapter (Tìm trong bảng Chapter)
+// Update Chapter (Đã sửa logic Raw)
 exports.updateChapter = async (req, res) => {
     try {
-        // Tìm chapter bằng id slug
         const chapter = await Chapter.findOne({ id: req.params.chapterId });
         if (!chapter) return res.status(404).json({ message: 'Chapter not found' });
 
@@ -243,16 +253,29 @@ exports.updateChapter = async (req, res) => {
         
         chapter.title = title || chapter.title;
         chapter.content = content || chapter.content;
+        
         if (isRaw !== undefined) chapter.isRaw = isRaw;
 
         await chapter.save();
+
+        // --- LOGIC MỚI ---
+        // Kiểm tra xem sau khi sửa xong, chương có đang ở trạng thái CÔNG KHAI không?
+        // Nếu là công khai (!isRaw) -> Cập nhật truyện lên top.
+        // Nếu là nháp (isRaw) -> Không làm gì cả.
+        const isNowRaw = (isRaw !== undefined) ? isRaw : chapter.isRaw;
+        
+        if (!isNowRaw) {
+            // Chỉ cần update trường lastUpdatedAt
+            await Story.findByIdAndUpdate(chapter.storyId, { lastUpdatedAt: new Date() });
+        }
+        // -----------------
+
         res.json(chapter);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 };
 
-// Delete Chapter
 exports.deleteChapter = async (req, res) => {
     try {
         await Chapter.findOneAndDelete({ id: req.params.chapterId });
@@ -262,7 +285,6 @@ exports.deleteChapter = async (req, res) => {
     }
 };
 
-// Banner Logic (Giữ nguyên)
 exports.getBannerStories = async (req, res) => {
     try {
         const stories = await Story.find({ isInBanner: true })
@@ -291,13 +313,11 @@ exports.updateStoryBannerConfig = async (req, res) => {
     }
 };
 
-// Các hàm khác như deleteVolume, updateVolume, deleteStory cần sửa nhẹ tương tự (xóa trong Story và xóa Chapter liên quan).
-// Delete Story thì cần: await Chapter.deleteMany({ storyId: story._id });
 exports.deleteStory = async (req, res) => {
     try {
         const story = await Story.findOne({ id: req.params.id });
         if(story) {
-            await Chapter.deleteMany({ storyId: story._id }); // Xóa hết chương con
+            await Chapter.deleteMany({ storyId: story._id }); 
             await story.deleteOne();
             res.json({ message: 'Story removed' });
         } else {
@@ -308,10 +328,7 @@ exports.deleteStory = async (req, res) => {
     }
 };
 
-// Logic tính view (cập nhật từ client gửi lên)
 exports.incrementChapterView = async (req, res) => {
-    // Logic này đã được xử lý trong getChapterContent, 
-    // nhưng nếu client gọi riêng thì dùng hàm này cập nhật bảng Chapter
     try {
         const chapter = await Chapter.findOne({ id: req.params.chapterId });
         if(chapter) {
@@ -329,7 +346,6 @@ exports.incrementChapterView = async (req, res) => {
 };
 
 exports.reorderVolumes = async (req, res) => {
-    // Giữ nguyên logic cũ vì volume vẫn nằm trong Story
     try {
         const { orderedVolumeIds } = req.body;
         const story = await Story.findOne({ id: req.params.id });
