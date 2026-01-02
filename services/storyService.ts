@@ -1,18 +1,16 @@
 import api from './api';
 import { Story, Chapter, Volume, StoriesResponse, StoryFilterParams } from '../types';
 
-// Story operations
-// --- SỬA HÀM NÀY ---
+// --- Story Operations ---
+
 export const getAllStories = async (): Promise<Story[]> => {
-    // Giữ tương thích ngược tạm thời, lấy max 1000 truyện
+    // Giữ tương thích ngược
     const response = await api.get('/stories?limit=1000');
     return response.data.stories;
 };
 
-// --- THÊM HÀM MỚI QUAN TRỌNG ---
 export const getStoriesList = async (params: StoryFilterParams): Promise<StoriesResponse> => {
     const { page = 1, limit = 12, sort = 'updated', status, keyword } = params;
-    
     const queryParams = new URLSearchParams();
     queryParams.append('page', page.toString());
     queryParams.append('limit', limit.toString());
@@ -23,34 +21,21 @@ export const getStoriesList = async (params: StoryFilterParams): Promise<Stories
     const response = await api.get(`/stories?${queryParams.toString()}`);
     return response.data;
 };
-// ------------------------------
-
-export const getBannerStories = async (): Promise<Story[]> => {
-    const response = await api.get('/stories/banner/list');
-    return response.data;
-};
-
-export const updateStoryBannerConfig = async (
-    id: string, 
-    data: { isInBanner?: boolean; bannerPriority?: number }
-): Promise<Story> => {
-    const response = await api.put(`/stories/${id}/banner`, data);
-    return response.data;
-};
 
 export const getStoryById = async (id: string): Promise<Story> => {
     const response = await api.get(`/stories/${id}`);
     return response.data;
 };
 
-export const createStory = async (storyData: Partial<Story>): Promise<Story> => {
-    const response = await api.post('/stories', storyData);
+// --- QUAN TRỌNG: API Lấy nội dung chương riêng lẻ ---
+export const getChapterContent = async (storyId: string, chapterId: string): Promise<Chapter> => {
+    const response = await api.get(`/stories/${storyId}/chapters/${chapterId}`);
     return response.data;
 };
 
-export const rateStory = async (storyId: string, rating: number): Promise<Story> => {
-    const response = await api.post(`/stories/${storyId}/rating`, { rating });
-    return response.data; 
+export const createStory = async (storyData: Partial<Story>): Promise<Story> => {
+    const response = await api.post('/stories', storyData);
+    return response.data;
 };
 
 export const updateStory = async (id: string, storyData: Partial<Story>): Promise<Story> => {
@@ -62,12 +47,23 @@ export const deleteStory = async (id: string): Promise<void> => {
     await api.delete(`/stories/${id}`);
 };
 
-export const reorderVolumes = async (storyId: string, orderedVolumeIds: string[]): Promise<Volume[]> => {
-    const response = await api.put(`/stories/${storyId}/volumes/reorder`, { orderedVolumeIds });
+export const getBannerStories = async (): Promise<Story[]> => {
+    const response = await api.get('/stories/banner/list');
     return response.data;
 };
 
-// Volume operations
+export const updateStoryBannerConfig = async (id: string, data: { isInBanner?: boolean; bannerPriority?: number }): Promise<Story> => {
+    const response = await api.put(`/stories/${id}/banner`, data);
+    return response.data;
+};
+
+export const rateStory = async (storyId: string, rating: number): Promise<Story> => {
+    const response = await api.post(`/stories/${storyId}/rating`, { rating });
+    return response.data; 
+};
+
+// --- Volume Operations ---
+
 export const addVolume = async (storyId: string, volumeData: { title: string }): Promise<Volume> => {
     const response = await api.post(`/stories/${storyId}/volumes`, volumeData);
     return response.data;
@@ -82,11 +78,12 @@ export const deleteVolume = async (storyId: string, volumeId: string): Promise<v
     await api.delete(`/stories/${storyId}/volumes/${volumeId}`);
 };
 
-// Chapter operations
-export const reorderChapters = async (storyId: string, volumeId: string, orderedChapterIds: string[]): Promise<Chapter[]> => {
-    const response = await api.put(`/stories/${storyId}/volumes/${volumeId}/chapters/reorder`, { orderedChapterIds });
+export const reorderVolumes = async (storyId: string, orderedVolumeIds: string[]): Promise<Volume[]> => {
+    const response = await api.put(`/stories/${storyId}/volumes/reorder`, { orderedVolumeIds });
     return response.data;
 };
+
+// --- Chapter Operations ---
 
 export const addChapter = async (storyId: string, volumeId: string, chapterData: Partial<Chapter>): Promise<Chapter> => {
     const response = await api.post(`/stories/${storyId}/volumes/${volumeId}/chapters`, chapterData);
@@ -100,6 +97,11 @@ export const updateChapter = async (storyId: string, volumeId: string, chapterId
 
 export const deleteChapter = async (storyId: string, volumeId: string, chapterId: string): Promise<void> => {
     await api.delete(`/stories/${storyId}/volumes/${volumeId}/chapters/${chapterId}`);
+};
+
+export const reorderChapters = async (storyId: string, volumeId: string, orderedChapterIds: string[]): Promise<Chapter[]> => {
+    const response = await api.put(`/stories/${storyId}/volumes/${volumeId}/chapters/reorder`, { orderedChapterIds });
+    return response.data;
 };
 
 export const incrementChapterView = async (storyId: string, chapterId: string): Promise<void> => {
