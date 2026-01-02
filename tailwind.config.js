@@ -39,6 +39,7 @@ export default {
               'fade-in': 'fadeIn 0.5s ease-in-out',
               'pan-up': 'pan-up 7s ease-in-out forwards',
               'pan-down': 'pan-down 7s ease-in-out forwards',
+              'blob': 'blob 7s infinite', // Animation cho đốm sáng
             },
             keyframes: {
               fadeIn: {
@@ -52,8 +53,14 @@ export default {
               'pan-down': {
                   '0%': { backgroundPosition: '50% 20%' },
                   '100%': { backgroundPosition: '50% 80%' },
-              }
-            }
+              },
+              'blob': {
+                '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+                '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+                '100%': { transform: 'translate(0px, 0px) scale(1)' },
+             },
+          }
     },
   },
   plugins: [],
