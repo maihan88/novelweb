@@ -10,14 +10,14 @@ export interface Chapter {
 
 export interface Volume {
   _id: string;
-  id:string;
+  id: string;
   title: string;
   chapters: Chapter[];
 }
 
 export interface Story {
   _id: string;
-  id:string;
+  id: string;
   title: string;
   alias: string[];
   author: string;
@@ -34,6 +34,14 @@ export interface Story {
   bannerPriority?: number;
   createdAt: string;
   lastUpdatedAt: string;
+  
+  // --- THÊM DÒNG NÀY ---
+  latestChapter?: {
+      title: string;
+      createdAt: string;
+      id: string;
+  } | null;
+  // --------------------
 }
 
 // --- THÊM MỚI PHẦN NÀY ---
