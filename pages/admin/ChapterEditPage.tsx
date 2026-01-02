@@ -158,7 +158,7 @@ const ChapterEditPage: React.FC = () => {
             const lastChapter = allChapters.length > 0 ? allChapters[allChapters.length - 1] : null;
              const lastChapterInVolume = currentVolume.chapters.length > 0 ? currentVolume.chapters[currentVolume.chapters.length - 1] : null;
             setTitle(lastChapterInVolume ? getNextChapterTitle(lastChapterInVolume.title) : (lastChapter ? getNextChapterTitle(lastChapter.title) : `${currentVolume.title} - Chương 1`));
-            setContent('<p>Nội dung chương mới...</p>');
+            setContent('');
             setIsRaw(true);
         }
     } catch (error: any) {
