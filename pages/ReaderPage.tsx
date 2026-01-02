@@ -1,23 +1,23 @@
 // file: pages/ReaderPage.tsx
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Story, Chapter, ReaderPreferences, ReaderTheme } from '../types';
-import { useStories } from '../contexts/StoryContext.tsx';
-import { useUserPreferences } from '../contexts/UserPreferencesContext.tsx';
-import ReaderControls from '../components/ReaderControls.tsx';
-import CommentSection from '../components/CommentSection.tsx';
-import LoadingSpinner from '../components/LoadingSpinner.tsx';
+import { useStories } from '../contexts/StoryContext';
+import { useUserPreferences } from '../contexts/UserPreferencesContext';
+import * as storyService from '../services/storyService'; // Import Service trực tiếp
+import ReaderControls from '../components/ReaderControls';
+import CommentSection from '../components/CommentSection';
+import LoadingSpinner from '../components/LoadingSpinner';
 import {
     ArrowLeftIcon, ArrowRightIcon,
     HomeIcon
 } from '@heroicons/react/24/solid';
-import { useAuth } from '../contexts/AuthContext.tsx';
-import { useLocalStorage } from '../hooks/useLocalStorage.tsx';
+import { useAuth } from '../contexts/AuthContext';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 
-// --- ReadingProgressBar (Không đổi) ---
+// --- ReadingProgressBar ---
 const ReadingProgressBar: React.FC<{ progress: number }> = React.memo(({ progress }) => {
-    // ... (giữ nguyên code)
     return (
         <div className="fixed top-0 left-0 w-full h-1 bg-slate-200 dark:bg-slate-700 z-[60]">
             <div
@@ -33,7 +33,7 @@ const ReadingProgressBar: React.FC<{ progress: number }> = React.memo(({ progres
 });
 ReadingProgressBar.displayName = 'ReadingProgressBar';
 
-// --- FloatingNavBar (Không đổi) ---
+// --- FloatingNavBar ---
 const FloatingNavBar: React.FC<{
     story: Story;
     currentChapterId: string;
@@ -41,7 +41,6 @@ const FloatingNavBar: React.FC<{
     nextChapter?: Chapter | null;
     isVisible: boolean;
 }> = ({ story, currentChapterId, prevChapter, nextChapter, isVisible }) => {
-    // ... (giữ nguyên code)
     const navigate = useNavigate();
 
     const handleChapterSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -50,6 +49,7 @@ const FloatingNavBar: React.FC<{
     };
 
     const handleNavigation = (e: React.MouseEvent<HTMLAnchorElement>) => {
+        // e.preventDefault(); // Để Link tự xử lý navigate
     };
 
     const navButtonClasses = `p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-opacity-50`;
@@ -103,23 +103,21 @@ const FloatingNavBar: React.FC<{
     );
 };
 
-// --- Mapping theme sang class Tailwind (Không đổi) ---
+// --- Mapping theme sang class Tailwind ---
 const themeClasses: Record<ReaderTheme, string> = {
     light: 'bg-white text-slate-800',
     sepia: 'bg-[#fbf0d9] text-[#5f4b32]',
     dark: 'bg-stone-900 text-stone-200'
 };
 
-// --- CẬP NHẬT: Mapping margin sang class PADDING và MAX-WIDTH ---
+// --- Mapping margin sang class PADDING và MAX-WIDTH ---
 const marginSettings: Record<number, { padding: string; maxWidth: string }> = {
-    0:  { padding: 'px-1 sm:px-2',   maxWidth: 'max-w-none' },    // Lề nhỏ nhất, gần full màn hình
-    5:  { padding: 'px-3 sm:px-4',   maxWidth: 'max-w-4xl' },    // Lề nhỏ
-    10: { padding: 'px-4 sm:px-6',   maxWidth: 'max-w-3xl' },    // Lề mặc định
-    15: { padding: 'px-6 sm:px-10',  maxWidth: 'max-w-2xl' },    // Lề vừa
-    20: { padding: 'px-8 sm:px-14',  maxWidth: 'max-w-xl' }     // Lề lớn nhất
+    0:  { padding: 'px-1 sm:px-2',   maxWidth: 'max-w-none' },    
+    5:  { padding: 'px-3 sm:px-4',   maxWidth: 'max-w-4xl' },    
+    10: { padding: 'px-4 sm:px-6',   maxWidth: 'max-w-3xl' },    
+    15: { padding: 'px-6 sm:px-10',  maxWidth: 'max-w-2xl' },    
+    20: { padding: 'px-8 sm:px-14',  maxWidth: 'max-w-xl' }     
 };
-// --- KẾT THÚC CẬP NHẬT ---
-
 
 const ReaderPage: React.FC = () => {
     const { storyId, chapterId } = useParams<{ storyId: string, chapterId: string }>();
@@ -128,8 +126,13 @@ const ReaderPage: React.FC = () => {
     const { bookmarks, updateBookmark } = useUserPreferences();
     const { currentUser } = useAuth();
 
+    // State lưu Metadata truyện
     const [story, setStory] = useState<Story | null>(null);
-    const [loading, setLoading] = useState(true);
+    // State lưu Nội dung chương (Fetch riêng từ API mới)
+    const [currentChapterWithContent, setCurrentChapterWithContent] = useState<Chapter | null>(null);
+    
+    const [loadingStory, setLoadingStory] = useState(true);
+    const [loadingChapter, setLoadingChapter] = useState(false);
 
     const [preferences, setPreferences] = useLocalStorage<ReaderPreferences>('readerPreferences', {
         fontSize: 18,
@@ -153,20 +156,50 @@ const ReaderPage: React.FC = () => {
 
     const isAdmin = useMemo(() => currentUser?.role === 'admin', [currentUser]);
 
-    // Các useEffect khác (Không đổi)
+    // 1. Fetch Story Metadata (Nếu chưa có)
     useEffect(() => {
         if (!storyId) return;
-        setLoading(true);
-        getStoryById(storyId).then(fetchedStory => {
-            setStory(fetchedStory || null);
-            setLoading(false);
-        }).catch(() => setLoading(false));
-    }, [storyId, getStoryById]);
+        if (!story || story.id !== storyId) {
+            setLoadingStory(true);
+            getStoryById(storyId).then(fetchedStory => {
+                setStory(fetchedStory || null);
+                setLoadingStory(false);
+            }).catch(() => setLoadingStory(false));
+        }
+    }, [storyId, story, getStoryById]);
 
+    // 2. Fetch Chapter Content (GỌI API RIÊNG)
     useEffect(() => {
+        const loadContent = async () => {
+            if (!storyId || !chapterId) return;
+            
+            setLoadingChapter(true);
+            setCurrentChapterWithContent(null); // Reset content cũ để tránh hiện nhầm
+            
+            try {
+                // Sử dụng service trực tiếp để gọi API
+                const fullChapter = await storyService.getChapterContent(storyId, chapterId);
+                setCurrentChapterWithContent(fullChapter);
+            } catch (error) {
+                console.error("Failed to load chapter content", error);
+            } finally {
+                setLoadingChapter(false);
+            }
+        };
+
+        loadContent();
+    }, [storyId, chapterId]);
+
+    // 3. Logic Scroll và Bookmark
+    useEffect(() => {
+        // Chỉ chạy khi đã có content
+        if (!currentChapterWithContent) return;
+
         viewIncrementedRef.current = false;
         window.scrollTo(0, 0);
+
         const savedBookmark = storyId ? bookmarks[storyId] : null;
+        
         if (savedBookmark && savedBookmark.chapterId === chapterId) {
              requestAnimationFrame(() => {
                  setTimeout(() => {
@@ -174,10 +207,12 @@ const ReaderPage: React.FC = () => {
                         const contentTop = readerContentRef.current.offsetTop;
                         const contentHeight = readerContentRef.current.scrollHeight;
                         const viewportHeight = window.innerHeight;
+                        
                         if (contentHeight > viewportHeight) {
                             const maxScrollInContent = contentHeight - viewportHeight;
                             const targetScrollInContent = (maxScrollInContent * savedBookmark.progress) / 100;
                             const targetScrollPosition = contentTop + targetScrollInContent;
+                            
                             window.scrollTo({ top: targetScrollPosition, behavior: 'auto' });
                              progressRef.current = savedBookmark.progress;
                              setScrollPercent(savedBookmark.progress);
@@ -186,33 +221,39 @@ const ReaderPage: React.FC = () => {
                             setScrollPercent(100);
                         }
                     }
-                 }, 50);
+                 }, 100); // Tăng timeout lên chút để đảm bảo DOM render xong
             });
         } else {
              progressRef.current = 0;
              setScrollPercent(0);
         }
-    }, [storyId, chapterId, bookmarks]);
+    }, [storyId, chapterId, bookmarks, currentChapterWithContent]); // Thêm dependency currentChapterWithContent
 
+    // 4. Logic tăng view
     useEffect(() => {
         if (!story || !storyId || !chapterId) return;
-        if (!viewIncrementedRef.current && !isAdmin) {
+        // Chỉ tăng view khi đã load xong content
+        if (!viewIncrementedRef.current && !isAdmin && currentChapterWithContent) {
             incrementChapterView(storyId, chapterId);
             viewIncrementedRef.current = true;
         }
+
         const preventAction = (e: Event) => e.preventDefault();
         const contentEl = readerContentRef.current;
         if (contentEl) {
             contentEl.addEventListener('contextmenu', preventAction);
             contentEl.addEventListener('copy', preventAction);
         }
+
         const handleScroll = () => {
             const contentElement = readerContentRef.current;
             if (!contentElement) return;
+
             const contentTop = contentElement.offsetTop;
             const contentHeight = contentElement.scrollHeight;
             const viewportHeight = window.innerHeight;
             const currentScrollTop = window.pageYOffset;
+
             let percentage = 0;
             if (contentHeight <= viewportHeight) {
                 percentage = 100;
@@ -221,11 +262,14 @@ const ReaderPage: React.FC = () => {
                  const maxScrollInContent = contentHeight - viewportHeight;
                  percentage = maxScrollInContent > 0 ? Math.min(100, (scrollStartInContent / maxScrollInContent) * 100) : 100;
             }
+            
             progressRef.current = percentage;
             setScrollPercent(percentage);
         };
+
         window.addEventListener('scroll', handleScroll, { passive: true });
          handleScroll();
+
         return () => {
             window.removeEventListener('scroll', handleScroll);
             if (contentEl) {
@@ -237,10 +281,9 @@ const ReaderPage: React.FC = () => {
                 updateBookmarkRef.current(storyId, chapterId, finalProgress);
             }
         };
-    }, [story, storyId, chapterId, isAdmin, incrementChapterView]);
+    }, [story, storyId, chapterId, isAdmin, incrementChapterView, currentChapterWithContent]);
 
 
-    // handleTapZoneClick (Không đổi)
     const handleTapZoneClick = (event: React.MouseEvent<HTMLDivElement>) => {
         if (window.getSelection()?.toString() || (event.target as HTMLElement).closest('a, button, select, [data-control-button]')) {
             return;
@@ -252,41 +295,29 @@ const ReaderPage: React.FC = () => {
         lastTap.current = now;
     };
 
-    // useMemo chapter, prev/next (Không đổi)
-    const { chapter, prevChapter, nextChapter } = useMemo(() => {
-        if (!story || !chapterId) return { chapter: undefined, prevChapter: null, nextChapter: null };
+    // Tìm prev/next chapter từ metadata story.volumes
+    const { prevChapter, nextChapter } = useMemo(() => {
+        if (!story || !chapterId) return { prevChapter: null, nextChapter: null };
         const allChapters = story.volumes.flatMap(v => v.chapters);
         const index = allChapters.findIndex(c => c.id === chapterId);
-        if (index === -1) return { chapter: undefined, prevChapter: null, nextChapter: null };
+        if (index === -1) return { prevChapter: null, nextChapter: null };
         return {
-            chapter: allChapters[index],
             prevChapter: index > 0 ? allChapters[index - 1] : null,
             nextChapter: index < allChapters.length - 1 ? allChapters[index + 1] : null,
         };
     }, [story, chapterId]);
 
+    const cleanedContent = useMemo(() => {
+        // Lấy content từ state mới
+        if (!currentChapterWithContent?.content) return '';
+        return currentChapterWithContent.content.replace(/line-height:[^;"]*;/g, '');
+    }, [currentChapterWithContent?.content]);
 
-     // cleanedContent (Không đổi)
-     const cleanedContent = useMemo(() => {
-        if (!chapter?.content) return '';
-        return chapter.content.replace(/line-height:[^;"]*;/g, '');
-    }, [chapter?.content]);
-
-    // contentStyle (Không đổi)
     const contentStyle = useMemo(() => ({
         fontSize: `${preferences.fontSize}px`,
         lineHeight: preferences.lineHeight
     }), [preferences.fontSize, preferences.lineHeight]);
 
-
-    // navButton styles (Không đổi)
-    const navButtonBaseClasses = "flex items-center justify-center gap-2 px-4 py-2 border rounded-md transition-colors duration-200 text-sm font-medium";
-    // ... (rest of nav button styles are unchanged)
-    const navButtonEnabledClasses = "border-orange-300 dark:border-stone-600 text-slate-700 dark:text-stone-300 hover:bg-orange-50 dark:hover:bg-stone-700";
-    const navButtonDisabledClasses = "border-slate-200 dark:border-stone-700 bg-slate-50 dark:bg-stone-800 text-slate-400 dark:text-stone-500 cursor-not-allowed";
-
-
-    // handleChapterSelect, handleNavClick (Không đổi)
     const handleChapterSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newChapterId = e.target.value;
         if (newChapterId) navigate(`/story/${storyId}/chapter/${newChapterId}`);
@@ -294,20 +325,20 @@ const ReaderPage: React.FC = () => {
 
     const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>) => {};
 
-    // Loading/Error states (Không đổi)
-    if (loading) return <div className="flex justify-center items-center h-screen bg-white dark:bg-stone-950"><LoadingSpinner /></div>;
-    if (!story || !chapter) return <div className="flex justify-center items-center h-screen bg-white dark:bg-stone-950 text-red-500">Không tìm thấy truyện hoặc chương.</div>;
+    // --- Loading States ---
+    if (loadingStory || (loadingChapter && !currentChapterWithContent)) {
+        return <div className="flex justify-center items-center h-screen bg-white dark:bg-stone-950"><LoadingSpinner /></div>;
+    }
 
-    // --- Lấy class cho theme và margin/padding ---
+    if (!story || !currentChapterWithContent) {
+        return <div className="flex justify-center items-center h-screen bg-white dark:bg-stone-950 text-red-500">Không tìm thấy truyện hoặc chương.</div>;
+    }
+
     const currentThemeClass = themeClasses[preferences.theme] || themeClasses.light;
-    // Đảm bảo margin có giá trị hợp lệ, nếu không thì dùng mặc định (10)
     const currentMarginSetting = marginSettings[preferences.margin] || marginSettings[10];
     const contentContainerClasses = `mx-auto animate-fade-in py-16 sm:py-20 min-h-screen ${currentMarginSetting.padding} ${currentMarginSetting.maxWidth}`;
-    // --- KẾT THÚC ---
-
 
     return (
-        // --- ÁP DỤNG THEME CLASS ---
         <div className={`min-h-full transition-colors duration-300 ${currentThemeClass}`}>
             <ReadingProgressBar progress={scrollPercent} />
             <FloatingNavBar
@@ -317,7 +348,7 @@ const ReaderPage: React.FC = () => {
                 nextChapter={nextChapter}
                 isVisible={isFloatingNavVisible}
             />
-            {/* --- ÁP DỤNG PADDING VÀ MAX-WIDTH CLASS --- */}
+            
             <div onClick={handleTapZoneClick} className={contentContainerClasses}>
                 {/* Header chương */}
                 <div className={`text-center mb-10 ${preferences.theme === 'sepia' ? 'text-[#5f4b32]' : 'text-slate-900 dark:text-white'}`}>
@@ -328,7 +359,7 @@ const ReaderPage: React.FC = () => {
                          {story.title}
                      </Link>
                     <h1 className={`text-3xl sm:text-4xl font-bold font-serif mt-2 leading-tight`}>
-                        {chapter.title}
+                        {currentChapterWithContent.title}
                     </h1>
                 </div>
 
@@ -344,7 +375,7 @@ const ReaderPage: React.FC = () => {
                     dangerouslySetInnerHTML={{ __html: cleanedContent }}
                 />
 
-                {/* Navigation cuối chương (Không đổi) */}
+                {/* Navigation cuối chương */}
                 <div className={`mt-12 pt-8 border-t ${preferences.theme === 'sepia' ? 'border-[#dcd3c1]' : 'border-slate-200 dark:border-stone-700'}`}>
                     <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
                         {/* Prev Button */}
@@ -371,6 +402,7 @@ const ReaderPage: React.FC = () => {
                                 <span>Chương trước</span>
                             </div>
                         )}
+                        
                         {/* Chapter Select */}
                         <select
                             value={chapterId}
@@ -390,6 +422,7 @@ const ReaderPage: React.FC = () => {
                                 </optgroup>
                             ))}
                         </select>
+
                         {/* Next Button */}
                         {nextChapter ? (
                              <Link
@@ -417,7 +450,6 @@ const ReaderPage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* CommentSection (Không đổi logic) */}
                 {storyId && chapterId && <CommentSection storyId={storyId} chapterId={chapterId} />}
             </div>
             <ReaderControls
