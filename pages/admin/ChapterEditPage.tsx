@@ -1,13 +1,24 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useStories } from '../../contexts/StoryContext.tsx';
-import { Story, Chapter } from '../../types.ts';
-import { CheckIcon, ArrowPathIcon, ExclamationTriangleIcon, PlusIcon, PencilIcon, CheckCircleIcon, XMarkIcon } from '@heroicons/react/24/solid';
+import { useStories } from '../../contexts/StoryContext';
+import { Story, Chapter } from '../../types';
+import { 
+  CheckIcon, 
+  ArrowPathIcon, 
+  ExclamationTriangleIcon, 
+  PlusIcon, 
+  ArrowRightIcon, 
+  CheckCircleIcon, 
+  XMarkIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ListBulletIcon
+} from '@heroicons/react/24/solid';
 import { ArrowUturnLeftIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
-import LoadingSpinner from '../../components/LoadingSpinner.tsx';
-import CustomEditor from '../../components/CustomEditor.tsx';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import CustomEditor from '../../components/CustomEditor';
 
-// --- HÀM GỢI Ý TIÊU ĐỀ --- (Giữ nguyên)
+// --- HÀM GỢI Ý TIÊU ĐỀ ---
 const getNextChapterTitle = (currentTitle: string): string => {
     const match = currentTitle.match(/^(.*?)([:\s-])?(\d+)$/);
     if (match) {
@@ -25,6 +36,7 @@ const getNextChapterTitle = (currentTitle: string): string => {
     return currentTitle + ' (Tiếp theo)';
 };
 
+// --- COMPONENT THÔNG BÁO ---
 const SaveNotification: React.FC<{ message: string; onDismiss: () => void }> = ({ message, onDismiss }) => {
     useEffect(() => {
         const timer = setTimeout(onDismiss, 3000);
@@ -32,7 +44,7 @@ const SaveNotification: React.FC<{ message: string; onDismiss: () => void }> = (
     }, [onDismiss]);
 
     return (
-        <div className="fixed bottom-5 right-5 z-50 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 animate-fade-in">
+        <div className="fixed bottom-24 right-5 z-50 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 animate-fade-in border border-green-500/50 backdrop-blur-sm">
             <CheckCircleIcon className="h-5 w-5" />
             <span className="text-sm font-medium">{message}</span>
             <button onClick={onDismiss} className="ml-2 p-1 hover:bg-green-700 rounded-full">
@@ -42,6 +54,31 @@ const SaveNotification: React.FC<{ message: string; onDismiss: () => void }> = (
     );
 };
 
+// --- COMPONENT BUTTON TOOLTIP ---
+// Helper nhỏ để tạo tooltip khi hover
+const TooltipButton: React.FC<{
+    onClick: () => void;
+    disabled?: boolean;
+    className?: string;
+    icon: React.ReactNode;
+    label: string; // Text hiện trên PC
+    tooltip: string; // Text hiện tooltip
+    colorClass: string; // Class màu
+}> = ({ onClick, disabled, className, icon, label, tooltip, colorClass }) => (
+    <button
+        onClick={onClick}
+        disabled={disabled}
+        className={`relative group flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-full shadow-sm hover:shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${colorClass} ${className}`}
+    >
+        {icon}
+        <span className="hidden lg:inline font-semibold text-sm">{label}</span>
+        
+        {/* Tooltip */}
+        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-slate-800 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+            {tooltip}
+        </span>
+    </button>
+);
 
 const ChapterEditPage: React.FC = () => {
   const { storyId, volumeId, chapterId } = useParams<{ storyId: string; volumeId: string; chapterId?: string }>();
@@ -50,9 +87,13 @@ const ChapterEditPage: React.FC = () => {
 
   const [story, setStory] = useState<Story | null>(null);
   const [volumeTitle, setVolumeTitle] = useState('');
+  
+  // Form State
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [isRaw, setIsRaw] = useState(false);
+  
+  // UI State
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isNew, setIsNew] = useState(!chapterId);
@@ -60,6 +101,9 @@ const ChapterEditPage: React.FC = () => {
   const [error, setError] = useState('');
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
 
+  // Navigation State
+  const [prevChapterId, setPrevChapterId] = useState<string | null>(null);
+  const [nextChapterId, setNextChapterId] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     if (!storyId || !volumeId) {
@@ -81,6 +125,28 @@ const ChapterEditPage: React.FC = () => {
         const editingExisting = !!chapterId;
         setIsNew(!editingExisting);
 
+        // --- Logic tính toán Next/Prev Chapter ---
+        if (editingExisting) {
+            const chapterIndex = currentVolume.chapters.findIndex(c => c.id === chapterId);
+            if (chapterIndex !== -1) {
+                // Chương trước
+                if (chapterIndex > 0) {
+                    setPrevChapterId(currentVolume.chapters[chapterIndex - 1].id);
+                } else {
+                    setPrevChapterId(null);
+                }
+                // Chương sau
+                if (chapterIndex < currentVolume.chapters.length - 1) {
+                    setNextChapterId(currentVolume.chapters[chapterIndex + 1].id);
+                } else {
+                    setNextChapterId(null);
+                }
+            }
+        } else {
+            setPrevChapterId(null);
+            setNextChapterId(null);
+        }
+
         if (editingExisting) {
             const currentChapter = currentVolume.chapters.find(c => c.id === chapterId);
             if (!currentChapter) throw new Error('Không tìm thấy chương!');
@@ -88,32 +154,32 @@ const ChapterEditPage: React.FC = () => {
             setContent(currentChapter.content);
             setIsRaw(!!currentChapter.isRaw);
         } else {
-            // --- LOGIC TẠO MỚI ---
             const allChapters = currentStory.volumes.flatMap(v => v.chapters);
             const lastChapter = allChapters.length > 0 ? allChapters[allChapters.length - 1] : null;
              const lastChapterInVolume = currentVolume.chapters.length > 0 ? currentVolume.chapters[currentVolume.chapters.length - 1] : null;
             setTitle(lastChapterInVolume ? getNextChapterTitle(lastChapterInVolume.title) : (lastChapter ? getNextChapterTitle(lastChapter.title) : `${currentVolume.title} - Chương 1`));
-            
-            // [SỬA ĐỔI 1]: Để content rỗng thay vì text mặc định
-            setContent(''); 
-            
+            setContent('<p>Nội dung chương mới...</p>');
             setIsRaw(true);
         }
     } catch (error: any) {
         setError(error.message || 'Lỗi tải dữ liệu.');
     } finally {
         setIsLoading(false);
-        setEditorKey(Date.now());
+        setEditorKey(Date.now()); 
     }
-  }, [storyId, volumeId, chapterId, getStoryById]);
-
+  }, [storyId, volumeId, chapterId, getStoryById, navigate]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
+  // Hàm chuyển hướng nhanh (Nav)
+  const handleNavigateChapter = (targetId: string | null) => {
+      if (!targetId) return;
+      navigate(`/admin/story/${storyId}/volume/${volumeId}/chapter/edit/${targetId}`);
+  };
 
-   const handleSave = useCallback(async (andContinue: 'new' | 'editNext' | 'close' = 'close') => {
+   const handleSave = useCallback(async (action: 'new' | 'editNext' | 'close') => {
         if (!storyId || !volumeId || !title.trim()) {
             setError('Vui lòng điền tiêu đề chương.');
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -141,23 +207,20 @@ const ChapterEditPage: React.FC = () => {
                  throw new Error("Không xác định được ID chương.");
             }
 
-            if (andContinue === 'close') {
-                setTimeout(() => navigate(`/admin/story/edit/${storyId}`), 1000);
-            } else if (andContinue === 'new') {
+            if (action === 'close') {
+                setTimeout(() => navigate(`/admin/story/edit/${storyId}`), 500);
+            } else if (action === 'new') {
                  const updatedStory = await getStoryById(storyId);
                  const allChapters = updatedStory?.volumes.flatMap(v => v.chapters) || [];
                  const lastChapter = allChapters.length > 0 ? allChapters[allChapters.length - 1] : null;
                 setTitle(lastChapter ? getNextChapterTitle(lastChapter.title) : 'Chương tiếp theo');
-                
-                // [SỬA ĐỔI 2]: Để content rỗng khi chọn "Lưu & Soạn mới"
-                setContent('');
-                
+                setContent('<p>Nội dung chương tiếp theo...</p>');
                 setIsRaw(true);
                 setEditorKey(Date.now());
                 setIsNew(true);
                 navigate(`/admin/story/${storyId}/volume/${volumeId}/chapter/new`, { replace: true });
                 window.scrollTo(0, 0);
-            } else if (andContinue === 'editNext' && currentChapterId) {
+            } else if (action === 'editNext' && currentChapterId) {
                 const updatedStory = await getStoryById(storyId);
                 const allChaptersWithVolume = updatedStory?.volumes.flatMap(v => v.chapters.map(c => ({ ...c, volumeId: v.id }))) || [];
                 const currentIndex = allChaptersWithVolume.findIndex(c => c.id === currentChapterId);
@@ -166,12 +229,12 @@ const ChapterEditPage: React.FC = () => {
                     const nextChapter = allChaptersWithVolume[currentIndex + 1];
                     navigate(`/admin/story/${storyId}/volume/${nextChapter.volumeId}/chapter/edit/${nextChapter.id}`);
                  } else {
-                     setSaveSuccessMessage(`"${title}" là chương cuối. Không có chương tiếp theo.`);
+                     setSaveSuccessMessage(`Đã lưu. Đây là chương cuối cùng.`);
                  }
-            }
+            } 
 
         } catch (err: any) {
-            setError('Lưu chương thất bại: ' + (err.message || 'Lỗi không xác định'));
+            setError('Lưu thất bại: ' + (err.message || 'Lỗi không xác định'));
             console.error(err);
             setSaveSuccessMessage(null);
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -181,7 +244,7 @@ const ChapterEditPage: React.FC = () => {
     }, [storyId, volumeId, chapterId, title, content, isRaw, isNew, getStoryById, addChapterToVolume, updateChapterInVolume, navigate]);
 
 
-  // --- RENDER UI (Giữ nguyên) ---
+  // --- RENDER UI ---
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-screen -mt-16">
@@ -205,19 +268,22 @@ const ChapterEditPage: React.FC = () => {
 
 
   return (
-    <div className="max-w-5xl mx-auto animate-fade-in space-y-6 p-4 sm:p-6 lg:p-8">
+    <div className="max-w-5xl mx-auto animate-fade-in space-y-6 p-4 sm:p-6 lg:p-8 pb-40"> {/* Padding bottom lớn để tránh Floating Dock */}
+      
       {/* Header trang */}
-      <div>
-        <button onClick={() => navigate(`/admin/story/edit/${storyId}`)} className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors mb-2 group">
-          <ArrowUturnLeftIcon className="h-4 w-4 transition-transform group-hover:-translate-x-1 duration-200" />
-          Quay lại Sửa truyện
-        </button>
-        <h1 className="text-2xl sm:text-3xl font-bold font-serif text-slate-900 dark:text-white leading-tight">
-          {isNew ? 'Thêm Chương Mới' : `Chỉnh Sửa Chương`}
-        </h1>
-        <p className="text-slate-600 dark:text-slate-300 mt-1 text-sm sm:text-base">
-          Truyện: <span className="font-semibold">{story?.title || '...'}</span> / Tập: <span className="font-semibold">{volumeTitle || '...'}</span>
-        </p>
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+        <div>
+            <button onClick={() => navigate(`/admin/story/edit/${storyId}`)} className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors mb-2 group">
+                <ArrowUturnLeftIcon className="h-4 w-4 transition-transform group-hover:-translate-x-1 duration-200" />
+                Quay lại Sửa truyện
+            </button>
+            <h1 className="text-2xl sm:text-3xl font-bold font-serif text-slate-900 dark:text-white leading-tight">
+                {isNew ? 'Thêm Chương Mới' : `Chỉnh Sửa Chương`}
+            </h1>
+            <p className="text-slate-600 dark:text-slate-300 mt-1 text-sm sm:text-base">
+                Truyện: <span className="font-semibold">{story?.title || '...'}</span> / Tập: <span className="font-semibold">{volumeTitle || '...'}</span>
+            </p>
+        </div>
       </div>
 
        {/* Thông báo lỗi */}
@@ -227,7 +293,6 @@ const ChapterEditPage: React.FC = () => {
                 <span className="font-medium">{error}</span>
              </div>
          )}
-
 
       {/* Form chính */}
       <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 md:p-8 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 space-y-6">
@@ -276,44 +341,87 @@ const ChapterEditPage: React.FC = () => {
           </label>
           <CustomEditor key={editorKey} value={content} onChange={setContent} />
         </div>
-
-         {/* Nút bấm Lưu */}
-        <div className="flex flex-wrap justify-end items-center gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
-            {/* Nút Lưu & Đóng */}
-            <button
-                onClick={() => handleSave('close')}
-                disabled={isSaving}
-                className="order-3 sm:order-1 w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-                {isSaving ? <ArrowPathIcon className="h-5 w-5 animate-spin" /> : <CheckIcon className="h-5 w-5" />}
-                Lưu & Đóng
-            </button>
-             {/* Nút Lưu & Soạn tiếp */}
-             <button
-                onClick={() => handleSave('new')}
-                disabled={isSaving}
-                className="order-1 sm:order-2 w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed"
-             >
-                 {isSaving ? <ArrowPathIcon className="h-5 w-5 animate-spin" /> : <PlusIcon className="h-5 w-5"/>}
-                Lưu & Soạn mới
-            </button>
-            {/* Nút Lưu & Sửa chương tiếp */}
-             {!isNew && (
-                <button
-                    onClick={() => handleSave('editNext')}
-                    disabled={isSaving}
-                    className="order-2 sm:order-3 w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-colors shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed"
-                 >
-                     {isSaving ? <ArrowPathIcon className="h-5 w-5 animate-spin" /> : <PencilIcon className="h-5 w-5"/>}
-                     Lưu & Sửa tiếp
-                </button>
-            )}
-        </div>
       </div>
+
        {/* Thông báo thành công */}
        {saveSuccessMessage && (
            <SaveNotification message={saveSuccessMessage} onDismiss={() => setSaveSuccessMessage(null)} />
        )}
+
+      {/* ===================================================================================== */}
+      {/* --- SUPER FLOATING DOCK (THANH CÔNG CỤ TỔNG HỢP) --- */}
+      {/* ===================================================================================== */}
+      <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-40 max-w-[95vw]">
+        <div className="flex items-center gap-2 p-2 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-200/60 dark:border-slate-700/60 ring-1 ring-black/5">
+            
+            {/* 1. Nút Prev (Chỉ hiện khi sửa) */}
+            {!isNew && (
+                <button
+                    onClick={() => handleNavigateChapter(prevChapterId)}
+                    disabled={!prevChapterId}
+                    className="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    title="Chương trước"
+                >
+                    <ChevronLeftIcon className="h-5 w-5 sm:h-6 sm:w-6" />
+                </button>
+            )}
+
+            {/* Vách ngăn */}
+            {!isNew && <div className="w-px h-6 bg-slate-300 dark:bg-slate-600 mx-1"></div>}
+
+            {/* 2. CỤM NÚT LƯU (MAIN ACTIONS) */}
+            <div className="flex items-center gap-2">
+                
+                {/* 2a. Lưu & Thêm Mới (Màu Xanh Dương) */}
+                <TooltipButton
+                    onClick={() => handleSave('new')}
+                    disabled={isSaving}
+                    colorClass="bg-blue-600 hover:bg-blue-700 text-white"
+                    icon={isSaving ? <ArrowPathIcon className="h-5 w-5 animate-spin" /> : <PlusIcon className="h-5 w-5" />}
+                    label="Lưu & Mới"
+                    tooltip="Lưu và Tạo chương mới"
+                />
+
+                {/* 2b. Lưu & Sửa Tiếp (Màu Tím) - Chỉ hiện khi đang sửa, hoặc khi tạo mới mà muốn sửa tiếp thì logic cần handle sau (nhưng ở đây ẩn khi tạo mới cho gọn) */}
+                {!isNew && (
+                    <TooltipButton
+                        onClick={() => handleSave('editNext')}
+                        disabled={isSaving}
+                        colorClass="bg-indigo-600 hover:bg-indigo-700 text-white"
+                        icon={isSaving ? <ArrowPathIcon className="h-5 w-5 animate-spin" /> : <ArrowRightIcon className="h-5 w-5" />}
+                        label="Lưu & Tiếp"
+                        tooltip="Lưu và Sửa chương tiếp theo"
+                    />
+                )}
+
+                {/* 2c. Lưu & Đóng (Màu Xanh Lá - Nút thoát) */}
+                <TooltipButton
+                    onClick={() => handleSave('close')}
+                    disabled={isSaving}
+                    colorClass="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    icon={isSaving ? <ArrowPathIcon className="h-5 w-5 animate-spin" /> : <ListBulletIcon className="h-5 w-5" />} // Icon List để biểu thị quay về danh sách
+                    label="Lưu & Thoát"
+                    tooltip="Lưu và Quay lại danh sách"
+                />
+            </div>
+
+            {/* Vách ngăn */}
+            {!isNew && <div className="w-px h-6 bg-slate-300 dark:bg-slate-600 mx-1"></div>}
+
+            {/* 3. Nút Next (Chỉ hiện khi sửa) */}
+            {!isNew && (
+                <button
+                    onClick={() => handleNavigateChapter(nextChapterId)}
+                    disabled={!nextChapterId}
+                    className="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    title="Chương sau"
+                >
+                    <ChevronRightIcon className="h-5 w-5 sm:h-6 sm:w-6" />
+                </button>
+            )}
+        </div>
+      </div>
+
     </div>
   );
 };
