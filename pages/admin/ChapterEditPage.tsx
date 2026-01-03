@@ -1,7 +1,8 @@
+// src/pages/admin/ChapterEditPage.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useStories } from '../../contexts/StoryContext';
-import { getChapterContent } from '../../services/storyService'; // Import trực tiếp service
+import { getChapterContent } from '../../services/storyService';
 import { Story, Chapter } from '../../types';
 import { 
   ArrowPathIcon, 
@@ -18,7 +19,7 @@ import { ArrowUturnLeftIcon, InformationCircleIcon } from '@heroicons/react/24/o
 import LoadingSpinner from '../../components/LoadingSpinner';
 import CustomEditor from '../../components/CustomEditor';
 
-// --- HÀM GỢI Ý TIÊU ĐỀ (Giữ nguyên) ---
+// --- HÀM GỢI Ý TIÊU ĐỀ ---
 const getNextChapterTitle = (currentTitle: string): string => {
     const match = currentTitle.match(/^(.*?)([:\s-])?(\d+)$/);
     if (match) {
@@ -36,7 +37,7 @@ const getNextChapterTitle = (currentTitle: string): string => {
     return currentTitle + ' (Tiếp theo)';
 };
 
-// --- COMPONENT THÔNG BÁO (Giữ nguyên) ---
+// --- COMPONENT THÔNG BÁO ---
 const SaveNotification: React.FC<{ message: string; onDismiss: () => void }> = ({ message, onDismiss }) => {
     useEffect(() => {
         const timer = setTimeout(onDismiss, 3000);
@@ -54,7 +55,7 @@ const SaveNotification: React.FC<{ message: string; onDismiss: () => void }> = (
     );
 };
 
-// --- COMPONENT BUTTON TOOLTIP (Giữ nguyên) ---
+// --- COMPONENT BUTTON TOOLTIP ---
 const TooltipButton: React.FC<{
     onClick: () => void;
     disabled?: boolean;
@@ -81,7 +82,6 @@ const TooltipButton: React.FC<{
 const ChapterEditPage: React.FC = () => {
   const { storyId, volumeId, chapterId } = useParams<{ storyId: string; volumeId: string; chapterId?: string }>();
   const navigate = useNavigate();
-  // Vẫn dùng context cho các thao tác Story/Add/Update
   const { getStoryById, addChapterToVolume, updateChapterInVolume } = useStories();
 
   const [story, setStory] = useState<Story | null>(null);
@@ -93,7 +93,8 @@ const ChapterEditPage: React.FC = () => {
   
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [isNew, setIsNew] = useState(!chapterId);
+  // isNew được xác định dựa trên URL params
+  const isNew = !chapterId; 
   const [editorKey, setEditorKey] = useState(Date.now());
   const [error, setError] = useState('');
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
@@ -101,16 +102,28 @@ const ChapterEditPage: React.FC = () => {
   const [prevChapterId, setPrevChapterId] = useState<string | null>(null);
   const [nextChapterId, setNextChapterId] = useState<string | null>(null);
 
+  // --- 1. RESET FORM NGAY KHI CHUYỂN SANG TRANG THÊM MỚI ---
+  // Điều này ngăn chặn việc hiển thị dữ liệu cũ trong khi đang load dữ liệu mới
+  useEffect(() => {
+    if (!chapterId) {
+        setTitle('Đang tải...'); // Feedback thị giác
+        setContent('');
+        setIsRaw(true);
+        setEditorKey(Date.now());
+    }
+  }, [chapterId]);
+
   const loadData = useCallback(async () => {
     if (!storyId || !volumeId) {
         navigate('/admin');
         return;
     }
     setError('');
-    setSaveSuccessMessage(null);
+    // Không reset saveSuccessMessage ở đây để giữ thông báo khi chuyển trang
     try {
         setIsLoading(true);
-        // 1. Lấy thông tin truyện và volume (Metadata)
+        
+        // Lấy thông tin truyện mới nhất
         const currentStory = await getStoryById(storyId);
         if (!currentStory) throw new Error('Không tìm thấy truyện!');
         setStory(currentStory);
@@ -119,45 +132,36 @@ const ChapterEditPage: React.FC = () => {
         if (!currentVolume) throw new Error('Không tìm thấy tập!');
         setVolumeTitle(currentVolume.title);
 
-        const editingExisting = !!chapterId;
-        setIsNew(!editingExisting);
-
         // --- Logic tính toán Next/Prev Chapter ---
-        if (editingExisting) {
-            // currentVolume.chapters ở đây chỉ chứa LIST (id, title) không có content
+        if (chapterId) {
+            // ĐANG SỬA
             const chapterIndex = currentVolume.chapters.findIndex(c => c.id === chapterId);
             if (chapterIndex !== -1) {
-                if (chapterIndex > 0) {
-                    setPrevChapterId(currentVolume.chapters[chapterIndex - 1].id);
-                } else {
-                    setPrevChapterId(null);
-                }
-                if (chapterIndex < currentVolume.chapters.length - 1) {
-                    setNextChapterId(currentVolume.chapters[chapterIndex + 1].id);
-                } else {
-                    setNextChapterId(null);
-                }
+                setPrevChapterId(chapterIndex > 0 ? currentVolume.chapters[chapterIndex - 1].id : null);
+                setNextChapterId(chapterIndex < currentVolume.chapters.length - 1 ? currentVolume.chapters[chapterIndex + 1].id : null);
             }
-        } else {
-            setPrevChapterId(null);
-            setNextChapterId(null);
-        }
 
-        // 2. LẤY NỘI DUNG CHƯƠNG (Phần thay đổi quan trọng)
-        if (editingExisting && chapterId) {
-            // Gọi API riêng để lấy full content
+            // Gọi API lấy nội dung chi tiết
             const fullChapter = await getChapterContent(storyId, chapterId);
-            
             setTitle(fullChapter.title);
-            setContent(fullChapter.content); // Content giờ đã có
+            setContent(fullChapter.content);
             setIsRaw(!!fullChapter.isRaw);
         } else {
-            // Tạo mới
-            const allChapters = currentStory.volumes.flatMap(v => v.chapters);
-            const lastChapter = allChapters.length > 0 ? allChapters[allChapters.length - 1] : null;
-             const lastChapterInVolume = currentVolume.chapters.length > 0 ? currentVolume.chapters[currentVolume.chapters.length - 1] : null;
-            setTitle(lastChapterInVolume ? getNextChapterTitle(lastChapterInVolume.title) : (lastChapter ? getNextChapterTitle(lastChapter.title) : `${currentVolume.title} - Chương 1`));
-            setContent('');
+            // ĐANG TẠO MỚI
+            setPrevChapterId(null);
+            setNextChapterId(null);
+            
+            // Tính toán tên chương tiếp theo
+            const allChaptersInVolume = currentVolume.chapters;
+            const lastChapterInVolume = allChaptersInVolume.length > 0 ? allChaptersInVolume[allChaptersInVolume.length - 1] : null;
+            
+            // Nếu có chương cuối cùng trong tập, lấy tên đó + 1, nếu không thì lấy mặc định
+            const nextTitle = lastChapterInVolume 
+                ? getNextChapterTitle(lastChapterInVolume.title) 
+                : `${currentVolume.title} - Chương 1`;
+                
+            setTitle(nextTitle);
+            setContent(''); // Đảm bảo nội dung trống
             setIsRaw(true);
         }
     } catch (error: any) {
@@ -172,7 +176,6 @@ const ChapterEditPage: React.FC = () => {
     loadData();
   }, [loadData]);
 
-  // Hàm chuyển hướng nhanh
   const handleNavigateChapter = (targetId: string | null) => {
       if (!targetId) return;
       navigate(`/admin/story/${storyId}/volume/${volumeId}/chapter/edit/${targetId}`);
@@ -188,51 +191,70 @@ const ChapterEditPage: React.FC = () => {
         setIsSaving(true);
         setError('');
         setSaveSuccessMessage(null);
-        let currentChapterId = chapterId;
+        
+        let savedChapterId = chapterId; // ID sau khi lưu
 
         try {
             if (isNew) {
+                // Tạo mới
                 const newChapter = await addChapterToVolume(storyId, volumeId, { title, content, isRaw });
-                currentChapterId = newChapter.id;
-                setIsNew(false);
-                 navigate(`/admin/story/${storyId}/volume/${volumeId}/chapter/edit/${newChapter.id}`, { replace: true });
+                savedChapterId = newChapter.id;
                 setSaveSuccessMessage(`Đã thêm chương "${title}"!`);
-
-            } else if (currentChapterId) {
-                // Update chapter
-                const chapterToUpdate: Omit<Chapter, 'createdAt' | 'views' | '_id'> = { id: currentChapterId, title, content, isRaw };
+            } else if (savedChapterId) {
+                // Cập nhật
+                const chapterToUpdate: Omit<Chapter, 'createdAt' | 'views' | '_id'> = { id: savedChapterId, title, content, isRaw };
                 await updateChapterInVolume(storyId, volumeId, chapterToUpdate);
                  setSaveSuccessMessage(`Đã cập nhật chương "${title}"!`);
             } else {
                  throw new Error("Không xác định được ID chương.");
             }
 
-            if (action === 'close') {
-                setTimeout(() => navigate(`/admin/story/edit/${storyId}`), 500);
-            } else if (action === 'new') {
-                 // Refresh lại story để lấy list mới nhất
-                 const updatedStory = await getStoryById(storyId);
-                 const allChapters = updatedStory?.volumes.flatMap(v => v.chapters) || [];
-                 const lastChapter = allChapters.length > 0 ? allChapters[allChapters.length - 1] : null;
-                setTitle(lastChapter ? getNextChapterTitle(lastChapter.title) : 'Chương tiếp theo');
-                setContent('<p>Nội dung chương tiếp theo...</p>');
-                setIsRaw(true);
-                setEditorKey(Date.now());
-                setIsNew(true);
-                navigate(`/admin/story/${storyId}/volume/${volumeId}/chapter/new`, { replace: true });
-                window.scrollTo(0, 0);
-            } else if (action === 'editNext' && currentChapterId) {
-                const updatedStory = await getStoryById(storyId);
-                const allChaptersWithVolume = updatedStory?.volumes.flatMap(v => v.chapters.map(c => ({ ...c, volumeId: v.id }))) || [];
-                const currentIndex = allChaptersWithVolume.findIndex(c => c.id === currentChapterId);
-
-                 if (currentIndex !== -1 && currentIndex < allChaptersWithVolume.length - 1) {
-                    const nextChapter = allChaptersWithVolume[currentIndex + 1];
-                    navigate(`/admin/story/${storyId}/volume/${nextChapter.volumeId}/chapter/edit/${nextChapter.id}`);
-                 } else {
-                      setSaveSuccessMessage(`Đã lưu. Đây là chương cuối cùng.`);
-                 }
+            // --- XỬ LÝ ĐIỀU HƯỚNG SAU KHI LƯU ---
+            
+            if (action === 'new') {
+                // Nếu đang ở trang New rồi thì reload lại để clear form
+                if (isNew) {
+                    // Reset state bằng tay vì URL không đổi
+                    setTitle('Đang tạo tên...');
+                    setContent('');
+                    setIsRaw(true);
+                    setEditorKey(Date.now());
+                    
+                    // Gọi loadData để lấy danh sách chapter mới nhất và tính tên chương tiếp theo
+                    loadData(); 
+                    window.scrollTo(0, 0);
+                } else {
+                    // Nếu đang ở trang Edit -> Chuyển sang trang New
+                    navigate(`/admin/story/${storyId}/volume/${volumeId}/chapter/new`, { replace: true });
+                    window.scrollTo(0, 0);
+                }
             } 
+            else if (action === 'editNext') {
+                // Logic tìm chương tiếp theo
+                const updatedStory = await getStoryById(storyId);
+                // Tìm vị trí chương vừa lưu
+                const allChapters = updatedStory?.volumes.flatMap(v => v.chapters.map(c => ({...c, volId: v.id}))) || [];
+                const currentIndex = allChapters.findIndex(c => c.id === savedChapterId);
+                
+                if (currentIndex !== -1 && currentIndex < allChapters.length - 1) {
+                    const nextChap = allChapters[currentIndex + 1];
+                    navigate(`/admin/story/${storyId}/volume/${nextChap.volId}/chapter/edit/${nextChap.id}`);
+                } else {
+                     setSaveSuccessMessage(`Đã lưu. Đây là chương cuối cùng.`);
+                     // Nếu đang là New mà bấm EditNext (và không có Next), thì chuyển sang Edit chính nó
+                     if (isNew && savedChapterId) {
+                         navigate(`/admin/story/${storyId}/volume/${volumeId}/chapter/edit/${savedChapterId}`, { replace: true });
+                     }
+                }
+            } 
+            else if (action === 'close') {
+                setTimeout(() => navigate(`/admin/story/edit/${storyId}`), 500);
+            }
+            // Trường hợp mặc định (Lưu xong ở lại trang Edit nếu là Edit)
+            else if (isNew && savedChapterId) {
+                 // Nếu vừa tạo mới mà không chọn hành động gì khác, chuyển sang chế độ Edit của chương đó
+                 navigate(`/admin/story/${storyId}/volume/${volumeId}/chapter/edit/${savedChapterId}`, { replace: true });
+            }
 
         } catch (err: any) {
             setError('Lưu thất bại: ' + (err.message || 'Lỗi không xác định'));
@@ -242,24 +264,13 @@ const ChapterEditPage: React.FC = () => {
         } finally {
             setIsSaving(false);
         }
-    }, [storyId, volumeId, chapterId, title, content, isRaw, isNew, getStoryById, addChapterToVolume, updateChapterInVolume, navigate]);
+    }, [storyId, volumeId, chapterId, title, content, isRaw, isNew, getStoryById, addChapterToVolume, updateChapterInVolume, navigate, loadData]);
 
-  // --- RENDER UI (Giữ nguyên phần render như code cũ của bạn) ---
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-screen -mt-16">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
+  // --- RENDER UI ---
+  if (isLoading && !story) { // Chỉ hiện spinner khi chưa có dữ liệu story lần đầu
+    return <div className="flex justify-center items-center h-screen -mt-16"><LoadingSpinner size="lg" /></div>;
   }
 
-  // ... (Phần render JSX bên dưới giữ nguyên y hệt code cũ, không cần thay đổi gì vì logic state đã xử lý ở trên)
-  
-  // Để tiết kiệm không gian, tôi chỉ paste lại đoạn render nếu bạn cần, 
-  // nhưng cơ bản là giữ nguyên phần return (...) cũ của bạn.
-  
-  // Lưu ý: Chỉ cần copy đoạn logic loadData ở trên là quan trọng nhất.
-  
     if (error && !story) {
          return (
              <div className="max-w-xl mx-auto text-center py-16 px-6 bg-red-50 dark:bg-red-900/30 rounded-lg border border-red-200 dark:border-red-700/50">
@@ -308,14 +319,23 @@ const ChapterEditPage: React.FC = () => {
           <label htmlFor="chapter-title" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
             Tiêu đề chương *
           </label>
-          <input
-            id="chapter-title"
-            type="text"
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            placeholder="Ví dụ: Chương 1: Khởi Đầu"
-            className="w-full p-3 border rounded-lg bg-white dark:bg-slate-700/50 text-slate-900 dark:text-white border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-150 shadow-sm"
-          />
+          <div className="relative">
+             <input
+                id="chapter-title"
+                type="text"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder="Ví dụ: Chương 1: Khởi Đầu"
+                className="w-full p-3 border rounded-lg bg-white dark:bg-slate-700/50 text-slate-900 dark:text-white border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-150 shadow-sm"
+                disabled={isLoading && isNew} // Disable nhẹ khi đang load gợi ý tên
+              />
+               {isLoading && isNew && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <LoadingSpinner size="sm"/>
+                  </div>
+               )}
+          </div>
+          
         </div>
 
         {/* Đánh dấu Raw */}
@@ -418,7 +438,7 @@ const ChapterEditPage: React.FC = () => {
         </div>
       </div>
 
-    </div>
+    </div> 
   );
 };
 
