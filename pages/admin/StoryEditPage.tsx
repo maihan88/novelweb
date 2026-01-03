@@ -1,17 +1,17 @@
-// src/pages/admin/StoryEditPage.tsx//
+// src/pages/admin/StoryEditPage.tsx
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useStories } from '../../contexts/StoryContext.tsx';
-import { Story, Volume, Chapter } from '../../types.ts';
+import { useStories } from '../../contexts/StoryContext';
+import { Story, Volume, Chapter } from '../../types';
 import {
     PlusIcon, TrashIcon, PencilIcon, ArrowPathIcon,
     ArrowUpIcon, ArrowDownIcon, PhotoIcon, ArrowUturnLeftIcon,
-    ExclamationTriangleIcon, MagnifyingGlassIcon, CheckIcon // Thêm CheckIcon
+    ExclamationTriangleIcon, MagnifyingGlassIcon, CheckIcon 
 } from '@heroicons/react/24/solid';
-import { uploadImage } from '../../services/uploadService.ts';
-import LoadingSpinner from '../../components/LoadingSpinner.tsx';
-import ConfirmationModal from '../../components/ConfirmationModal.tsx'; // Import modal
+import { uploadImage } from '../../services/uploadService';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import ConfirmationModal from '../../components/ConfirmationModal'; 
 
 // Interface cho state xác nhận xóa
 interface ConfirmDeleteState {
@@ -106,16 +106,9 @@ const StoryEditPage: React.FC = () => {
         }
     }, [storyId, getStoryById, navigate]);
 
-    // --- Đồng bộ volumes từ context (khi chương/tập được cập nhật từ trang khác) ---
-    useEffect(() => {
-        if (!isNewStory && storyId) {
-            const updatedStoryFromContext = stories.find(s => s.id === storyId);
-            if (updatedStoryFromContext && JSON.stringify(updatedStoryFromContext.volumes) !== JSON.stringify(storyData.volumes)) {
-                console.log("Syncing volumes from context...");
-                setStoryData(prev => ({...prev, volumes: updatedStoryFromContext.volumes}));
-            }
-        }
-    }, [stories, storyId, isNewStory, storyData.volumes]);
+    // --- ĐÃ XÓA USE_EFFECT ĐỒNG BỘ CONTEXT GÂY LỖI ---
+    // Trước đây có 1 useEffect ở đây để sync từ context 'stories',
+    // nhưng nó gây ra lỗi ghi đè dữ liệu thiếu chapters khi reload trang.
 
     // --- Xử lý thay đổi input ---
     const handleStoryChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -212,16 +205,31 @@ const StoryEditPage: React.FC = () => {
         try {
             if (confirmDelete.itemType === 'volume') {
                 await deleteVolume(storyId, confirmDelete.itemId);
-                // alert(`Đã xóa tập "${confirmDelete.itemTitle}".`); // Thay bằng toast/notification nếu muốn
+                // Sau khi xóa thành công, cần cập nhật lại state storyData để UI phản hồi ngay
+                // Cách đơn giản nhất là gọi lại getStoryById hoặc filter tay trên state hiện tại
+                setStoryData(prev => ({
+                    ...prev,
+                    volumes: prev.volumes?.filter(v => v.id !== confirmDelete.itemId)
+                }));
             } else if (confirmDelete.itemType === 'chapter' && confirmDelete.volumeId) {
                 await deleteChapterFromVolume(storyId, confirmDelete.volumeId, confirmDelete.itemId);
-                // alert(`Đã xóa chương "${confirmDelete.itemTitle}".`);
+                // Cập nhật UI tay để không cần reload
+                 setStoryData(prev => ({
+                    ...prev,
+                    volumes: prev.volumes?.map(v => {
+                        if (v.id === confirmDelete.volumeId) {
+                            return { ...v, chapters: v.chapters.filter(c => c.id !== confirmDelete.itemId) };
+                        }
+                        return v;
+                    })
+                }));
             }
         } catch (err) {
             alert(`Xóa ${confirmDelete.itemType === 'volume' ? 'tập' : 'chương'} thất bại.`);
             console.error(err);
         }
-        // Modal tự đóng khi confirm
+        // Modal tự đóng khi confirm (do logic trong ConfirmationModal component hoặc set isOpen false ở đây nếu cần)
+        closeConfirmation();
     };
 
     // --- Các hàm xử lý Volume và Chapter ---
@@ -233,8 +241,13 @@ const StoryEditPage: React.FC = () => {
         e.preventDefault();
         if (storyId && newVolumeTitle.trim()) {
              try {
-                 await addVolume(storyId, newVolumeTitle.trim());
-                 setNewVolumeTitle(''); // Xóa input sau khi thêm thành công
+                 const newVol = await addVolume(storyId, newVolumeTitle.trim());
+                 setNewVolumeTitle(''); 
+                 // Cập nhật UI ngay lập tức
+                 setStoryData(prev => ({
+                     ...prev,
+                     volumes: [...(prev.volumes || []), { ...newVol, chapters: [] }] // API trả về volume mới chưa có chapter
+                 }));
              } catch (err) { alert('Thêm tập thất bại.'); }
         }
     }, [storyId, newVolumeTitle, addVolume]);
@@ -245,9 +258,16 @@ const StoryEditPage: React.FC = () => {
 
     const handleVolumeTitleChange = useCallback(async (volumeId: string) => {
         const currentVolume = storyData.volumes?.find(v => v.id === volumeId);
-        const newTitle = prompt("Nhập tên tập mới:", currentVolume?.title || ''); // Dùng prompt đơn giản
+        const newTitle = prompt("Nhập tên tập mới:", currentVolume?.title || ''); 
         if (storyId && newTitle !== null && newTitle.trim() !== '' && newTitle.trim() !== currentVolume?.title) {
-             try { await updateVolume(storyId, volumeId, newTitle.trim()); } catch (err) { alert('Đổi tên tập thất bại.'); }
+             try { 
+                 await updateVolume(storyId, volumeId, newTitle.trim()); 
+                 // Update UI
+                 setStoryData(prev => ({
+                    ...prev,
+                    volumes: prev.volumes?.map(v => v.id === volumeId ? { ...v, title: newTitle.trim() } : v)
+                 }));
+             } catch (err) { alert('Đổi tên tập thất bại.'); }
         }
     }, [storyId, storyData.volumes, updateVolume]);
 
@@ -261,24 +281,38 @@ const StoryEditPage: React.FC = () => {
                     const newIndex = direction === 'up' ? index - 1 : index + 1;
                     const newVolumes = [...storyData.volumes];
                     [newVolumes[index], newVolumes[newIndex]] = [newVolumes[newIndex], newVolumes[index]]; // Hoán đổi vị trí
+                    
+                    // Optimistic update (Cập nhật UI trước)
+                    setStoryData(prev => ({ ...prev, volumes: newVolumes }));
+                    
                     await reorderVolumesInStory(storyId, newVolumes.map(v => v.id)); // Gọi API
                 }
             } else if (type === 'chapter' && ids.volumeId && ids.chapterId) { // Di chuyển Chapter
-                const volume = storyData.volumes.find(v => v.id === ids.volumeId);
+                const volumeIndex = storyData.volumes.findIndex(v => v.id === ids.volumeId);
+                const volume = storyData.volumes[volumeIndex];
                 if (!volume) return;
+                
                 const index = volume.chapters.findIndex(c => c.id === ids.chapterId);
                 if ((direction === 'up' && index > 0) || (direction === 'down' && index < volume.chapters.length - 1)) {
                     const newIndex = direction === 'up' ? index - 1 : index + 1;
                     const newChapters = [...volume.chapters];
                     [newChapters[index], newChapters[newIndex]] = [newChapters[newIndex], newChapters[index]];
+                    
+                    // Optimistic update
+                    const newVolumes = [...storyData.volumes];
+                    newVolumes[volumeIndex] = { ...volume, chapters: newChapters };
+                    setStoryData(prev => ({ ...prev, volumes: newVolumes }));
+
                     await reorderChaptersInVolume(storyId, ids.volumeId, newChapters.map(c => c.id)); // Gọi API
                 }
             }
         } catch (err) {
             alert('Thay đổi thứ tự thất bại.');
-            // Cân nhắc fetch lại data để đồng bộ nếu lỗi
+            // Revert lại state nếu cần thiết (ở đây làm đơn giản thì reload lại page hoặc fetch lại data)
+            const freshData = await getStoryById(storyId);
+            if(freshData) setStoryData(freshData);
         }
-    }, [storyId, storyData.volumes, reorderVolumesInStory, reorderChaptersInVolume]);
+    }, [storyId, storyData.volumes, reorderVolumesInStory, reorderChaptersInVolume, getStoryById]);
 
     // --- Lọc danh sách chương/tập theo từ khóa tìm kiếm ---
     const filteredVolumes = useMemo(() => {
