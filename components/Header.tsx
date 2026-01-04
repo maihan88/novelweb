@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import ThemeToggle from './ThemeToggle';
 import { useAuth } from '../contexts/AuthContext';
@@ -18,34 +18,10 @@ const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [localSearch, setLocalSearch] = useState('');
 
+  // Đóng menu mobile khi chuyển trang
   useEffect(() => {
     setIsMenuOpen(false);
   }, [location.pathname]);
-
-  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
-  const [isScrolled, setIsScrolled] = useState(false);
-  const lastScrollY = useRef(0);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      if (currentScrollY <= 50) {
-          setIsHeaderVisible(true);
-          setIsScrolled(false);
-      } else {
-          setIsScrolled(true);
-          if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
-            setIsHeaderVisible(false);
-          } else if (currentScrollY < lastScrollY.current) {
-            setIsHeaderVisible(true);
-          }
-      }
-      lastScrollY.current = currentScrollY;
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,7 +32,6 @@ const Header: React.FC = () => {
 
   const getDesktopLinkClass = (path: string) => {
     const isActive = location.pathname === path || (path === '/admin' && location.pathname.startsWith('/admin'));
-    // Tăng px-4 để các link cách xa nhau hơn
     return `relative px-4 py-2 text-sm font-medium transition-colors duration-200 group
       ${isActive ? 'text-orange-600 dark:text-orange-400' : 'text-slate-700 dark:text-slate-200 hover:text-orange-600 dark:hover:text-orange-400'}`;
   };
@@ -93,18 +68,12 @@ const Header: React.FC = () => {
   );
 
   return (
-    <header 
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ease-in-out border-b
-        ${isHeaderVisible ? 'translate-y-0' : '-translate-y-full'}
-        ${isScrolled 
-          ? 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-md shadow-lg border-slate-200/50 dark:border-slate-700/50' 
-          : 'bg-transparent border-transparent'}
-      `}
-    >
+    // THAY ĐỔI Ở ĐÂY: Dùng relative thay vì fixed, bỏ logic ẩn hiện, set background cứng
+    <header className="relative w-full z-40 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm">
       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-400 via-rose-500 to-amber-500"></div>
 
       <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-20"> {/* Cố định chiều cao h-20 */}
+        <div className="flex justify-between items-center h-20">
           
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3 group relative z-10">
@@ -119,18 +88,16 @@ const Header: React.FC = () => {
             </span>
           </Link>
 
-          {/* Desktop Navigation Section - Tăng khoảng cách gap-8 */}
+          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
-            
             <form onSubmit={handleSearch} className="relative group">
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-300 to-amber-300 rounded-full blur opacity-0 group-hover:opacity-30 transition duration-500"></div>
                 <div className="relative flex items-center">
                     <input
                         type="text"
                         placeholder="Tìm truyện..."
                         value={localSearch}
                         onChange={e => setLocalSearch(e.target.value)}
-                        className="w-56 lg:w-72 py-2 pl-10 pr-4 text-sm border border-slate-200 dark:border-slate-700 rounded-full bg-white/50 dark:bg-slate-800/50 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all shadow-sm"
+                        className="w-56 lg:w-72 py-2 pl-10 pr-4 text-sm border border-slate-200 dark:border-slate-700 rounded-full bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-orange-400 focus:border-transparent transition-all shadow-sm"
                     />
                     <MagnifyingGlassIcon className="absolute left-3.5 h-4 w-4 text-slate-400"/>
                 </div>
@@ -167,6 +134,7 @@ const Header: React.FC = () => {
             </div>
           </div>
 
+          {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center gap-3">
              <ThemeToggle />
              <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
@@ -176,7 +144,8 @@ const Header: React.FC = () => {
         </div>
       </div>
 
-      <div className={`md:hidden absolute top-full left-0 w-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200 dark:border-slate-700 shadow-xl transition-all duration-300 ease-in-out overflow-hidden ${isMenuOpen ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0'}`}>
+      {/* Mobile Menu Dropdown */}
+      <div className={`md:hidden absolute top-full left-0 w-full bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-xl transition-all duration-300 ease-in-out overflow-hidden ${isMenuOpen ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0'}`}>
          <div className="p-4 space-y-4">
             <form onSubmit={handleSearch} className="relative">
                 <input
