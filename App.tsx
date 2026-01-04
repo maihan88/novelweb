@@ -24,10 +24,10 @@ import SearchPage from './pages/SearchPage';
 
 const BackgroundDecoration = React.memo(() => (
   <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none select-none">
-    {/* Họa tiết nhiễu hạt (Noise): Giảm opacity để nhẹ mắt hơn */}
+    {/* Họa tiết nhiễu hạt (Noise) */}
     <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 mix-blend-overlay"></div>
     
-    {/* Đốm sáng: Thêm 'will-change-transform' và 'transform-gpu' để chạy mượt trên Mobile */}
+    {/* Đốm sáng */}
     <div className="absolute top-[-10%] left-[-10%] w-[20rem] sm:w-[40rem] h-[20rem] sm:h-[40rem] bg-orange-400/20 dark:bg-orange-600/10 rounded-full blur-[60px] sm:blur-[100px] mix-blend-multiply dark:mix-blend-screen animate-blob will-change-transform transform-gpu"></div>
     <div className="absolute top-[20%] right-[-10%] w-[18rem] sm:w-[35rem] h-[18rem] sm:h-[35rem] bg-amber-300/20 dark:bg-indigo-600/10 rounded-full blur-[60px] sm:blur-[100px] mix-blend-multiply dark:mix-blend-screen animate-blob animation-delay-2000 will-change-transform transform-gpu"></div>
     <div className="absolute bottom-[-10%] left-[20%] w-[22rem] sm:w-[45rem] h-[22rem] sm:h-[45rem] bg-rose-300/20 dark:bg-rose-600/10 rounded-full blur-[60px] sm:blur-[100px] mix-blend-multiply dark:mix-blend-screen animate-blob animation-delay-4000 will-change-transform transform-gpu"></div>
@@ -40,25 +40,23 @@ const AppContent: React.FC = () => {
 
   // Tính toán class cho Main Content
   const mainClasses = useMemo(() => {
-    const baseClasses = 'flex-grow w-full relative z-10'; // relative & z-10 để nổi lên trên nền
+    // Base classes
+    const baseClasses = 'flex-grow w-full relative z-10'; 
     
     if (isReaderPage) {
-      // Trang đọc truyện: Cần padding-top để tránh Header (h-20 ~ 80px)
-      return `${baseClasses} pt-20`; 
+      return `${baseClasses}`; 
     }
-    
-    // Các trang khác: Container giới hạn chiều rộng + Padding top lớn hơn để thoáng
-    // pt-24 (96px) cho mobile, pt-28 (112px) cho desktop -> Đảm bảo không dính Header
-    return `${baseClasses} container mx-auto max-w-7xl px-4 sm:px-6 md:px-6 pt-24 sm:pt-28 pb-12`;
+
+    return `${baseClasses} container mx-auto max-w-7xl px-4 sm:px-6 md:px-6 py-8`;
   }, [isReaderPage]);
   
   return (
     <div className="min-h-screen flex flex-col font-sans text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-900 transition-colors duration-300 relative selection:bg-orange-500/30">
       
-      {/* Nền trang trí đã tối ưu */}
       <BackgroundDecoration />
 
-      <Header />
+      {/* CHỈ HIỆN HEADER KHI KHÔNG PHẢI TRANG ĐỌC */}
+      {!isReaderPage && <Header />}
       
       <main className={mainClasses}>
         <Routes>
@@ -66,7 +64,10 @@ const AppContent: React.FC = () => {
           <Route path="/" element={<HomePage />} />
           <Route path="/search" element={<SearchPage />}/>
           <Route path="/story/:storyId" element={<StoryDetailPage />} />
+          
+          {/* Reader Page Route */}
           <Route path="/story/:storyId/chapter/:chapterId" element={<ReaderPage />} />
+          
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/donate" element={<DonatePage />} />
@@ -102,7 +103,7 @@ const AppContent: React.FC = () => {
         </Routes>
       </main>
       
-      {/* Chỉ hiện Footer ở trang thường, trang đọc truyện có thể ẩn nếu muốn tập trung */}
+      {/* Ẩn Footer ở trang đọc để tập trung tối đa */}
       {!isReaderPage && <Footer />}
     </div>
   );
