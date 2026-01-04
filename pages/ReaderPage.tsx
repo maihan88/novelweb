@@ -5,13 +5,17 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Story, Chapter, ReaderPreferences, ReaderTheme } from '../types';
 import { useStories } from '../contexts/StoryContext';
 import { useUserPreferences } from '../contexts/UserPreferencesContext';
-import * as storyService from '../services/storyService'; // Import Service trực tiếp
+import * as storyService from '../services/storyService';
 import ReaderControls from '../components/ReaderControls';
 import CommentSection from '../components/CommentSection';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { useTheme } from '../contexts/ThemeContext';
 import {
     ArrowLeftIcon, ArrowRightIcon,
-    HomeIcon
+    HomeIcon,
+    SunIcon,
+    MoonIcon,
+    ListBulletIcon
 } from '@heroicons/react/24/solid';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocalStorage } from '../hooks/useLocalStorage';
@@ -19,12 +23,12 @@ import { useLocalStorage } from '../hooks/useLocalStorage';
 // --- ReadingProgressBar ---
 const ReadingProgressBar: React.FC<{ progress: number }> = React.memo(({ progress }) => {
     return (
-        <div className="fixed top-0 left-0 w-full h-1 bg-slate-200 dark:bg-slate-700 z-[60]">
+        <div className="fixed top-0 left-0 w-full h-1 bg-transparent z-[60] pointer-events-none">
             <div
-                className="h-1 bg-orange-600 dark:bg-amber-400 origin-left"
+                className="h-1 bg-orange-600 dark:bg-amber-500 origin-left shadow-[0_0_10px_rgba(234,88,12,0.5)]"
                 style={{
                     transform: `scaleX(${progress / 100})`,
-                    transition: 'transform 200ms ease-out',
+                    transition: 'transform 150ms ease-out',
                     willChange: 'transform'
                 }}
             />
@@ -42,81 +46,160 @@ const FloatingNavBar: React.FC<{
     isVisible: boolean;
 }> = ({ story, currentChapterId, prevChapter, nextChapter, isVisible }) => {
     const navigate = useNavigate();
+    const { theme, toggleTheme } = useTheme();
 
     const handleChapterSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newChapterId = e.target.value;
         if (newChapterId) navigate(`/story/${story.id}/chapter/${newChapterId}`);
     };
 
-    const handleNavigation = (e: React.MouseEvent<HTMLAnchorElement>) => {
-        // e.preventDefault(); // Để Link tự xử lý navigate
-    };
-
-    const navButtonClasses = `p-2.5 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-opacity-50`;
-    const disabledClasses = "opacity-40 cursor-not-allowed pointer-events-none";
+    const btnBaseClass = "p-2 rounded-full transition-all duration-200 flex items-center justify-center";
+    const btnActive = "hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 active:scale-95";
+    const btnDisabled = "opacity-30 cursor-not-allowed text-slate-400 dark:text-slate-600";
 
     return (
-        <div className={`fixed top-0 left-0 w-full p-2 z-50 transition-transform duration-300 ease-in-out ${isVisible ? 'translate-y-0' : '-translate-y-full'}`}>
-            <div className="container mx-auto max-w-3xl flex items-center gap-2 text-white bg-black/60 backdrop-blur-md p-2 rounded-xl shadow-lg border border-white/10">
-                <Link
-                    to={`/story/${story.id}`}
-                    className={navButtonClasses}
-                    aria-label="Về trang truyện"
-                    onClick={handleNavigation}
-                >
+        <div 
+            className={`fixed top-6 left-0 right-0 z-50 flex justify-center pointer-events-none transition-all duration-500 ease-spring ${
+                isVisible ? 'translate-y-0 opacity-100' : '-translate-y-16 opacity-0'
+            }`}
+        >
+            <div className="pointer-events-auto flex items-center gap-1 sm:gap-3 px-3 py-2 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 shadow-2xl rounded-full max-w-[95vw] sm:max-w-3xl transform transition-all">
+                <Link to={`/story/${story.id}`} className={`${btnBaseClass} ${btnActive}`} title="Về trang truyện">
                     <HomeIcon className="h-5 w-5" />
                 </Link>
-                <Link
-                    to={prevChapter ? `/story/${story.id}/chapter/${prevChapter.id}` : '#'}
-                    className={`${navButtonClasses} ${!prevChapter ? disabledClasses : ''}`}
-                    aria-disabled={!prevChapter}
-                    aria-label="Chương trước"
-                    onClick={handleNavigation}
-                >
+                <div className="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-1"></div>
+                <Link to={prevChapter ? `/story/${story.id}/chapter/${prevChapter.id}` : '#'} className={`${btnBaseClass} ${prevChapter ? btnActive : btnDisabled}`} aria-disabled={!prevChapter}>
                     <ArrowLeftIcon className="h-5 w-5" />
                 </Link>
-                <select
-                    value={currentChapterId}
-                    onChange={handleChapterSelect}
-                    className="w-full flex-grow px-3 py-2 border-0 rounded-lg bg-white/10 text-white focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-opacity-50 transition appearance-none text-center text-sm cursor-pointer hover:bg-white/20"
-                    aria-label="Chọn chương"
-                >
-                    {story.volumes.map(volume => (
-                        <optgroup label={volume.title} key={volume.id} className="bg-stone-800 text-stone-200 font-semibold">
-                            {volume.chapters.map(chap => (
-                                <option key={chap.id} value={chap.id} className="font-normal">{chap.title}</option>
-                            ))}
-                        </optgroup>
-                    ))}
-                </select>
-                <Link
-                    to={nextChapter ? `/story/${story.id}/chapter/${nextChapter.id}` : '#'}
-                    className={`${navButtonClasses} ${!nextChapter ? disabledClasses : ''}`}
-                    aria-disabled={!nextChapter}
-                    aria-label="Chương sau"
-                    onClick={handleNavigation}
-                >
+                <div className="relative group max-w-[140px] sm:max-w-[200px]">
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-2 pointer-events-none">
+                        <ListBulletIcon className="h-4 w-4 text-slate-500" />
+                    </div>
+                    <select
+                        value={currentChapterId}
+                        onChange={handleChapterSelect}
+                        className="w-full pl-8 pr-4 py-1.5 bg-transparent text-sm font-medium text-slate-800 dark:text-slate-200 border-none focus:ring-0 cursor-pointer appearance-none truncate text-center hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
+                    >
+                        {story.volumes.map(volume => (
+                            <optgroup label={volume.title} key={volume.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold">
+                                {volume.chapters.map(chap => (
+                                    <option key={chap.id} value={chap.id} className="font-normal">{chap.title}</option>
+                                ))}
+                            </optgroup>
+                        ))}
+                    </select>
+                </div>
+                <Link to={nextChapter ? `/story/${story.id}/chapter/${nextChapter.id}` : '#'} className={`${btnBaseClass} ${nextChapter ? btnActive : btnDisabled}`} aria-disabled={!nextChapter}>
                     <ArrowRightIcon className="h-5 w-5" />
                 </Link>
+                <div className="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-1"></div>
+                <button onClick={toggleTheme} className={`${btnBaseClass} ${theme === 'dark' ? 'text-amber-400 hover:bg-slate-700' : 'text-orange-500 hover:bg-orange-50'}`} title={theme === 'dark' ? "Chuyển sáng" : "Chuyển tối"}>
+                    {theme === 'dark' ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
+                </button>
             </div>
         </div>
     );
 };
 
-// --- Mapping theme sang class Tailwind ---
-const themeClasses: Record<ReaderTheme, string> = {
-    light: 'bg-white text-slate-800',
-    sepia: 'bg-[#fbf0d9] text-[#5f4b32]',
-    dark: 'bg-stone-900 text-stone-200'
+// --- CẤU HÌNH THEME (MỚI) ---
+const themeSpecificStyles: Record<ReaderTheme, { 
+    container: string; 
+    title: string; 
+    breadcrumb: string;
+    breadcrumbActive: string;
+    content: string;
+    border: string;
+    button: string;
+    buttonHover: string;
+    selectBg: string;
+    selectBorder: string;
+}> = {
+    // 1. Light (Cơ bản)
+    light: {
+        container: 'bg-white',
+        title: 'text-slate-900',
+        breadcrumb: 'text-slate-500 hover:text-orange-600',
+        breadcrumbActive: 'text-orange-600',
+        content: 'text-slate-800',
+        border: 'border-slate-200',
+        button: 'border-slate-300 text-slate-700 bg-white',
+        buttonHover: 'hover:bg-orange-50 hover:border-orange-300 hover:text-orange-700',
+        selectBg: 'bg-white',
+        selectBorder: 'border-slate-300'
+    },
+    // 2. Sepia (Vàng nâu - Cổ điển)
+    sepia: {
+        container: 'bg-[#fbf0d9]',
+        title: 'text-[#433422]',
+        breadcrumb: 'text-[#8c6d46] hover:text-[#5f4b32]',
+        breadcrumbActive: 'text-[#5f4b32]',
+        content: 'text-[#5f4b32]',
+        border: 'border-[#dcd3c1]',
+        button: 'border-[#c8b79a] text-[#5f4b32] bg-[#fbf0d9]',
+        buttonHover: 'hover:bg-[#f5e9d3] hover:border-[#a08d70]',
+        selectBg: 'bg-[#fbf0d9]',
+        selectBorder: 'border-[#dcd3c1]'
+    },
+    // 3. Dark (Đen xám - Tiêu chuẩn)
+    dark: {
+        container: 'bg-[#1c1917]', // Stone-900
+        title: 'text-[#e7e5e4]',
+        breadcrumb: 'text-[#a8a29e] hover:text-[#fbbf24]',
+        breadcrumbActive: 'text-[#fbbf24]',
+        content: 'text-[#d6d3d1]',
+        border: 'border-[#44403c]',
+        button: 'border-[#57534e] text-[#d6d3d1] bg-[#292524]',
+        buttonHover: 'hover:bg-[#44403c] hover:border-[#78716c] hover:text-white',
+        selectBg: 'bg-[#292524]',
+        selectBorder: 'border-[#57534e]'
+    },
+    // 4. Paper (Giấy in - Trắng đục)
+    paper: {
+        container: 'bg-[#f5f5f4]', // Stone-100
+        title: 'text-[#292524]', // Stone-800
+        breadcrumb: 'text-[#78716c] hover:text-[#292524]',
+        breadcrumbActive: 'text-[#292524]',
+        content: 'text-[#44403c]', // Stone-700
+        border: 'border-[#d6d3d1]',
+        button: 'border-[#d6d3d1] text-[#44403c] bg-[#f5f5f4]',
+        buttonHover: 'hover:bg-[#e7e5e4] hover:border-[#a8a29e]',
+        selectBg: 'bg-[#f5f5f4]',
+        selectBorder: 'border-[#d6d3d1]'
+    },
+    // 5. Midnight (Đêm xanh - Dịu mắt)
+    midnight: {
+        container: 'bg-[#0f172a]', // Slate-900
+        title: 'text-[#e2e8f0]', // Slate-200
+        breadcrumb: 'text-[#64748b] hover:text-[#94a3b8]',
+        breadcrumbActive: 'text-[#94a3b8]',
+        content: 'text-[#cbd5e1]', // Slate-300
+        border: 'border-[#1e293b]',
+        button: 'border-[#334155] text-[#cbd5e1] bg-[#1e293b]',
+        buttonHover: 'hover:bg-[#334155] hover:text-white hover:border-[#475569]',
+        selectBg: 'bg-[#1e293b]',
+        selectBorder: 'border-[#334155]'
+    },
+    // 6. Matrix (Hacker - Terminal)
+    matrix: {
+        container: 'bg-black',
+        title: 'text-[#22c55e]', // Green-500
+        breadcrumb: 'text-[#15803d] hover:text-[#4ade80]',
+        breadcrumbActive: 'text-[#4ade80]',
+        content: 'text-[#4ade80]', // Green-400
+        border: 'border-[#14532d]',
+        button: 'border-[#14532d] text-[#22c55e] bg-black',
+        buttonHover: 'hover:bg-[#052e16] hover:border-[#22c55e] hover:text-[#4ade80]',
+        selectBg: 'bg-black',
+        selectBorder: 'border-[#14532d]'
+    }
 };
 
-// --- Mapping margin sang class PADDING và MAX-WIDTH ---
 const marginSettings: Record<number, { padding: string; maxWidth: string }> = {
-    0:  { padding: 'px-1 sm:px-2',   maxWidth: 'max-w-none' },    
-    5:  { padding: 'px-3 sm:px-4',   maxWidth: 'max-w-4xl' },    
-    10: { padding: 'px-4 sm:px-6',   maxWidth: 'max-w-3xl' },    
-    15: { padding: 'px-6 sm:px-10',  maxWidth: 'max-w-2xl' },    
-    20: { padding: 'px-8 sm:px-14',  maxWidth: 'max-w-xl' }     
+    0:  { padding: 'px-2 sm:px-4',   maxWidth: 'max-w-none' },    
+    5:  { padding: 'px-4 sm:px-6',   maxWidth: 'max-w-5xl' },    
+    10: { padding: 'px-5 sm:px-8',   maxWidth: 'max-w-4xl' },    
+    15: { padding: 'px-6 sm:px-12',  maxWidth: 'max-w-3xl' },    
+    20: { padding: 'px-8 sm:px-16',  maxWidth: 'max-w-2xl' }    
 };
 
 const ReaderPage: React.FC = () => {
@@ -126,11 +209,8 @@ const ReaderPage: React.FC = () => {
     const { bookmarks, updateBookmark } = useUserPreferences();
     const { currentUser } = useAuth();
 
-    // State lưu Metadata truyện
     const [story, setStory] = useState<Story | null>(null);
-    // State lưu Nội dung chương (Fetch riêng từ API mới)
     const [currentChapterWithContent, setCurrentChapterWithContent] = useState<Chapter | null>(null);
-    
     const [loadingStory, setLoadingStory] = useState(true);
     const [loadingChapter, setLoadingChapter] = useState(false);
 
@@ -150,13 +230,10 @@ const ReaderPage: React.FC = () => {
     const lastTap = useRef(0);
 
     const updateBookmarkRef = useRef(updateBookmark);
-    useEffect(() => {
-        updateBookmarkRef.current = updateBookmark;
-    });
+    useEffect(() => { updateBookmarkRef.current = updateBookmark; });
 
     const isAdmin = useMemo(() => currentUser?.role === 'admin', [currentUser]);
 
-    // 1. Fetch Story Metadata (Nếu chưa có)
     useEffect(() => {
         if (!storyId) return;
         if (!story || story.id !== storyId) {
@@ -168,16 +245,12 @@ const ReaderPage: React.FC = () => {
         }
     }, [storyId, story, getStoryById]);
 
-    // 2. Fetch Chapter Content (GỌI API RIÊNG)
     useEffect(() => {
         const loadContent = async () => {
             if (!storyId || !chapterId) return;
-            
             setLoadingChapter(true);
-            setCurrentChapterWithContent(null); // Reset content cũ để tránh hiện nhầm
-            
+            setCurrentChapterWithContent(null);
             try {
-                // Sử dụng service trực tiếp để gọi API
                 const fullChapter = await storyService.getChapterContent(storyId, chapterId);
                 setCurrentChapterWithContent(fullChapter);
             } catch (error) {
@@ -186,20 +259,15 @@ const ReaderPage: React.FC = () => {
                 setLoadingChapter(false);
             }
         };
-
         loadContent();
     }, [storyId, chapterId]);
 
-    // 3. Logic Scroll và Bookmark
     useEffect(() => {
-        // Chỉ chạy khi đã có content
         if (!currentChapterWithContent) return;
-
         viewIncrementedRef.current = false;
         window.scrollTo(0, 0);
 
         const savedBookmark = storyId ? bookmarks[storyId] : null;
-        
         if (savedBookmark && savedBookmark.chapterId === chapterId) {
              requestAnimationFrame(() => {
                  setTimeout(() => {
@@ -212,7 +280,6 @@ const ReaderPage: React.FC = () => {
                             const maxScrollInContent = contentHeight - viewportHeight;
                             const targetScrollInContent = (maxScrollInContent * savedBookmark.progress) / 100;
                             const targetScrollPosition = contentTop + targetScrollInContent;
-                            
                             window.scrollTo({ top: targetScrollPosition, behavior: 'auto' });
                              progressRef.current = savedBookmark.progress;
                              setScrollPercent(savedBookmark.progress);
@@ -221,18 +288,16 @@ const ReaderPage: React.FC = () => {
                             setScrollPercent(100);
                         }
                     }
-                 }, 100); // Tăng timeout lên chút để đảm bảo DOM render xong
+                 }, 150);
             });
         } else {
              progressRef.current = 0;
              setScrollPercent(0);
         }
-    }, [storyId, chapterId, bookmarks, currentChapterWithContent]); // Thêm dependency currentChapterWithContent
+    }, [storyId, chapterId, bookmarks, currentChapterWithContent]);
 
-    // 4. Logic tăng view
     useEffect(() => {
         if (!story || !storyId || !chapterId) return;
-        // Chỉ tăng view khi đã load xong content
         if (!viewIncrementedRef.current && !isAdmin && currentChapterWithContent) {
             incrementChapterView(storyId, chapterId);
             viewIncrementedRef.current = true;
@@ -262,7 +327,6 @@ const ReaderPage: React.FC = () => {
                  const maxScrollInContent = contentHeight - viewportHeight;
                  percentage = maxScrollInContent > 0 ? Math.min(100, (scrollStartInContent / maxScrollInContent) * 100) : 100;
             }
-            
             progressRef.current = percentage;
             setScrollPercent(percentage);
         };
@@ -283,19 +347,17 @@ const ReaderPage: React.FC = () => {
         };
     }, [story, storyId, chapterId, isAdmin, incrementChapterView, currentChapterWithContent]);
 
-
     const handleTapZoneClick = (event: React.MouseEvent<HTMLDivElement>) => {
         if (window.getSelection()?.toString() || (event.target as HTMLElement).closest('a, button, select, [data-control-button]')) {
             return;
         }
         const now = Date.now();
-        if (now - lastTap.current < 350) {
+        if (now - lastTap.current < 400) {
             setIsFloatingNavVisible(p => !p);
         }
         lastTap.current = now;
     };
 
-    // Tìm prev/next chapter từ metadata story.volumes
     const { prevChapter, nextChapter } = useMemo(() => {
         if (!story || !chapterId) return { prevChapter: null, nextChapter: null };
         const allChapters = story.volumes.flatMap(v => v.chapters);
@@ -308,7 +370,6 @@ const ReaderPage: React.FC = () => {
     }, [story, chapterId]);
 
     const cleanedContent = useMemo(() => {
-        // Lấy content từ state mới
         if (!currentChapterWithContent?.content) return '';
         return currentChapterWithContent.content.replace(/line-height:[^;"]*;/g, '');
     }, [currentChapterWithContent?.content]);
@@ -323,9 +384,6 @@ const ReaderPage: React.FC = () => {
         if (newChapterId) navigate(`/story/${storyId}/chapter/${newChapterId}`);
     };
 
-    const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>) => {};
-
-    // --- Loading States ---
     if (loadingStory || (loadingChapter && !currentChapterWithContent)) {
         return <div className="flex justify-center items-center h-screen bg-white dark:bg-stone-950"><LoadingSpinner /></div>;
     }
@@ -334,128 +392,63 @@ const ReaderPage: React.FC = () => {
         return <div className="flex justify-center items-center h-screen bg-white dark:bg-stone-950 text-red-500">Không tìm thấy truyện hoặc chương.</div>;
     }
 
-    const currentThemeClass = themeClasses[preferences.theme] || themeClasses.light;
+    const themeStyle = themeSpecificStyles[preferences.theme] || themeSpecificStyles.light;
     const currentMarginSetting = marginSettings[preferences.margin] || marginSettings[10];
-    const contentContainerClasses = `mx-auto animate-fade-in py-16 sm:py-20 min-h-screen ${currentMarginSetting.padding} ${currentMarginSetting.maxWidth}`;
+    const pageClasses = `min-h-full transition-colors duration-300 ${themeStyle.container}`;
+    const contentContainerClasses = `mx-auto animate-fade-in py-20 min-h-screen ${currentMarginSetting.padding} ${currentMarginSetting.maxWidth}`;
 
     return (
-        <div className={`min-h-full transition-colors duration-300 ${currentThemeClass}`}>
+        <div className={pageClasses}>
             <ReadingProgressBar progress={scrollPercent} />
-            <FloatingNavBar
-                story={story}
-                currentChapterId={chapterId!}
-                prevChapter={prevChapter}
-                nextChapter={nextChapter}
-                isVisible={isFloatingNavVisible}
-            />
+            <FloatingNavBar story={story} currentChapterId={chapterId!} prevChapter={prevChapter} nextChapter={nextChapter} isVisible={isFloatingNavVisible} />
             
             <div onClick={handleTapZoneClick} className={contentContainerClasses}>
-                {/* Header chương */}
-                <div className={`text-center mb-10 ${preferences.theme === 'sepia' ? 'text-[#5f4b32]' : 'text-slate-900 dark:text-white'}`}>
-                    <Link
-                        to={`/story/${story.id}`}
-                        className={`${preferences.theme === 'sepia' ? 'text-[#8c6d46]' : 'text-orange-600 dark:text-amber-400'} hover:underline text-sm sm:text-base`}
-                    >
-                         {story.title}
-                     </Link>
-                    <h1 className={`text-3xl sm:text-4xl font-bold font-serif mt-2 leading-tight`}>
+                <div className="text-center mb-12">
+                    <nav className="flex justify-center items-center gap-2 text-sm sm:text-base font-medium mb-3">
+                        <Link to={`/story/${story.id}`} className={`transition-colors ${themeStyle.breadcrumb}`}>{story.title}</Link>
+                    </nav>
+                    <h1 className={`text-3xl sm:text-4xl md:text-5xl font-bold font-serif leading-tight px-2 ${themeStyle.title}`}>
                         {currentChapterWithContent.title}
                     </h1>
                 </div>
 
-                {/* Nội dung truyện */}
                 <div
                     ref={readerContentRef}
-                    className={`max-w-none transition-all duration-300 ${preferences.fontFamily} chapter-content prevent-copy ${
-                        preferences.theme === 'light' ? 'text-slate-800' :
-                        preferences.theme === 'sepia' ? 'text-[#5f4b32]' :
-                        'text-stone-200'
-                    }`}
+                    className={`max-w-none transition-all duration-300 ${preferences.fontFamily} chapter-content prevent-copy ${themeStyle.content}`}
                     style={contentStyle}
                     dangerouslySetInnerHTML={{ __html: cleanedContent }}
                 />
 
-                {/* Navigation cuối chương */}
-                <div className={`mt-12 pt-8 border-t ${preferences.theme === 'sepia' ? 'border-[#dcd3c1]' : 'border-slate-200 dark:border-stone-700'}`}>
-                    <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
-                        {/* Prev Button */}
+                <div className={`mt-16 pt-10 border-t ${themeStyle.border}`}>
+                    <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
                         {prevChapter ? (
-                             <Link
-                                to={`/story/${story.id}/chapter/${prevChapter.id}`}
-                                className={`flex items-center justify-center gap-2 px-4 py-2 border rounded-md transition-colors duration-200 text-sm font-medium ${
-                                    preferences.theme === 'light' ? 'border-orange-300 text-slate-700 hover:bg-orange-50' :
-                                    preferences.theme === 'sepia' ? 'border-[#c8b79a] text-[#5f4b32] hover:bg-[#f5e9d3]' :
-                                    'border-stone-600 text-stone-300 hover:bg-stone-700'
-                                }`}
-                                onClick={handleNavClick}
-                            >
-                                <ArrowLeftIcon className="h-4 w-4" />
-                                <span>Chương trước</span>
+                             <Link to={`/story/${story.id}/chapter/${prevChapter.id}`} className={`flex items-center justify-center gap-2 px-6 py-3 border rounded-lg transition-all duration-200 font-medium shadow-sm hover:shadow active:scale-95 ${themeStyle.button} ${themeStyle.buttonHover}`}>
+                                <ArrowLeftIcon className="h-5 w-5" /> <span>Chương trước</span>
                             </Link>
                         ) : (
-                             <div className={`flex items-center justify-center gap-2 px-4 py-2 border rounded-md text-sm font-medium cursor-not-allowed ${
-                                 preferences.theme === 'light' ? 'border-slate-200 bg-slate-50 text-slate-400' :
-                                 preferences.theme === 'sepia' ? 'border-[#dcd3c1] bg-[#f5e9d3]/50 text-[#a0927c]' :
-                                 'border-stone-700 bg-stone-800 text-stone-500'
-                             }`}>
-                                <ArrowLeftIcon className="h-4 w-4" />
-                                <span>Chương trước</span>
-                            </div>
+                             <div className={`flex items-center justify-center gap-2 px-6 py-3 border rounded-lg font-medium opacity-50 cursor-not-allowed ${themeStyle.button}`}><ArrowLeftIcon className="h-5 w-5" /> <span>Chương trước</span></div>
                         )}
-                        
-                        {/* Chapter Select */}
-                        <select
-                            value={chapterId}
-                            onChange={handleChapterSelect}
-                            className={`w-full sm:w-auto flex-grow px-3 py-2 border rounded-md transition appearance-none text-sm text-center cursor-pointer ${
-                                preferences.theme === 'light' ? 'bg-white border-slate-300 text-slate-700 hover:border-slate-400 focus:ring-orange-500' :
-                                preferences.theme === 'sepia' ? 'bg-[#fbf0d9] border-[#dcd3c1] text-[#5f4b32] hover:border-[#c8b79a] focus:ring-[#c8a063]' :
-                                'bg-stone-800 border-stone-600 text-stone-300 hover:border-stone-500 focus:ring-amber-500'
-                            }`}
-                            aria-label="Chọn chương"
-                        >
-                            {story.volumes.map(volume => (
-                                <optgroup label={volume.title} key={volume.id} className={`${preferences.theme === 'dark' ? 'bg-stone-900' : preferences.theme === 'sepia' ? 'bg-[#fbf0d9]' : 'bg-white'} font-semibold`}>
-                                    {volume.chapters.map(chap => (
-                                        <option key={chap.id} value={chap.id} className="font-normal">{chap.title}</option>
-                                    ))}
-                                </optgroup>
-                            ))}
-                        </select>
-
-                        {/* Next Button */}
+                        <div className="flex-grow sm:flex-grow-0 sm:min-w-[250px]">
+                            <select value={chapterId} onChange={handleChapterSelect} className={`w-full px-4 py-3 border rounded-lg transition appearance-none text-center cursor-pointer font-medium focus:ring-2 focus:ring-opacity-50 focus:ring-orange-400 focus:outline-none ${themeStyle.selectBg} ${themeStyle.selectBorder} ${themeStyle.content}`}>
+                                {story.volumes.map(volume => (
+                                    <optgroup label={volume.title} key={volume.id} className={themeStyle.selectBg}>
+                                        {volume.chapters.map(chap => (<option key={chap.id} value={chap.id} className="font-normal py-1">{chap.title}</option>))}
+                                    </optgroup>
+                                ))}
+                            </select>
+                        </div>
                         {nextChapter ? (
-                             <Link
-                                to={`/story/${story.id}/chapter/${nextChapter.id}`}
-                                className={`flex items-center justify-center gap-2 px-4 py-2 border rounded-md transition-colors duration-200 text-sm font-medium ${
-                                    preferences.theme === 'light' ? 'border-orange-300 text-slate-700 hover:bg-orange-50' :
-                                    preferences.theme === 'sepia' ? 'border-[#c8b79a] text-[#5f4b32] hover:bg-[#f5e9d3]' :
-                                    'border-stone-600 text-stone-300 hover:bg-stone-700'
-                                }`}
-                                onClick={handleNavClick}
-                            >
-                                <span>Chương tiếp</span>
-                                <ArrowRightIcon className="h-4 w-4" />
+                             <Link to={`/story/${story.id}/chapter/${nextChapter.id}`} className={`flex items-center justify-center gap-2 px-6 py-3 border rounded-lg transition-all duration-200 font-medium shadow-sm hover:shadow active:scale-95 ${themeStyle.button} ${themeStyle.buttonHover}`}>
+                                <span>Chương tiếp</span> <ArrowRightIcon className="h-5 w-5" />
                             </Link>
                         ) : (
-                             <div className={`flex items-center justify-center gap-2 px-4 py-2 border rounded-md text-sm font-medium cursor-not-allowed ${
-                                 preferences.theme === 'light' ? 'border-slate-200 bg-slate-50 text-slate-400' :
-                                 preferences.theme === 'sepia' ? 'border-[#dcd3c1] bg-[#f5e9d3]/50 text-[#a0927c]' :
-                                 'border-stone-700 bg-stone-800 text-stone-500'
-                             }`}>
-                                <span>Chương tiếp</span>
-                                <ArrowRightIcon className="h-4 w-4" />
-                            </div>
+                             <div className={`flex items-center justify-center gap-2 px-6 py-3 border rounded-lg font-medium opacity-50 cursor-not-allowed ${themeStyle.button}`}><span>Chương tiếp</span> <ArrowRightIcon className="h-5 w-5" /></div>
                         )}
                     </div>
                 </div>
-
                 {storyId && chapterId && <CommentSection storyId={storyId} chapterId={chapterId} />}
             </div>
-            <ReaderControls
-                preferences={preferences}
-                setPreferences={setPreferences}
-            />
+            <ReaderControls preferences={preferences} setPreferences={setPreferences} />
         </div>
     );
 };
