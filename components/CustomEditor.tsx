@@ -1,21 +1,37 @@
-// maihan88/novelweb/novelweb-bb25e07affd2305d7e9afc8949e929c60a9cbfdb/components/CustomEditor.tsx
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import {
-    PaintBrushIcon,
-    PhotoIcon,
-    CodeBracketSquareIcon,
     ArrowUturnLeftIcon,
     ArrowUturnRightIcon,
     Bars3BottomLeftIcon,
     Bars3Icon,
     Bars3BottomRightIcon,
+    PhotoIcon,
     MagnifyingGlassIcon,
     EyeSlashIcon,
     XMarkIcon,
-    MinusIcon
+    StopIcon,
+    EnvelopeIcon,
+    CommandLineIcon,
+    MinusIcon,
+    StarIcon,
+    SwatchIcon,
+    EyeDropperIcon
 } from '@heroicons/react/24/outline';
 
-import { uploadImage } from '../services/uploadService.ts';
+import { uploadImage } from '../services/uploadService';
+
+// --- TYPE DEFINITIONS FOR EYEDROPPER API ---
+interface EyeDropperInstance {
+    open: (options?: { signal?: AbortSignal }) => Promise<{ sRGBHex: string }>;
+}
+
+declare global {
+    interface Window {
+        EyeDropper?: {
+            new (): EyeDropperInstance;
+        };
+    }
+}
 
 interface CustomEditorProps {
     value: string;
@@ -124,68 +140,51 @@ const cleanHTML = (htmlContent: string): string => {
 };
 
 
+// --- COMPONENT CHÍNH ---
 const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
     const editorRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    const toolbarRef = useRef<HTMLDivElement>(null);
     const onChangeRef = useRef(onChange);
 
     // --- STATE ---
     const [showFind, setShowFind] = useState(false);
     const [findText, setFindText] = useState('');
     const [replaceText, setReplaceText] = useState('');
-    const [isToolbarFixed, setIsToolbarFixed] = useState(false);
-    const [toolbarHeight, setToolbarHeight] = useState(0);
-    const [toolbarPosition, setToolbarPosition] = useState({ left: 0, width: 0 });
+    
+    // Color Picker State
+    const [showColorPicker, setShowColorPicker] = useState(false);
+    const [currentColor, setCurrentColor] = useState('#000000');
+
+    const useEyeDropper = () => {
+        const [supported, setSupported] = useState(false);
+        useEffect(() => {
+            if (window.EyeDropper) setSupported(true);
+        }, []);
+
+        const open = useCallback(async () => {
+            if (!window.EyeDropper) return null;
+            const eyeDropper = new window.EyeDropper();
+            try {
+                const result = await eyeDropper.open();
+                return result.sRGBHex;
+            } catch (e) { return null; }
+        }, []);
+        return { supported, open };
+    };
+    const { supported: eyeDropperSupported, open: openEyeDropper } = useEyeDropper();
 
     useEffect(() => {
         onChangeRef.current = onChange;
     }, [onChange]);
 
-    // Sync value from props to editable div
+    // Sync value
     useEffect(() => {
         if (editorRef.current && value !== editorRef.current.innerHTML) {
-            // Chỉ cập nhật nếu khác biệt để tránh mất vị trí con trỏ khi đang gõ
-            // Tuy nhiên, với Drag/Drop, ta cần đảm bảo DOM clean ngay từ đầu
             if (document.activeElement !== editorRef.current) {
                 editorRef.current.innerHTML = value;
             }
         }
     }, [value]);
-
-    // --- HANDLE SCROLL & RESIZE ---
-    useEffect(() => {
-        const handleScroll = () => {
-            if (!containerRef.current || !toolbarRef.current) return;
-            const containerRect = containerRef.current.getBoundingClientRect();
-            const currentToolbarHeight = toolbarRef.current.offsetHeight;
-            const shouldBeFixed = containerRect.top <= 0 && containerRect.bottom > currentToolbarHeight;
-
-            if (shouldBeFixed && !isToolbarFixed) {
-                setToolbarPosition({
-                    left: containerRect.left,
-                    width: containerRect.width
-                });
-            }
-            setToolbarHeight(currentToolbarHeight);
-            setIsToolbarFixed(shouldBeFixed);
-        };
-
-        const updateToolbarHeight = () => {
-             if (toolbarRef.current) {
-                setToolbarHeight(toolbarRef.current.offsetHeight);
-                handleScroll();
-             }
-        };
-
-        updateToolbarHeight();
-        window.addEventListener('scroll', handleScroll, { passive: true });
-        window.addEventListener('resize', updateToolbarHeight);
-        return () => {
-            window.removeEventListener('scroll', handleScroll);
-            window.removeEventListener('resize', updateToolbarHeight);
-        };
-    }, [showFind, isToolbarFixed]);
 
     const handleInput = useCallback(() => {
         if (editorRef.current) {
@@ -196,40 +195,32 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
         }
     }, [value]);
 
-    // --- EXEC CMD ---
     const execCmd = (command: string, commandValue?: string) => {
         document.execCommand(command, false, commandValue);
         editorRef.current?.focus();
         handleInput();
+        if (command === 'foreColor' && commandValue) setCurrentColor(commandValue);
     };
 
-    // --- XỬ LÝ NỘI DUNG NHẬP VÀO (CHUNG CHO PASTE & DROP) ---
+    // --- PASTE & DROP (SỬ DỤNG LOGIC LỌC CŨ) ---
     const processContentInsertion = (htmlData: string | null, textData: string | null) => {
         try {
             let finalHtml = '';
-
-            // 1. Ưu tiên xử lý HTML nếu có (để giữ định dạng: Bold, Color...)
+            // 1. HTML -> Clean
             if (htmlData) {
-                // Chạy qua bộ lọc để bỏ rác nhưng giữ định dạng
                 finalHtml = cleanHTML(htmlData);
             } 
-            // 2. Nếu không có HTML, fallback về xử lý Text (Logic cũ của bạn)
+            // 2. Text -> P logic
             else if (textData) {
                 const lines = textData.split(/[\r\n]+/);
                 finalHtml = lines.map(line => {
                     const trimmedLine = line.trim();
                     return trimmedLine ? `<p>${trimmedLine}</p>` : ''; 
                 }).join('');
-                // Note: Logic cũ của bạn có xử lý dòng trống thông minh, ở đây tôi đơn giản hóa
-                // để đảm bảo tính nhất quán. Nếu muốn giữ nguyên logic text cũ, bạn có thể paste lại đoạn split đó vào đây.
             }
 
             if (finalHtml) {
-                // Sử dụng insertHTML để chèn vào vị trí con trỏ hiện tại
                 const success = document.execCommand('insertHTML', false, finalHtml);
-                
-                // Nếu execCommand thất bại (một số trình duyệt chặn nếu không có user interaction trực tiếp),
-                // ta append vào cuối (fallback)
                 if (!success && editorRef.current) {
                     editorRef.current.innerHTML += finalHtml;
                 }
@@ -237,40 +228,27 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
             }
         } catch (error) {
             console.error("Lỗi xử lý nội dung:", error);
-            alert("Có lỗi khi chèn nội dung. Vui lòng thử lại dạng văn bản thuần.");
+            alert("Có lỗi khi chèn nội dung.");
         }
     };
 
-    // --- SỰ KIỆN PASTE ---
     useEffect(() => {
         const editor = editorRef.current;
         if (!editor) return;
 
         const handlePaste = (event: ClipboardEvent) => {
-            event.preventDefault(); // Ngăn hành vi mặc định
+            event.preventDefault();
             const textData = event.clipboardData?.getData('text/plain') || null;
             const htmlData = event.clipboardData?.getData('text/html') || null;
             processContentInsertion(htmlData, textData);
         };
 
-        editor.addEventListener('paste', handlePaste);
-        return () => editor.removeEventListener('paste', handlePaste);
-    }, [handleInput]);
-
-    // --- SỰ KIỆN DROP (KÉO THẢ) ---
-    useEffect(() => {
-        const editor = editorRef.current;
-        if (!editor) return;
-
         const handleDrop = (event: DragEvent) => {
-            event.preventDefault(); // CỰC KỲ QUAN TRỌNG: Ngăn trình duyệt mở link hoặc chèn HTML rác
+            event.preventDefault();
             event.stopPropagation();
-
-            // Lấy dữ liệu từ sự kiện Drop
             const textData = event.dataTransfer?.getData('text/plain') || null;
             const htmlData = event.dataTransfer?.getData('text/html') || null;
-
-            // Đặt focus vào nơi thả chuột (nếu trình duyệt hỗ trợ caretRangeFromPoint)
+            
             if (document.caretRangeFromPoint && event.clientX) {
                 const range = document.caretRangeFromPoint(event.clientX, event.clientY);
                 if (range) {
@@ -279,54 +257,25 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
                     selection?.addRange(range);
                 }
             }
-
             processContentInsertion(htmlData, textData);
-            
-            // Xóa hiệu ứng drag over (nếu có thêm class UI)
             editor.classList.remove('bg-slate-100', 'dark:bg-slate-700'); 
         };
 
-        const handleDragOver = (event: DragEvent) => {
-            event.preventDefault(); // Cho phép drop
-            event.dataTransfer!.dropEffect = 'copy';
-            // Có thể thêm class để highlight vùng drop
-             // editor.classList.add('bg-slate-100', 'dark:bg-slate-700');
+        const handleDragOver = (e: DragEvent) => {
+            e.preventDefault();
+            e.dataTransfer!.dropEffect = 'copy';
         };
 
-        // const handleDragLeave = () => {
-            // editor.classList.remove('bg-slate-100', 'dark:bg-slate-700');
-        // }
-
+        editor.addEventListener('paste', handlePaste);
         editor.addEventListener('drop', handleDrop);
         editor.addEventListener('dragover', handleDragOver);
-        // editor.addEventListener('dragleave', handleDragLeave);
 
         return () => {
+            editor.removeEventListener('paste', handlePaste);
             editor.removeEventListener('drop', handleDrop);
             editor.removeEventListener('dragover', handleDragOver);
-            // editor.removeEventListener('dragleave', handleDragLeave);
         };
     }, [handleInput]);
-
-
-    // ... [GIỮ NGUYÊN CÁC HÀM XỬ LÝ KHÁC: handleToolbarMouseDown, handleReplaceAll, handleImageUpload, etc.] ...
-    const handleToolbarMouseDown = (e: React.MouseEvent) => e.preventDefault();
-
-    const handleReplaceAll = () => {
-        if (!findText || !editorRef.current) return;
-        const originalHtml = editorRef.current.innerHTML;
-        const findRegex = new RegExp(findText.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
-
-        if (!originalHtml.match(findRegex)) {
-             alert(`Không tìm thấy "${findText}" trong nội dung.`);
-             return;
-        }
-        const newHtml = originalHtml.replaceAll(findRegex, replaceText);
-        if (window.confirm(`Bạn có chắc muốn thay thế tất cả "${findText}" bằng "${replaceText}" không?`)) {
-            editorRef.current.innerHTML = newHtml;
-            handleInput();
-        }
-    };
 
     const handleImageUpload = () => {
         const input = document.createElement('input');
@@ -335,110 +284,202 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
         input.onchange = async () => {
             if (input.files && input.files[0]) {
                 const file = input.files[0];
-                const placeholderId = `img-placeholder-${Date.now()}`;
-                const placeholderHtml = `<div id="${placeholderId}" class="p-4 border border-dashed border-gray-300 rounded text-center text-gray-500">Đang tải ảnh...</div><p><br></p>`;
-                execCmd('insertHTML', placeholderHtml);
+                const placeholderId = `img-${Date.now()}`;
+                execCmd('insertHTML', `<div id="${placeholderId}">Đang tải ảnh...</div>`);
 
                 try {
                     const imageUrl = await uploadImage(file);
-                    const placeholderNode = editorRef.current?.querySelector(`#${placeholderId}`);
-                    if (placeholderNode) {
+                    const placeholder = editorRef.current?.querySelector(`#${placeholderId}`);
+                    if (placeholder) {
                         const img = document.createElement('img');
                         img.src = imageUrl;
-                        img.alt = "Ảnh minh họa";
                         img.style.maxWidth = '100%';
-                        img.style.height = 'auto';
                         img.style.display = 'block';
                         img.style.margin = '1rem auto';
-                        img.style.borderRadius = '0.25rem';
-                        placeholderNode.parentNode?.replaceChild(img, placeholderNode);
+                        placeholder.parentNode?.replaceChild(img, placeholder);
                     }
                     handleInput();
-                } catch (error) {
-                    console.error("Lỗi tải ảnh:", error);
-                    const placeholderNode = editorRef.current?.querySelector(`#${placeholderId}`);
-                    if(placeholderNode) placeholderNode.innerHTML = '<span style="color:red">Lỗi tải ảnh</span>';
+                } catch (e) {
+                    console.error(e);
                 }
             }
         };
         input.click();
     };
 
-    const handleInsertFrame = () => {
-        const frameHTML = `<blockquote style="border-left: 4px solid #ccc; margin: 1.5em 10px; padding: 0.5em 10px; color: #666; font-style: italic; background-color: rgba(0,0,0,0.05);"><p>Nội dung trong khung...</p></blockquote><p><br></p>`;
-        execCmd('insertHTML', frameHTML);
+    // --- CÁC TÍNH NĂNG MỚI (MANUAL) ---
+    const insertFrame = (type: 'normal' | 'letter' | 'system') => {
+        let style = '';
+        // Nội dung rỗng để nhập liệu
+        const content = '<p><br></p>';
+
+        switch (type) {
+            case 'normal':
+                // Khung thường: Viền 4 cạnh, không border-left đậm
+                style = `border: 2px solid #94a3b8; background-color: #f8fafc; padding: 16px; margin: 16px 0; color: #374151; font-style: normal; border-radius: 4px;`;
+                break;
+            case 'letter':
+                style = `border: 4px double #d97706; background-color: #fffbeb; padding: 24px; margin: 16px 0; color: #451a03; font-family: ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif; font-style: italic; line-height: 1.8; box-shadow: 2px 2px 5px rgba(0,0,0,0.05);`;
+                break;
+            case 'system':
+                style = `border: 2px solid #3b82f6; background-color: #eff6ff; padding: 16px; border-radius: 8px; margin: 16px 0; color: #1e3a8a; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; position: relative; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.1);`;
+                break;
+        }
+
+        const html = `<div style="${style}">${content}</div><p><br></p>`;
+        execCmd('insertHTML', html);
     };
 
-    const handleInsertSeparator = () => {
-        const separatorHtml = `<div style="text-align: center; margin: 1.5em 0; display: flex; align-items: center; gap: 1em; opacity: 0.7; color: currentColor;"><hr style="flex-grow: 1; border-top: 1px solid currentColor;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: inline-block;"><path d="M12 2L22 12L12 22L2 12L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><hr style="flex-grow: 1; border-top: 1px solid currentColor;"></div><p><br></p>`;
-        execCmd('insertHTML', separatorHtml);
+    const insertSeparatorLine = () => {
+        execCmd('insertHTML', `<hr style="border: 0; border-top: 2px solid #64748b; margin: 24px 0;"><p><br></p>`);
     };
 
-    const ToolbarButton: React.FC<{ children: React.ReactNode, onClick?: () => void, ariaLabel: string, isActive?: boolean }> = ({ children, onClick, ariaLabel, isActive }) => (
+    const insertSeparatorStars = () => {
+        const star = '&#9734;';
+        const space = '&nbsp;&nbsp;';
+        const html = `<div style="text-align: center; margin: 24px 0; font-size: 1.2em; color: #475569;">${star}${space}${star}${space}${star}</div><p><br></p>`;
+        execCmd('insertHTML', html);
+    };
+
+    const handleColorChange = (color: string) => {
+        execCmd('foreColor', color);
+        setCurrentColor(color);
+        setShowColorPicker(false);
+    };
+
+    const handleEyeDropperClick = async () => {
+        const color = await openEyeDropper();
+        if (color) handleColorChange(color);
+    };
+
+    const ToolbarButton: React.FC<{ children: React.ReactNode, onClick?: () => void, ariaLabel: string, isActive?: boolean, title?: string }> = ({ children, onClick, ariaLabel, isActive, title }) => (
         <button
             type="button"
             onClick={onClick}
-            onMouseDown={handleToolbarMouseDown}
-            className={`p-2 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors ${isActive ? 'bg-slate-200 dark:bg-slate-700' : ''}`}
+            onMouseDown={(e) => e.preventDefault()}
+            className={`p-2 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors ${isActive ? 'bg-slate-200 dark:bg-slate-700 text-orange-600' : 'text-slate-700 dark:text-slate-200'}`}
             aria-label={ariaLabel}
-            aria-pressed={isActive}
+            title={title || ariaLabel}
         >
             {children}
         </button>
     );
 
-    const toolbarContent = (
-        <>
-            <div className="flex flex-wrap items-center gap-1 p-2">
-                <ToolbarButton onClick={() => execCmd('undo')} ariaLabel="Hoàn tác"><ArrowUturnLeftIcon className="w-5 h-5" /></ToolbarButton>
-                <ToolbarButton onClick={() => execCmd('redo')} ariaLabel="Làm lại"><ArrowUturnRightIcon className="w-5 h-5" /></ToolbarButton>
-                <div className="w-px h-6 bg-slate-300 dark:bg-slate-600 mx-1"></div>
-
-                <ToolbarButton onClick={() => execCmd('bold')} ariaLabel="In đậm"><span className="font-bold w-5 h-5 flex items-center justify-center">B</span></ToolbarButton>
-                <ToolbarButton onClick={() => execCmd('italic')} ariaLabel="In nghiêng"><span className="italic w-5 h-5 flex items-center justify-center">I</span></ToolbarButton>
-                <ToolbarButton onClick={() => execCmd('underline')} ariaLabel="Gạch chân"><span className="underline w-5 h-5 flex items-center justify-center">U</span></ToolbarButton>
-                <label className="relative flex items-center cursor-pointer" onMouseDown={handleToolbarMouseDown}>
-                    <div className="p-2 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"><PaintBrushIcon className="w-5 h-5" /></div>
-                    <input type="color" onChange={(e) => execCmd('foreColor', e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" title="Màu chữ"/>
-                </label>
-                <div className="w-px h-6 bg-slate-300 dark:bg-slate-600 mx-1"></div>
-
-                <ToolbarButton onClick={() => execCmd('justifyLeft')} ariaLabel="Căn trái"><Bars3BottomLeftIcon className="w-5 h-5" /></ToolbarButton>
-                <ToolbarButton onClick={() => execCmd('justifyCenter')} ariaLabel="Căn giữa"><Bars3Icon className="w-5 h-5" /></ToolbarButton>
-                <ToolbarButton onClick={() => execCmd('justifyRight')} ariaLabel="Căn phải"><Bars3BottomRightIcon className="w-5 h-5" /></ToolbarButton>
-                <div className="w-px h-6 bg-slate-300 dark:bg-slate-600 mx-1"></div>
-
-                <ToolbarButton onClick={handleImageUpload} ariaLabel="Tải ảnh"><PhotoIcon className="w-5 h-5" /></ToolbarButton>
-                <ToolbarButton onClick={handleInsertFrame} ariaLabel="Tạo khung"><CodeBracketSquareIcon className="w-5 h-5" /></ToolbarButton>
-                <ToolbarButton onClick={handleInsertSeparator} ariaLabel="Chèn dấu phân cách"><MinusIcon className="w-5 h-5" /></ToolbarButton>
-                <div className="w-px h-6 bg-slate-300 dark:bg-slate-600 mx-1"></div>
-
-                <ToolbarButton onClick={() => execCmd('removeFormat')} ariaLabel="Xóa định dạng"><EyeSlashIcon className="w-5 h-5" /></ToolbarButton>
-                <ToolbarButton onClick={() => setShowFind(prev => !prev)} isActive={showFind} ariaLabel="Tìm và thay thế"><MagnifyingGlassIcon className="w-5 h-5" /></ToolbarButton>
-            </div>
-
-            {showFind && (
-                 <div className="flex flex-col sm:flex-row gap-2 p-2 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                    <input type="text" placeholder="Tìm kiếm..." value={findText} onChange={e => setFindText(e.target.value)} className="flex-grow p-2 border rounded bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 focus:ring-1 focus:ring-orange-500 text-sm"/>
-                    <input type="text" placeholder="Thay thế bằng..." value={replaceText} onChange={e => setReplaceText(e.target.value)} className="flex-grow p-2 border rounded bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 focus:ring-1 focus:ring-orange-500 text-sm"/>
-                    <button onClick={handleReplaceAll} className="px-3 py-2 bg-orange-500 text-white font-semibold rounded hover:bg-orange-600 text-sm whitespace-nowrap disabled:opacity-50" disabled={!findText}>Thay thế</button>
-                     <ToolbarButton onClick={() => setShowFind(false)} ariaLabel="Đóng"><XMarkIcon className="w-5 h-5" /></ToolbarButton>
-                </div>
-            )}
-        </>
-    );
+    const PRESET_COLORS = [
+        '#000000', '#444444', '#888888', '#cccccc', '#ffffff', 
+        '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e',
+        '#06b6d4', '#3b82f6', '#6366f1', '#a855f7', '#d946ef'
+    ];
 
     return (
-        <div ref={containerRef} className="border border-slate-300 dark:border-slate-600 rounded-md overflow-hidden bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm">
-             <div ref={toolbarRef} className={`relative z-10 bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 ${isToolbarFixed ? 'invisible' : ''}`}>
-                {toolbarContent}
-            </div>
+        <div ref={containerRef} className="border border-slate-300 dark:border-slate-600 rounded-md overflow-hidden bg-white dark:bg-slate-800 shadow-sm relative">
+            {/* Toolbar Sticky: Sử dụng position: sticky để thanh công cụ tự đi theo khi cuộn */}
+            <div className="sticky top-0 z-50 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
+                <div className="flex flex-wrap items-center gap-0.5 p-1">
+                    <ToolbarButton onClick={() => execCmd('undo')} ariaLabel="Hoàn tác"><ArrowUturnLeftIcon className="w-5 h-5" /></ToolbarButton>
+                    <ToolbarButton onClick={() => execCmd('redo')} ariaLabel="Làm lại"><ArrowUturnRightIcon className="w-5 h-5" /></ToolbarButton>
+                    <div className="w-px h-5 bg-slate-300 dark:bg-slate-600 mx-1"></div>
 
-            {isToolbarFixed && (
-                <div className="fixed top-0 bg-slate-100/95 dark:bg-slate-900/95 backdrop-blur-sm shadow-md border-b border-slate-200 dark:border-slate-700" style={{ zIndex: 100, left: `${toolbarPosition.left}px`, width: `${toolbarPosition.width}px`}}>
-                    {toolbarContent}
+                    <ToolbarButton onClick={() => execCmd('bold')} ariaLabel="In đậm"><span className="font-bold w-5 h-5 flex items-center justify-center">B</span></ToolbarButton>
+                    <ToolbarButton onClick={() => execCmd('italic')} ariaLabel="In nghiêng"><span className="italic w-5 h-5 flex items-center justify-center">I</span></ToolbarButton>
+                    <ToolbarButton onClick={() => execCmd('underline')} ariaLabel="Gạch chân"><span className="underline w-5 h-5 flex items-center justify-center">U</span></ToolbarButton>
+                    
+                    <div className="relative">
+                        <ToolbarButton onClick={() => setShowColorPicker(!showColorPicker)} ariaLabel="Màu chữ" isActive={showColorPicker}>
+                            <div className="flex items-center gap-1">
+                                <SwatchIcon className="w-5 h-5" />
+                                <div className="w-3 h-3 rounded-full border border-slate-300" style={{ backgroundColor: currentColor }}></div>
+                            </div>
+                        </ToolbarButton>
+                        
+                        {showColorPicker && (
+                            <div className="absolute top-full left-0 mt-2 p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl min-w-[240px] z-50 animate-in fade-in zoom-in-95 duration-200">
+                                <div className="grid grid-cols-5 gap-2 mb-3">
+                                    {PRESET_COLORS.map(c => (
+                                        <button
+                                            key={c}
+                                            onClick={() => handleColorChange(c)}
+                                            className="w-8 h-8 rounded-full border border-slate-200 hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                            style={{ backgroundColor: c }}
+                                            title={c}
+                                        />
+                                    ))}
+                                </div>
+                                <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-700">
+                                    <div className="relative flex-grow">
+                                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">#</span>
+                                        <input 
+                                            type="text" 
+                                            value={currentColor.replace('#', '')}
+                                            onChange={(e) => setCurrentColor(`#${e.target.value}`)}
+                                            onBlur={() => handleColorChange(currentColor)}
+                                            className="w-full pl-5 pr-2 py-1 text-sm border rounded bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-600 focus:ring-1 focus:ring-orange-500 outline-none"
+                                            placeholder="HEX"
+                                        />
+                                    </div>
+                                    <label className="cursor-pointer p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600">
+                                        <input type="color" value={currentColor} onChange={(e) => handleColorChange(e.target.value)} className="sr-only"/>
+                                        <div className="w-5 h-5 rounded" style={{background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)'}}></div>
+                                    </label>
+                                    {eyeDropperSupported && (
+                                        <button onClick={handleEyeDropperClick} className="p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300" title="Hút màu từ màn hình">
+                                            <EyeDropperIcon className="w-5 h-5" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    
+                    <div className="w-px h-5 bg-slate-300 dark:bg-slate-600 mx-1"></div>
+
+                    <ToolbarButton onClick={() => execCmd('justifyLeft')} ariaLabel="Căn trái"><Bars3BottomLeftIcon className="w-5 h-5" /></ToolbarButton>
+                    <ToolbarButton onClick={() => execCmd('justifyCenter')} ariaLabel="Căn giữa"><Bars3Icon className="w-5 h-5" /></ToolbarButton>
+                    <ToolbarButton onClick={() => execCmd('justifyRight')} ariaLabel="Căn phải"><Bars3BottomRightIcon className="w-5 h-5" /></ToolbarButton>
+                    <div className="w-px h-5 bg-slate-300 dark:bg-slate-600 mx-1"></div>
+
+                    <ToolbarButton onClick={handleImageUpload} ariaLabel="Tải ảnh" title="Chèn ảnh"><PhotoIcon className="w-5 h-5" /></ToolbarButton>
+                    
+                    <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded px-1 gap-0.5">
+                        <ToolbarButton onClick={() => insertFrame('normal')} ariaLabel="Khung thường" title="Chèn khung thường"><StopIcon className="w-5 h-5" /></ToolbarButton>
+                        <ToolbarButton onClick={() => insertFrame('letter')} ariaLabel="Khung thư" title="Chèn khung thư tín"><EnvelopeIcon className="w-5 h-5" /></ToolbarButton>
+                        <ToolbarButton onClick={() => insertFrame('system')} ariaLabel="Khung hệ thống" title="Chèn khung hệ thống"><CommandLineIcon className="w-5 h-5" /></ToolbarButton>
+                    </div>
+
+                    <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded px-1 gap-0.5 ml-1">
+                        <ToolbarButton onClick={insertSeparatorLine} ariaLabel="Dòng kẻ" title="Chèn dòng phân cách"><MinusIcon className="w-5 h-5" /></ToolbarButton>
+                        <ToolbarButton onClick={insertSeparatorStars} ariaLabel="Sao phân cách" title="Chèn 3 ngôi sao"><StarIcon className="w-5 h-5" /></ToolbarButton>
+                    </div>
+
+                    <div className="w-px h-5 bg-slate-300 dark:bg-slate-600 mx-1"></div>
+                    
+                    <ToolbarButton onClick={() => execCmd('removeFormat')} ariaLabel="Xóa định dạng" title="Xóa định dạng"><EyeSlashIcon className="w-5 h-5" /></ToolbarButton>
+                    <ToolbarButton onClick={() => setShowFind(prev => !prev)} isActive={showFind} ariaLabel="Tìm kiếm" title="Tìm và thay thế"><MagnifyingGlassIcon className="w-5 h-5" /></ToolbarButton>
                 </div>
-            )}
+
+                {showFind && (
+                    <div className="flex flex-col sm:flex-row gap-2 p-2 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 animate-in slide-in-from-top-2 duration-200">
+                        <input type="text" placeholder="Tìm kiếm..." value={findText} onChange={e => setFindText(e.target.value)} className="flex-grow p-1.5 border rounded text-sm bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 focus:ring-1 focus:ring-orange-500"/>
+                        <input type="text" placeholder="Thay thế bằng..." value={replaceText} onChange={e => setReplaceText(e.target.value)} className="flex-grow p-1.5 border rounded text-sm bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 focus:ring-1 focus:ring-orange-500"/>
+                        <button 
+                            onClick={() => {
+                                if (!findText) return;
+                                const content = editorRef.current?.innerHTML || '';
+                                if (!content.includes(findText)) return alert('Không tìm thấy nội dung');
+                                if (window.confirm('Thay thế tất cả?')) {
+                                    editorRef.current!.innerHTML = content.replaceAll(findText, replaceText);
+                                    handleInput();
+                                }
+                            }} 
+                            className="px-3 py-1.5 bg-orange-500 text-white text-sm rounded hover:bg-orange-600 disabled:opacity-50 font-medium" 
+                            disabled={!findText}
+                        >
+                            Thay thế
+                        </button>
+                        <ToolbarButton onClick={() => setShowFind(false)} ariaLabel="Đóng"><XMarkIcon className="w-5 h-5" /></ToolbarButton>
+                    </div>
+                )}
+            </div>
 
             <div
                 ref={editorRef}
@@ -446,8 +487,7 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
                 contentEditable={true}
                 spellCheck={false}
                 suppressContentEditableWarning={true}
-                className="prose dark:prose-invert max-w-none prose-p:my-2 prose-blockquote:border-l-4 prose-blockquote:border-slate-300 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-slate-600 dark:prose-blockquote:text-slate-400 dark:prose-blockquote:border-slate-600 p-4 min-h-[400px] focus:outline-none focus:ring-2 focus:ring-orange-300 rounded-b-md"
-                style={{ paddingTop: isToolbarFixed ? `${toolbarHeight + 16}px` : undefined }}
+                className="prose dark:prose-invert max-w-none p-6 min-h-[500px] outline-none focus:ring-0 text-slate-900 dark:text-slate-100 leading-relaxed"
             />
         </div>
     );
