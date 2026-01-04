@@ -67,7 +67,7 @@ export interface StoryFilterParams {
 // -------------------------
 
 export type ReaderFont = 'font-reader-times' | 'font-reader-lora' | 'font-reader-antiqua';
-export type ReaderTheme = 'light' | 'sepia' | 'dark';
+export type ReaderTheme = 'light' | 'sepia' | 'dark' | 'midnight' | 'paper' | 'matrix';
 
 export interface ReaderPreferences {
   fontSize: number;
