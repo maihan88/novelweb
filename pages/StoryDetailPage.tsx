@@ -7,6 +7,7 @@ import { useUserPreferences } from '../contexts/UserPreferencesContext.tsx';
 import LoadingSpinner from '../components/LoadingSpinner.tsx';
 import StarRating from '../components/StarRating.tsx';
 import { Story, Chapter } from '../types.ts';
+import { formatDate } from '../utils/formatDate';
 import {
     PencilIcon, BookOpenIcon, HeartIcon, CalendarDaysIcon, EyeIcon, UserIcon, TagIcon,
     ListBulletIcon, MagnifyingGlassIcon, ArrowLeftIcon, ChevronDownIcon, ChevronUpIcon, ArrowRightIcon // Thêm ArrowRightIcon nếu chưa có
@@ -17,7 +18,7 @@ const StoryDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { getStoryById, addRatingToStory } = useStories();
   const { currentUser } = useAuth();
-  const { isFavorite, toggleFavorite, getUserRating, addRating, bookmarks, removeBookmark } = useUserPreferences();
+  const { isFavorite, toggleFavorite, getUserRating, addRating, bookmarks, removeBookmark  } = useUserPreferences();
 
   // States (giữ nguyên)
   const [story, setStory] = useState<Story | null>(null);
@@ -37,7 +38,7 @@ const StoryDetailPage: React.FC = () => {
       return chapter?.title || null;
   }, [currentBookmark, story]);
 
-  // Hàm fetch dữ liệu truyện (giữ nguyên)
+
   const fetchStory = useCallback(async () => {
     if (!storyId) return;
     setLoading(true);
@@ -60,7 +61,6 @@ const StoryDetailPage: React.FC = () => {
     window.scrollTo(0, 0);
   }, [fetchStory]);
 
-  // Hàm xử lý đánh giá (giữ nguyên)
   const handleRating = async (rating: number) => {
     if (!currentUser || !storyId) { alert("Bạn cần đăng nhập để đánh giá."); return; }
     if (userRating !== undefined) { alert("Bạn đã đánh giá truyện này rồi."); return; }
@@ -312,6 +312,18 @@ const StoryDetailPage: React.FC = () => {
                     userRating={userRating} 
                     onRate={handleRating} 
                 />
+{/* 
+                Chỉ hiển thị nút xóa nếu userRating có giá trị (tức là đã đánh giá)
+                {userRating !== undefined && (
+                    <button 
+                        onClick={handleDeleteRating}
+                        className="text-xs flex items-center gap-1 text-red-500 hover:text-red-700 transition-colors underline cursor-pointer"
+                        title="Xóa đánh giá của bạn"
+                    >
+                        <TrashIcon className="h-3 w-3" />
+                        Xóa đánh giá
+                    </button>
+                )} */}
             </div>
 
              {/* Tags */}
@@ -429,18 +441,19 @@ const StoryDetailPage: React.FC = () => {
                                   )}
                                 </div>
                                 {/* Ngày đăng + Lượt xem (admin) */}
-                                <div className="flex items-center gap-3 flex-shrink-0 text-xs text-slate-500 dark:text-stone-400">
-                                  {currentUser?.role === 'admin' && (
-                                    <span className="hidden sm:flex items-center gap-1" title="Lượt xem (admin)">
-                                        <EyeIcon className="h-3.5 w-3.5"/>
-                                        {chapter.views?.toLocaleString('vi-VN') || 0}
-                                    </span>
-                                  )}
-                                  <span className="flex items-center gap-1">
-                                      <CalendarDaysIcon className="h-3.5 w-3.5"/>
-                                      {formatDate(chapter.createdAt)}
-                                  </span>
-                                </div>
+                            <div className="flex items-center gap-3 flex-shrink-0 text-xs text-slate-500 dark:text-stone-400">
+                              {currentUser?.role === 'admin' && (
+                                <span className="hidden sm:flex items-center gap-1" title="Lượt xem (admin)">
+                                    <EyeIcon className="h-3.5 w-3.5"/>
+                                    {chapter.views?.toLocaleString('vi-VN') || 0}
+                                </span>
+                              )}
+                              <span className="flex items-center gap-1" title={new Date(chapter.updatedAt || chapter.createdAt).toLocaleString('vi-VN')}>
+                                  <CalendarDaysIcon className="h-3.5 w-3.5"/>
+                                  {/* Sử dụng hàm formatDate mới, ưu tiên updatedAt, nếu không có thì dùng createdAt */}
+                                  {formatDate(chapter.updatedAt || chapter.createdAt)}
+                              </span>
+                            </div>
                           </div>
                       </Link>
                         );
