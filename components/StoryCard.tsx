@@ -2,34 +2,17 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Story } from '../types'; 
 import { ClockIcon } from '@heroicons/react/24/outline'; 
+import { formatDate } from '../utils/formatDate'; // Import utility đã sửa
 
 interface StoryCardProps {
   story: Story;
 }
-
-const formatDate = (isoString: string | undefined) => {
-  if (!isoString) return '';
-  try {
-      const date = new Date(isoString);
-      const now = new Date();
-      const diffTime = Math.abs(now.getTime() - date.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      if (diffDays < 1) return "Hôm nay";
-      if (diffDays === 1) return "Hôm qua";
-      if (diffDays <= 7) return `${diffDays} ngày trước`;
-      return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  } catch {
-      return '';
-  }
-};
 
 const StoryCard: React.FC<StoryCardProps> = ({ story }) => {
   
   const latestChapter = story.latestChapter;
 
   return (
-    // Đã xóa class 'block', chỉ giữ lại 'flex'
     <Link to={`/story/${story.id}`} className="group animate-fade-in relative h-full flex flex-col">
       {/* Container ảnh bìa */}
       <div className="relative overflow-hidden rounded-lg shadow-md group-hover:shadow-lg group-hover:shadow-orange-400/30 dark:group-hover:shadow-amber-500/20 aspect-[2/3] transition-all duration-300 ease-in-out transform group-hover:-translate-y-1 group-hover:scale-[1.02]">
@@ -70,11 +53,12 @@ const StoryCard: React.FC<StoryCardProps> = ({ story }) => {
                 {latestChapter.title}
              </p>
              
-             {/* Ngày tháng */}
+             {/* Ngày tháng: Sử dụng lastUpdatedAt của Story theo yêu cầu */}
              <span className="text-[10px] font-medium flex-shrink-0 px-1.5 py-0.5 rounded
                               text-slate-500 bg-slate-100 
-                              dark:text-gray-200 dark:bg-gray-700">
-                 {formatDate(latestChapter.createdAt)}
+                              dark:text-gray-200 dark:bg-gray-700 whitespace-nowrap">
+                 {/* Ưu tiên hiển thị thời gian cập nhật của truyện */}
+                 {formatDate(story.lastUpdatedAt)}
              </span>
           </div>
         ) : (
