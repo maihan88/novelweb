@@ -7,10 +7,10 @@ import { useUserPreferences } from '../contexts/UserPreferencesContext.tsx';
 import LoadingSpinner from '../components/LoadingSpinner.tsx';
 import StarRating from '../components/StarRating.tsx';
 import { Story, Chapter } from '../types.ts';
-import { formatDate } from '../utils/formatDate';
+import { formatDate } from '../utils/formatDate'; // Import này sẽ được sử dụng
 import {
     PencilIcon, BookOpenIcon, HeartIcon, CalendarDaysIcon, EyeIcon, UserIcon, TagIcon,
-    ListBulletIcon, MagnifyingGlassIcon, ArrowLeftIcon, ChevronDownIcon, ChevronUpIcon, ArrowRightIcon // Thêm ArrowRightIcon nếu chưa có
+    ListBulletIcon, MagnifyingGlassIcon, ArrowLeftIcon, ChevronDownIcon, ChevronUpIcon, ArrowRightIcon
 } from '@heroicons/react/24/solid';
 
 const StoryDetailPage: React.FC = () => {
@@ -20,14 +20,14 @@ const StoryDetailPage: React.FC = () => {
   const { currentUser } = useAuth();
   const { isFavorite, toggleFavorite, getUserRating, addRating, bookmarks, removeBookmark  } = useUserPreferences();
 
-  // States (giữ nguyên)
+  // States
   const [story, setStory] = useState<Story | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [chapterSearchTerm, setChapterSearchTerm] = useState('');
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
 
-  // Derived states and memos (giữ nguyên)
+  // Derived states and memos
   const isUserFavorite = storyId ? isFavorite(storyId) : false;
   const userRating = storyId ? getUserRating(storyId) : undefined;
   const currentBookmark = storyId ? bookmarks[storyId] : null;
@@ -76,13 +76,12 @@ const StoryDetailPage: React.FC = () => {
 
   const firstChapter = story?.volumes?.[0]?.chapters?.[0];
 
-  // Hàm đọc từ đầu (giữ nguyên)
   const handleReadFromBeginning = () => {
      if (storyId) removeBookmark(storyId);
      if (firstChapter && story) navigate(`/story/${story.id}/chapter/${firstChapter.id}`);
   };
 
-  // Lọc danh sách tập/chương theo từ khóa tìm kiếm (giữ nguyên)
+  // Lọc danh sách tập/chương theo từ khóa tìm kiếm
   const filteredVolumes = useMemo(() => {
     if (!story) return [];
     if (!chapterSearchTerm.trim()) return story.volumes;
@@ -95,20 +94,14 @@ const StoryDetailPage: React.FC = () => {
         .filter(volume => volume.title.toLowerCase().includes(lowerSearchTerm) || volume.chapters.length > 0);
   }, [story, chapterSearchTerm]);
 
-  // Hàm định dạng ngày (giữ nguyên)
-  const formatDate = (isoString: string | undefined) => {
-     if (!isoString) return 'N/A';
-     try {
-         return new Date(isoString).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-     } catch (e) { return 'N/A'; }
-  };
+  // ĐÃ XÓA: Hàm local formatDate cũ ở đây để tránh xung đột với utils/formatDate
 
-  // Render states (giữ nguyên)
+  // Render states
   if (!storyId) return <Navigate to="/" replace />;
   if (loading) return <div className="flex justify-center items-center h-96"><LoadingSpinner size="lg" /></div>;
   if (error || !story) return <div className="text-center py-20 text-red-500 dark:text-red-400">{error || 'Không thể tải thông tin truyện.'}</div>;
 
-  // Chuẩn bị dữ liệu cho render (giữ nguyên)
+  // Chuẩn bị dữ liệu cho render
   const totalChapters = story.volumes.reduce((acc, vol) => acc + (vol.chapters?.length || 0), 0);
   const statusClasses = story.status === 'Hoàn thành'
     ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 ring-1 ring-inset ring-green-600/20 dark:ring-green-500/30'
@@ -117,7 +110,6 @@ const StoryDetailPage: React.FC = () => {
   const descriptionNeedsExpansion = descriptionParagraphs.length > 5;
 
   // --- START: Component nút bấm riêng biệt ---
-  // Component này sẽ chứa logic hiển thị nút cho cả mobile và desktop
   const ActionButtons = () => (
     <>
       {/* --- DESKTOP BUTTONS (Ẩn trên mobile) --- */}
@@ -140,14 +132,14 @@ const StoryDetailPage: React.FC = () => {
               <span>Đọc từ đầu</span>
             </button>
           </>
-        ) : ( firstChapter ? ( // Nếu chưa đọc, hiển thị nút đọc từ đầu (nếu có chương)
+        ) : ( firstChapter ? (
           <Link
             to={`/story/${story.id}/chapter/${firstChapter.id}`}
             className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold rounded-lg shadow-lg hover:shadow-amber-500/40 transition-all duration-300 transform hover:scale-[1.03] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-400 dark:focus:ring-offset-stone-900">
             <BookOpenIcon className="h-5 w-5"/>
             <span>Đọc từ đầu</span>
           </Link>
-        ) : ( // Nếu chưa có chương
+        ) : (
           <div className="text-center p-3 bg-slate-100 dark:bg-stone-800 rounded-md text-slate-500 dark:text-stone-400 text-sm italic">Truyện chưa có chương.</div>
         ))}
         {/* Nút yêu thích */}
@@ -174,7 +166,6 @@ const StoryDetailPage: React.FC = () => {
 
       {/* --- MOBILE BUTTONS (Hiện trên mobile, ẩn trên desktop) --- */}
       <div className="md:hidden mt-6 space-y-3">
-        {/* Hàng 1: Đọc tiếp / Đọc từ đầu */}
         <div className="grid grid-cols-2 gap-3">
           {currentBookmark ? (
             <>
@@ -205,7 +196,6 @@ const StoryDetailPage: React.FC = () => {
           ))}
         </div>
 
-        {/* Hàng 2: Yêu thích */}
         {currentUser && (
           <button
             onClick={() => storyId && toggleFavorite(storyId)}
@@ -219,7 +209,6 @@ const StoryDetailPage: React.FC = () => {
           </button>
         )}
 
-        {/* Hàng 3: Chỉnh sửa (Admin) */}
         {currentUser?.role === 'admin' && (
           <button onClick={() => navigate(`/admin/story/edit/${story.id}`)} className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-slate-600 text-white font-semibold rounded-lg shadow hover:bg-slate-700 transition-colors text-sm">
             <PencilIcon className="h-4 w-4" />
@@ -235,7 +224,7 @@ const StoryDetailPage: React.FC = () => {
   // --- RENDER UI ---
   return (
     <div className="max-w-6xl mx-auto animate-fade-in space-y-8 md:space-y-12 pb-8">
-      {/* Nút quay lại (giữ nguyên) */}
+      {/* Nút quay lại */}
       <div className="px-4 sm:px-0">
         <Link to="/" className="inline-flex items-center gap-1.5 text-orange-600 dark:text-orange-400 hover:text-orange-800 dark:hover:text-amber-300 text-sm font-medium group transition-colors">
             <ArrowLeftIcon className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-1" />
@@ -256,9 +245,8 @@ const StoryDetailPage: React.FC = () => {
               </div>
           </div>
 
-          {/* Cột phải: Thông tin chi tiết (giữ nguyên cấu trúc bên trong) */}
+          {/* Cột phải: Thông tin chi tiết */}
           <div className="w-full md:w-2/3 space-y-3 md:space-y-6">
-            {/* Tên truyện, trạng thái, tên khác */}
             <div className="text-center md:text-left">
               <span className={`text-xs sm:text-sm font-semibold px-3 py-1 rounded-full ${statusClasses} inline-block mb-3`}>
                   {story.status}
@@ -267,44 +255,43 @@ const StoryDetailPage: React.FC = () => {
               {story.alias && story.alias.length > 0 && <p className="mt-2 text-sm sm:text-base text-slate-500 dark:text-slate-400 italic">{Array.isArray(story.alias) ? story.alias.join(' · ') : story.alias}</p>}
             </div>
 
-{/* Thông tin metadata - COMPACT MOBILE VERSION */}
-<div className="grid grid-cols-3 gap-x-1 gap-y-2 border-t border-b border-slate-100 dark:border-stone-800 py-3 mt-3 sm:gap-x-4 sm:py-4">
-    {/* Tác giả */}
-    <div className="flex flex-col items-center justify-center px-1 border-r border-slate-100 dark:border-stone-800 last:border-0 sm:border-0 sm:flex-row sm:justify-start sm:px-0">
-        <div className="flex items-center gap-1 sm:gap-2 text-slate-500 dark:text-slate-400 mb-0.5 sm:mb-0">
-            <UserIcon className="h-3 w-3 sm:h-5 sm:w-5 text-orange-500"/>
-            <span className="text-[10px] sm:text-xs uppercase tracking-wide">Tác giả</span>
-        </div>
-        <div className="text-[11px] sm:text-sm font-bold text-slate-800 dark:text-slate-200 truncate max-w-full sm:ml-2">
-            {story.author}
-        </div>
-    </div>
+            {/* Thông tin metadata */}
+            <div className="grid grid-cols-3 gap-x-1 gap-y-2 border-t border-b border-slate-100 dark:border-stone-800 py-3 mt-3 sm:gap-x-4 sm:py-4">
+                {/* Tác giả */}
+                <div className="flex flex-col items-center justify-center px-1 border-r border-slate-100 dark:border-stone-800 last:border-0 sm:border-0 sm:flex-row sm:justify-start sm:px-0">
+                    <div className="flex items-center gap-1 sm:gap-2 text-slate-500 dark:text-slate-400 mb-0.5 sm:mb-0">
+                        <UserIcon className="h-3 w-3 sm:h-5 sm:w-5 text-orange-500"/>
+                        <span className="text-[10px] sm:text-xs uppercase tracking-wide">Tác giả</span>
+                    </div>
+                    <div className="text-[11px] sm:text-sm font-bold text-slate-800 dark:text-slate-200 truncate max-w-full sm:ml-2">
+                        {story.author}
+                    </div>
+                </div>
 
-    {/* Lượt xem */}
-    <div className="flex flex-col items-center justify-center px-1 border-r border-slate-100 dark:border-stone-800 last:border-0 sm:border-0 sm:flex-row sm:justify-start sm:px-0">
-        <div className="flex items-center gap-1 sm:gap-2 text-slate-500 dark:text-slate-400 mb-0.5 sm:mb-0">
-            <EyeIcon className="h-3 w-3 sm:h-5 sm:w-5 text-blue-500"/>
-            <span className="text-[10px] sm:text-xs uppercase tracking-wide">Lượt xem</span>
-        </div>
-        <div className="text-[11px] sm:text-sm font-bold text-slate-800 dark:text-slate-200 sm:ml-2">
-            {story.views.toLocaleString('vi-VN')}
-        </div>
-    </div>
+                {/* Lượt xem */}
+                <div className="flex flex-col items-center justify-center px-1 border-r border-slate-100 dark:border-stone-800 last:border-0 sm:border-0 sm:flex-row sm:justify-start sm:px-0">
+                    <div className="flex items-center gap-1 sm:gap-2 text-slate-500 dark:text-slate-400 mb-0.5 sm:mb-0">
+                        <EyeIcon className="h-3 w-3 sm:h-5 sm:w-5 text-blue-500"/>
+                        <span className="text-[10px] sm:text-xs uppercase tracking-wide">Lượt xem</span>
+                    </div>
+                    <div className="text-[11px] sm:text-sm font-bold text-slate-800 dark:text-slate-200 sm:ml-2">
+                        {story.views.toLocaleString('vi-VN')}
+                    </div>
+                </div>
 
-    {/* Số chương */}
-    <div className="flex flex-col items-center justify-center px-1 sm:flex-row sm:justify-start sm:px-0">
-        <div className="flex items-center gap-1 sm:gap-2 text-slate-500 dark:text-slate-400 mb-0.5 sm:mb-0">
-            <ListBulletIcon className="h-3 w-3 sm:h-5 sm:w-5 text-green-500"/>
-            <span className="text-[10px] sm:text-xs uppercase tracking-wide">Chương</span>
-        </div>
-        <div className="text-[11px] sm:text-sm font-bold text-slate-800 dark:text-slate-200 sm:ml-2">
-            {totalChapters}
-        </div>
-    </div>
-</div>
+                {/* Số chương */}
+                <div className="flex flex-col items-center justify-center px-1 sm:flex-row sm:justify-start sm:px-0">
+                    <div className="flex items-center gap-1 sm:gap-2 text-slate-500 dark:text-slate-400 mb-0.5 sm:mb-0">
+                        <ListBulletIcon className="h-3 w-3 sm:h-5 sm:w-5 text-green-500"/>
+                        <span className="text-[10px] sm:text-xs uppercase tracking-wide">Chương</span>
+                    </div>
+                    <div className="text-[11px] sm:text-sm font-bold text-slate-800 dark:text-slate-200 sm:ml-2">
+                        {totalChapters}
+                    </div>
+                </div>
+            </div>
 
              {/* Đánh giá */}
-{/* Đánh giá - Căn giữa trên mobile, căn trái trên desktop */}
             <div className="flex justify-center md:justify-start pt-1 pb-2">
                 <StarRating 
                     rating={story.rating} 
@@ -312,18 +299,6 @@ const StoryDetailPage: React.FC = () => {
                     userRating={userRating} 
                     onRate={handleRating} 
                 />
-{/* 
-                Chỉ hiển thị nút xóa nếu userRating có giá trị (tức là đã đánh giá)
-                {userRating !== undefined && (
-                    <button 
-                        onClick={handleDeleteRating}
-                        className="text-xs flex items-center gap-1 text-red-500 hover:text-red-700 transition-colors underline cursor-pointer"
-                        title="Xóa đánh giá của bạn"
-                    >
-                        <TrashIcon className="h-3 w-3" />
-                        Xóa đánh giá
-                    </button>
-                )} */}
             </div>
 
              {/* Tags */}
@@ -338,10 +313,9 @@ const StoryDetailPage: React.FC = () => {
                 </div>
             )}
 
-            {/* Mô tả với giới hạn dòng/cuộn */}
+            {/* Mô tả */}
             <div className="pt-2">
               <h2 className="text-xl font-semibold mb-3 font-serif text-slate-800 dark:text-slate-100">Mô tả</h2>
-              {/* Container cho mô tả */}
               <div className="relative text-slate-700 dark:text-slate-300 leading-relaxed text-sm sm:text-base space-y-3">
                   <div className={`
                         overflow-hidden
@@ -360,7 +334,6 @@ const StoryDetailPage: React.FC = () => {
                           <p className="italic text-slate-500">Chưa có mô tả.</p>
                       )}
                   </div>
-                  {/* Nút Xem thêm/Thu gọn (chỉ hiện khi cần và trên mobile) */}
                   {descriptionNeedsExpansion && (
                        <button
                           onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
@@ -379,15 +352,13 @@ const StoryDetailPage: React.FC = () => {
           </div>
         </div>
 
-        {/* --- Phần Nút Bấm MOBILE (Hiện trên mobile, ẩn trên desktop) --- */}
-        {/* Di chuyển phần nút mobile xuống đây, bên ngoài flex container chính */}
+        {/* --- Phần Nút Bấm MOBILE --- */}
         <div className="md:hidden px-4 pb-6 border-t border-slate-200 dark:border-stone-800 pt-6 bg-slate-50/50 dark:bg-stone-950/50">
           <ActionButtons />
         </div>
 
-        {/* Danh sách chương (giữ nguyên cấu trúc) */}
+        {/* Danh sách chương */}
         <div className="p-4 sm:p-6 md:p-8 border-t border-slate-200 dark:border-stone-800 bg-slate-50/50 dark:bg-stone-950/50">
-          {/* Header và ô tìm kiếm chương */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-5 gap-3">
               <h2 className="text-xl font-semibold font-serif text-slate-800 dark:text-slate-100 whitespace-nowrap">
                 <ListBulletIcon className="h-6 w-6 inline-block mr-2 text-orange-500 align-text-bottom"/>
@@ -404,15 +375,12 @@ const StoryDetailPage: React.FC = () => {
                 <MagnifyingGlassIcon className="h-5 w-5 text-slate-400 dark:text-stone-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"/>
               </div>
           </div>
-          {/* Danh sách tập/chương */}
           <div className="space-y-4 max-h-[45rem] overflow-y-auto pr-3 -mr-1 custom-scrollbar">
               {filteredVolumes.length > 0 ? filteredVolumes.map(volume => (
                 <div key={volume.id} className="bg-white dark:bg-stone-800/50 border border-slate-200 dark:border-stone-700/50 rounded-lg overflow-hidden shadow-sm">
-                  {/* Tên tập */}
                   <h3 className="text-base font-semibold font-serif text-slate-900 dark:text-slate-100 p-3 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-stone-800 dark:to-stone-800/70 border-b border-slate-200 dark:border-stone-700 sticky top-0 z-10 backdrop-blur-sm">
                       {volume.title}
                   </h3>
-                  {/* Danh sách chương */}
                   <div>
                       {volume.chapters && volume.chapters.length > 0 ? volume.chapters.map(chapter => {
                         const isReading = currentBookmark && currentBookmark.chapterId === chapter.id;
@@ -427,20 +395,17 @@ const StoryDetailPage: React.FC = () => {
                               }`}
                           >
                               <div className="flex justify-between items-center gap-4">
-                                {/* Tên chương + icon đang đọc */}
                                 <div className="flex items-center gap-2 min-w-0">
                                   {isReading && <BookOpenIcon className="h-4 w-4 text-orange-600 dark:text-amber-400 flex-shrink-0"/>}
                                   <span className={`flex-grow text-slate-700 dark:text-slate-200 truncate group-hover:text-orange-800 dark:group-hover:text-amber-200 ${isReading ? '' : 'pl-6'}`}>
                                       {chapter.title}
                                   </span>
-                                  {/* Tag RAW */}
                                   {chapter.isRaw && (
                                     <span className="ml-2 flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 bg-amber-100 text-amber-800 dark:bg-amber-900/70 dark:text-amber-300 rounded-full ring-1 ring-inset ring-amber-600/10 dark:ring-amber-400/20">
                                       RAW
                                     </span>
                                   )}
                                 </div>
-                                {/* Ngày đăng + Lượt xem (admin) */}
                             <div className="flex items-center gap-3 flex-shrink-0 text-xs text-slate-500 dark:text-stone-400">
                               {currentUser?.role === 'admin' && (
                                 <span className="hidden sm:flex items-center gap-1" title="Lượt xem (admin)">
@@ -448,9 +413,9 @@ const StoryDetailPage: React.FC = () => {
                                     {chapter.views?.toLocaleString('vi-VN') || 0}
                                 </span>
                               )}
+                              {/* Giờ đây hàm formatDate này sẽ gọi từ utils, trả về "Vừa xong", "X phút trước" */}
                               <span className="flex items-center gap-1" title={new Date(chapter.updatedAt || chapter.createdAt).toLocaleString('vi-VN')}>
                                   <CalendarDaysIcon className="h-3.5 w-3.5"/>
-                                  {/* Sử dụng hàm formatDate mới, ưu tiên updatedAt, nếu không có thì dùng createdAt */}
                                   {formatDate(chapter.updatedAt || chapter.createdAt)}
                               </span>
                             </div>
