@@ -4,6 +4,7 @@ export interface Chapter {
   title: string;
   content: string;
   createdAt: string;
+  updatedAt?: string; // --- ĐÃ THÊM DÒNG NÀY (Optional vì chương cũ có thể không có) ---
   views: number;
   isRaw?: boolean;
 }
@@ -35,16 +36,13 @@ export interface Story {
   createdAt: string;
   lastUpdatedAt: string;
   
-  // --- THÊM DÒNG NÀY ---
   latestChapter?: {
       title: string;
       createdAt: string;
       id: string;
   } | null;
-  // --------------------
 }
 
-// --- THÊM MỚI PHẦN NÀY ---
 export interface PaginationMetadata {
   page: number;
   limit: number;
@@ -64,7 +62,6 @@ export interface StoryFilterParams {
   status?: string;
   keyword?: string;
 }
-// -------------------------
 
 export type ReaderFont = 'font-reader-times' | 'font-reader-lora' | 'font-reader-antiqua';
 export type ReaderTheme = 'light' | 'sepia' | 'dark' | 'midnight' | 'paper' | 'matrix';
