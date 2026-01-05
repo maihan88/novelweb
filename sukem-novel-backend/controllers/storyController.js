@@ -224,12 +224,16 @@ exports.addChapter = async (req, res) => {
             title,
             content,
             isRaw: !!isRaw,
-            views: 0
+            views: 0,
+            createdAt: new Date(),
+            updatedAt: new Date()
         });
 
         await newChapter.save();
 
-        // Cập nhật thời gian truyện nếu chương được public
+        // [FIX] Luôn cập nhật thời gian truyện khi thêm chương (dù là Raw hay Public nếu admin muốn quản lý flow này)
+        // Hoặc logic chuẩn: Chỉ update khi chương đó public. 
+        // Ở đây tôi để logic: Nếu thêm chương public -> update time truyện để nó nổi lên trang chủ.
         if (!newChapter.isRaw) {
             await Story.findByIdAndUpdate(story._id, { 
                 lastUpdatedAt: new Date() 
@@ -251,15 +255,19 @@ exports.updateChapter = async (req, res) => {
 
         const { title, content, isRaw } = req.body;
         
-        chapter.title = title || chapter.title;
-        chapter.content = content || chapter.content;
-        
+        // Cập nhật thông tin chương
+        if (title) chapter.title = title;
+        if (content) chapter.content = content;
         if (isRaw !== undefined) chapter.isRaw = isRaw;
+        
+        // [FIX] Luôn update thời gian update của chính chương đó
+        chapter.updatedAt = new Date(); 
 
         await chapter.save();
 
-        // Nếu chương ở trạng thái public -> Cập nhật thời gian Story
-        // Dùng logic: Nếu vừa sửa xong mà nó là public thì update time
+        // [FIX QUAN TRỌNG] Cập nhật thời gian của Story cha
+        // Logic: Khi sửa 1 chương (sửa chính tả, nội dung), truyện đó cũng coi như vừa được cập nhật.
+        // Chỉ update nếu chương đó đang Public.
         if (!chapter.isRaw) {
             await Story.findByIdAndUpdate(chapter.storyId, { 
                 lastUpdatedAt: new Date() 
@@ -274,7 +282,18 @@ exports.updateChapter = async (req, res) => {
 
 exports.deleteChapter = async (req, res) => {
     try {
-        await Chapter.findOneAndDelete({ id: req.params.chapterId });
+        const chapter = await Chapter.findOne({ id: req.params.chapterId });
+        if (!chapter) return res.status(404).json({ message: 'Chapter not found' });
+
+        const storyId = chapter.storyId;
+
+        await Chapter.deleteOne({ id: req.params.chapterId });
+
+        // [FIX] Xóa chương cũng là một thay đổi, nên update lại thời gian story (tùy chọn, nhưng thường là có)
+        await Story.findByIdAndUpdate(storyId, { 
+            lastUpdatedAt: new Date() 
+        });
+
         res.json({ message: 'Chapter removed' });
     } catch (error) {
         res.status(500).json({ message: error.message });
