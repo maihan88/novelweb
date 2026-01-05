@@ -153,7 +153,8 @@ exports.createStory = async (req, res) => {
         const story = new Story({
             title, author, description, coverImage, 
             tags: tagsArray, status, isHot, isInBanner, alias,
-            volumes: [] 
+            volumes: [],
+            lastUpdatedAt: new Date() // Khởi tạo thời gian
         });
 
         const createdStory = await story.save();
@@ -228,13 +229,12 @@ exports.addChapter = async (req, res) => {
 
         await newChapter.save();
 
-        // --- LOGIC MỚI ---
-        // Chỉ cập nhật 'lastUpdatedAt' nếu chương này KHÔNG phải là Nháp (Raw)
-        if (!isRaw) {
-            story.lastUpdatedAt = new Date();
-            await story.save();
+        // Cập nhật thời gian truyện nếu chương được public
+        if (!newChapter.isRaw) {
+            await Story.findByIdAndUpdate(story._id, { 
+                lastUpdatedAt: new Date() 
+            });
         }
-        // -----------------
 
         res.json(newChapter);
     } catch (error) {
@@ -258,17 +258,13 @@ exports.updateChapter = async (req, res) => {
 
         await chapter.save();
 
-        // --- LOGIC MỚI ---
-        // Kiểm tra xem sau khi sửa xong, chương có đang ở trạng thái CÔNG KHAI không?
-        // Nếu là công khai (!isRaw) -> Cập nhật truyện lên top.
-        // Nếu là nháp (isRaw) -> Không làm gì cả.
-        const isNowRaw = (isRaw !== undefined) ? isRaw : chapter.isRaw;
-        
-        if (!isNowRaw) {
-            // Chỉ cần update trường lastUpdatedAt
-            await Story.findByIdAndUpdate(chapter.storyId, { lastUpdatedAt: new Date() });
+        // Nếu chương ở trạng thái public -> Cập nhật thời gian Story
+        // Dùng logic: Nếu vừa sửa xong mà nó là public thì update time
+        if (!chapter.isRaw) {
+            await Story.findByIdAndUpdate(chapter.storyId, { 
+                lastUpdatedAt: new Date() 
+            });
         }
-        // -----------------
 
         res.json(chapter);
     } catch (error) {
@@ -287,11 +283,42 @@ exports.deleteChapter = async (req, res) => {
 
 exports.getBannerStories = async (req, res) => {
     try {
-        const stories = await Story.find({ isInBanner: true })
-            .sort({ bannerPriority: 1, lastUpdatedAt: -1 })
-            .limit(10);
+        const stories = await Story.aggregate([
+            { $match: { isInBanner: true } }, // Chỉ lấy truyện trong banner
+            { $sort: { bannerPriority: 1, lastUpdatedAt: -1 } }, // Sắp xếp
+            { $limit: 10 },
+            // Join với bảng chapters để đếm
+            {
+                $lookup: {
+                    from: 'chapters', // Tên collection trong DB (thường là số nhiều)
+                    localField: '_id',
+                    foreignField: 'storyId',
+                    as: 'chapterList'
+                }
+            },
+            // Thêm field chapterCount và lấy ID chương đầu tiên
+            {
+                $addFields: {
+                    chapterCount: { 
+                        $size: { 
+                            $filter: {
+                                input: "$chapterList",
+                                as: "ch",
+                                cond: { $ne: ["$$ch.isRaw", true] } // Chỉ đếm chương đã xuất bản
+                            }
+                        } 
+                    },
+                    // Lấy ID chương đầu tiên để nút "Đọc ngay" hoạt động
+                    firstChapterId: { $arrayElemAt: ["$chapterList.id", 0] }
+                }
+            },
+            // Bỏ mảng chapterList nặng nề đi, chỉ giữ lại số liệu
+            { $project: { chapterList: 0 } }
+        ]);
+
         res.json(stories);
     } catch (error) {
+        console.error("Banner Error:", error);
         res.status(500).json({ message: "Server Error" });
     }
 };
