@@ -2,13 +2,19 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Story } from '../types';
 import * as storyService from '../services/storyService'; // Đã sửa: Bỏ đuôi .ts để tránh lỗi import
+import { formatTimeAgo } from '../utils/formatDate';
+interface BannerStory extends Omit<Story, 'lastUpdatedAt'> {
+  chapterCount?: number;
+  firstChapterId?: string;
+  lastUpdatedAt?: string;
+}
 
 interface HeroBannerProps {
   interval?: number;
 }
 
 const HeroBanner: React.FC<HeroBannerProps> = ({ interval = 7000 }) => {
-  const [stories, setStories] = useState<Story[]>([]);
+  const [stories, setStories] = useState<BannerStory[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [previousIndex, setPreviousIndex] = useState<number | null>(null);
@@ -56,13 +62,6 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ interval = 7000 }) => {
 
   // Tính toán dữ liệu trước khi early return
   const currentStory = stories[currentIndex];
-
-  const { totalChapters, firstChapterId } = useMemo(() => {
-     if (!currentStory) return { totalChapters: 0, firstChapterId: null };
-     const total = currentStory.volumes?.reduce((acc, vol) => acc + (vol.chapters?.length || 0), 0) || 0;
-     const firstId = currentStory.volumes?.[0]?.chapters?.[0]?.id;
-     return { totalChapters: total, firstChapterId: firstId };
-  }, [currentStory]);
 
   // Loading skeleton
   if (loading) return <div className="h-[450px] w-full bg-slate-800 animate-pulse rounded-lg"></div>;
@@ -116,7 +115,7 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ interval = 7000 }) => {
 
       <div className="relative h-full w-full flex flex-col items-center justify-end gap-4 text-center p-6 pb-12 sm:p-8 sm:pb-16 md:pb-20">
         <div className="relative z-10 text-white animate-fade-in">
-           <p className="font-semibold text-slate-200">Chapter: {totalChapters}</p>
+           <p className="font-semibold text-slate-200">Chapter: {currentStory.chapterCount || 0}</p>
            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold font-serif tracking-tight drop-shadow-lg mt-1 sm:mt-2">
             {currentStory.title}
           </h1>
@@ -132,9 +131,9 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ interval = 7000 }) => {
                 </span>
               ))}
           </div>
-          {firstChapterId && (
+          {currentStory.firstChapterId && (
             <Link
-                to={`/story/${currentStory.id}/chapter/${firstChapterId}`}
+                to={`/story/${currentStory.id}/chapter/${currentStory.firstChapterId}`}
                 className="mt-4 sm:mt-5 inline-block px-6 py-2 sm:px-8 sm:py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold rounded-full shadow-lg hover:shadow-amber-500/40 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-400 dark:focus:ring-offset-stone-900"
             >
                 Đọc Ngay &rarr;
