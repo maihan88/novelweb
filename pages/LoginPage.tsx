@@ -33,41 +33,57 @@ const LoginPage: React.FC = () => {
   // --- CẢI TIẾN GIAO DIỆN ---
   return (
     // Center layout, thêm padding
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-amber-100 dark:from-slate-900 dark:to-stone-800 p-4 animate-fade-in">
-      <div className="w-full max-w-4xl relative">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-orange-100 dark:from-slate-900 dark:via-stone-900 dark:to-slate-900 p-4 animate-fade-in relative overflow-hidden">
+      {/* Decorative background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-orange-200 dark:bg-orange-900/20 rounded-full blur-3xl opacity-30 animate-blob"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-amber-200 dark:bg-amber-900/20 rounded-full blur-3xl opacity-30 animate-blob" style={{ animationDelay: '2s' }}></div>
+      </div>
+      
+      <div className="w-full max-w-5xl relative z-10">
         {/* Nút về trang chủ */}
         <Link
             to="/"
-            className="absolute -top-10 left-0 flex items-center gap-1.5 text-sm text-slate-600 dark:text-stone-300 hover:text-orange-600 dark:hover:text-amber-400 transition-colors group"
+            className="absolute -top-12 left-0 flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-stone-300 hover:text-orange-600 dark:hover:text-amber-400 transition-all duration-200 group"
         >
             <ArrowLeftIcon className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
             Về trang chủ
         </Link>
         {/* Card chính */}
-        <div className="bg-white dark:bg-stone-800 rounded-2xl shadow-2xl flex flex-col md:flex-row overflow-hidden border border-slate-200 dark:border-stone-700">
+        <div className="bg-white dark:bg-stone-800 rounded-3xl shadow-2xl flex flex-col md:flex-row overflow-hidden border border-slate-200 dark:border-stone-700 backdrop-blur-sm">
             {/* Phần hình ảnh/chào mừng */}
-            <div className="w-full md:w-1/2 p-8 sm:p-12 flex flex-col items-center justify-center text-center bg-gradient-to-br from-orange-400 to-amber-400 text-white rounded-l-2xl">
-                 <BookOpenIcon className="h-16 w-16 sm:h-20 sm:w-20 text-orange-100 drop-shadow-lg" />
-                 <h1 className="mt-5 text-3xl font-bold font-serif">Chào mừng trở lại!</h1>
-                 <p className="mt-2 text-orange-50 text-sm sm:text-base max-w-xs">Đăng nhập để tiếp tục cuộc phiêu lưu của bạn trong thế giới truyện chữ.</p>
+            <div className="w-full md:w-1/2 p-8 sm:p-12 flex flex-col items-center justify-center text-center bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 text-white relative overflow-hidden">
+              <div 
+                className="absolute inset-0 opacity-20"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+                }}
+              ></div>
+              <div className="relative z-10">
+                 <div className="mb-6 transform transition-transform duration-300 hover:scale-110">
+                   <BookOpenIcon className="h-20 w-20 sm:h-24 sm:w-24 text-orange-100 drop-shadow-2xl mx-auto" />
+                 </div>
+                 <h1 className="mt-5 text-3xl sm:text-4xl font-bold font-serif mb-3">Chào mừng trở lại!</h1>
+                 <p className="mt-2 text-orange-50 text-sm sm:text-base max-w-xs leading-relaxed">Đăng nhập để tiếp tục cuộc phiêu lưu của bạn trong thế giới truyện chữ.</p>
+              </div>
             </div>
             {/* Phần form */}
-            <div className="w-full md:w-1/2 p-8 sm:p-12 flex flex-col justify-center">
-              <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white font-serif mb-6 text-center md:text-left">
+            <div className="w-full md:w-1/2 p-8 sm:p-12 flex flex-col justify-center bg-white/50 dark:bg-stone-800/50 backdrop-blur-sm">
+              <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white font-serif mb-8 text-center md:text-left">
                 Đăng nhập
               </h2>
-              <form className="space-y-5" onSubmit={handleSubmit}>
+              <form className="space-y-6" onSubmit={handleSubmit}>
                  {/* Thông báo lỗi (Alert style) */}
                 {error && (
-                    <div className="p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700/50 rounded-lg flex items-center gap-2 text-sm text-red-700 dark:text-red-300">
-                        <ExclamationTriangleIcon className="h-5 w-5 flex-shrink-0"/>
-                        <span>{error}</span>
+                    <div className="p-4 bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 rounded-lg flex items-start gap-3 text-sm text-red-700 dark:text-red-300 animate-fade-in shadow-sm">
+                        <ExclamationTriangleIcon className="h-5 w-5 flex-shrink-0 mt-0.5"/>
+                        <span className="flex-1">{error}</span>
                     </div>
                 )}
                 {/* Input fields */}
-                <div className="space-y-4">
+                <div className="space-y-5">
                   <div>
-                    <label htmlFor="username" className="block text-sm font-medium text-slate-700 dark:text-stone-300 mb-1.5">
+                    <label htmlFor="username" className="block text-sm font-semibold text-slate-700 dark:text-stone-300 mb-2">
                       Tên đăng nhập
                     </label>
                     <input
@@ -78,12 +94,12 @@ const LoginPage: React.FC = () => {
                       required
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      className="appearance-none block w-full px-4 py-2.5 border border-slate-300 dark:border-stone-600 rounded-lg shadow-sm placeholder-slate-400 dark:placeholder-stone-500 bg-white dark:bg-stone-700/50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent sm:text-sm transition duration-150" // Cập nhật style input
+                      className="appearance-none block w-full px-4 py-3 border-2 border-slate-300 dark:border-stone-600 rounded-xl shadow-sm placeholder-slate-400 dark:placeholder-stone-500 bg-white dark:bg-stone-700/50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 dark:focus:border-orange-500 sm:text-sm transition-all duration-200 hover:border-slate-400 dark:hover:border-stone-500"
                       placeholder="Nhập tên đăng nhập"
                     />
                   </div>
                   <div>
-                    <label htmlFor="password-input" className="block text-sm font-medium text-slate-700 dark:text-stone-300 mb-1.5">
+                    <label htmlFor="password-input" className="block text-sm font-semibold text-slate-700 dark:text-stone-300 mb-2">
                       Mật khẩu
                     </label>
                     <input
@@ -94,7 +110,7 @@ const LoginPage: React.FC = () => {
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="appearance-none block w-full px-4 py-2.5 border border-slate-300 dark:border-stone-600 rounded-lg shadow-sm placeholder-slate-400 dark:placeholder-stone-500 bg-white dark:bg-stone-700/50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent sm:text-sm transition duration-150" // Cập nhật style input
+                      className="appearance-none block w-full px-4 py-3 border-2 border-slate-300 dark:border-stone-600 rounded-xl shadow-sm placeholder-slate-400 dark:placeholder-stone-500 bg-white dark:bg-stone-700/50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 dark:focus:border-orange-500 sm:text-sm transition-all duration-200 hover:border-slate-400 dark:hover:border-stone-500"
                       placeholder="Mật khẩu của bạn"
                     />
                   </div>
@@ -105,7 +121,7 @@ const LoginPage: React.FC = () => {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full flex justify-center items-center gap-2 mt-2 py-3 px-4 border border-transparent rounded-lg shadow-md text-sm font-semibold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 dark:focus:ring-offset-stone-800 transition-opacity duration-150 disabled:opacity-60 disabled:cursor-not-allowed" // Gradient button
+                    className="w-full flex justify-center items-center gap-2 mt-2 py-3.5 px-4 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 dark:focus:ring-offset-stone-800 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98]" 
                   >
                     {loading ? (
                         <>
@@ -120,9 +136,9 @@ const LoginPage: React.FC = () => {
                 </div>
               </form>
               {/* Link đăng ký */}
-              <p className="mt-6 text-center text-sm text-slate-600 dark:text-stone-400">
+              <p className="mt-8 text-center text-sm text-slate-600 dark:text-stone-400">
                   Chưa có tài khoản?{' '}
-                  <Link to="/register" className="font-medium text-orange-600 hover:text-orange-500 dark:text-amber-400 dark:hover:text-amber-300 underline underline-offset-2">
+                  <Link to="/register" className="font-semibold text-orange-600 hover:text-orange-700 dark:text-amber-400 dark:hover:text-amber-300 underline underline-offset-2 transition-colors">
                     Đăng ký ngay
                   </Link>
                 </p>
