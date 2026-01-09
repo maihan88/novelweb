@@ -7,7 +7,7 @@ import { Story, Volume, Chapter } from '../../types';
 import {
     PlusIcon, TrashIcon, PencilIcon, ArrowPathIcon,
     ArrowUpIcon, ArrowDownIcon, PhotoIcon, ArrowUturnLeftIcon,
-    ExclamationTriangleIcon, MagnifyingGlassIcon, CheckIcon 
+    ExclamationTriangleIcon, MagnifyingGlassIcon, CheckIcon, DocumentTextIcon
 } from '@heroicons/react/24/solid';
 import { uploadImage } from '../../services/uploadService';
 import LoadingSpinner from '../../components/LoadingSpinner';
@@ -329,8 +329,8 @@ const StoryEditPage: React.FC = () => {
     }, [storyData.volumes, adminChapterSearchTerm]);
 
     // --- Styles dùng chung ---
-    const inputStyles = "w-full p-2.5 border rounded-lg bg-white dark:bg-slate-700/50 text-slate-900 dark:text-white border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-150 shadow-sm";
-    const labelStyles = "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5";
+    const inputStyles = "w-full p-3 border-2 rounded-xl bg-white dark:bg-slate-700/50 text-slate-900 dark:text-white border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 dark:focus:border-orange-500 transition-all duration-200 shadow-sm hover:border-slate-400 dark:hover:border-slate-500";
+    const labelStyles = "block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2";
 
     // --- Loading state ---
     if (loading) return <div className="flex justify-center items-center h-screen -mt-16"><LoadingSpinner size="lg"/></div>;
@@ -353,23 +353,26 @@ const StoryEditPage: React.FC = () => {
     return (
         <div className="max-w-7xl mx-auto space-y-8 animate-fade-in p-4 sm:p-6 lg:p-8">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                 <div>
-                     <button onClick={() => navigate('/admin')} className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors mb-1 group">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-gradient-to-r from-slate-50 to-orange-50 dark:from-slate-800 dark:to-slate-800/50 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                 <div className="flex-1">
+                     <button onClick={() => navigate('/admin')} className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-orange-600 dark:hover:text-orange-400 transition-all duration-200 mb-3 group">
                          <ArrowUturnLeftIcon className="h-4 w-4 transition-transform group-hover:-translate-x-1 duration-200" />
                          Quay lại Dashboard
                      </button>
-                    <h1 className="text-2xl sm:text-3xl font-bold font-serif text-slate-900 dark:text-white leading-tight">
+                    <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold font-serif text-slate-900 dark:text-white leading-tight">
                         {isNewStory ? 'Thêm Truyện Mới' : `Chỉnh Sửa: ${storyData.title || '...'}`}
                     </h1>
+                    {!isNewStory && storyData.title && (
+                        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Quản lý thông tin và nội dung truyện</p>
+                    )}
                  </div>
                  {/* Nút lưu chính (sticky trên desktop) */}
                  <div className="sm:sticky sm:top-20 sm:z-10">
                      <button
-                        form="storyForm" // Liên kết với form bên dưới
+                        form="storyForm"
                         type="submit"
                         disabled={isSaving || imageUploading}
-                        className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity shadow-lg hover:shadow-xl disabled:opacity-70 disabled:cursor-not-allowed"
+                        className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-70 disabled:cursor-not-allowed transform hover:scale-105 active:scale-95"
                     >
                         {isSaving ? <ArrowPathIcon className="h-5 w-5 animate-spin" /> : <CheckIcon className="h-5 w-5" />}
                         {isNewStory ? 'Lưu Truyện' : 'Cập nhật Thông Tin'}
@@ -379,40 +382,46 @@ const StoryEditPage: React.FC = () => {
 
             {/* Thông báo lỗi */}
             {error && (
-                 <div className="p-3 bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 rounded-r-lg flex items-center gap-3 text-sm text-red-700 dark:text-red-300 shadow-sm">
-                    <ExclamationTriangleIcon className="h-6 w-6 flex-shrink-0"/>
-                    <span className="font-medium">{error}</span>
+                 <div className="p-4 bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 rounded-r-xl flex items-start gap-3 text-sm text-red-700 dark:text-red-300 shadow-md animate-fade-in">
+                    <ExclamationTriangleIcon className="h-6 w-6 flex-shrink-0 mt-0.5"/>
+                    <span className="font-medium flex-1">{error}</span>
                  </div>
              )}
 
             {/* Form thông tin truyện */}
-            <form id="storyForm" onSubmit={handleStorySubmit} className="bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-lg shadow-lg space-y-6 border border-slate-200 dark:border-slate-700">
-                <h2 className="text-xl font-semibold border-b border-slate-200 dark:border-slate-700 pb-3 mb-6 text-slate-800 dark:text-slate-200">Thông tin cơ bản</h2>
+            <form id="storyForm" onSubmit={handleStorySubmit} className="bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-2xl shadow-xl space-y-6 border border-slate-200 dark:border-slate-700">
+                <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-slate-200 dark:border-slate-700">
+                    <div className="p-2 bg-gradient-to-br from-orange-500 to-amber-500 rounded-lg">
+                        <PencilIcon className="h-5 w-5 text-white" />
+                    </div>
+                    <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200">Thông tin cơ bản</h2>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-8">
                     {/* Ảnh bìa */}
-                    <div className="md:col-span-4 lg:col-span-3 space-y-1.5">
+                    <div className="md:col-span-4 lg:col-span-3 space-y-2">
                         <label className={labelStyles}>Ảnh bìa *</label>
-                        <div className="aspect-[2/3] relative border-2 border-slate-300 dark:border-slate-600 border-dashed rounded-lg flex items-center justify-center text-center p-2 bg-slate-50 dark:bg-slate-700/20 group">
+                        <div className="aspect-[2/3] relative border-2 border-slate-300 dark:border-slate-600 border-dashed rounded-2xl flex items-center justify-center text-center p-3 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-700/30 dark:to-slate-800/30 group transition-all duration-300 hover:border-orange-400 dark:hover:border-orange-500 hover:shadow-lg">
                              {/* Loading overlay */}
                              {imageUploading && (
-                                <div className="absolute inset-0 bg-white/80 dark:bg-slate-800/80 flex flex-col items-center justify-center z-10 rounded-lg backdrop-blur-sm">
+                                <div className="absolute inset-0 bg-white/90 dark:bg-slate-800/90 flex flex-col items-center justify-center z-10 rounded-2xl backdrop-blur-sm">
                                     <LoadingSpinner size="md" />
-                                    <span className="text-xs mt-2 text-slate-500 dark:text-slate-400">Đang tải lên...</span>
+                                    <span className="text-sm mt-3 font-medium text-slate-600 dark:text-slate-400">Đang tải lên...</span>
                                 </div>
                              )}
                              {/* Ảnh preview hoặc placeholder */}
                             {storyData.coverImage ? (
-                                <img src={storyData.coverImage} alt="Preview" className="max-h-full w-auto object-contain rounded-md mx-auto shadow-md"/>
+                                <img src={storyData.coverImage} alt="Preview" className="max-h-full w-auto object-contain rounded-xl mx-auto shadow-xl"/>
                              ) : (
-                                <div className="text-slate-400 dark:text-slate-500 space-y-1">
-                                    <PhotoIcon className="h-10 w-10 mx-auto"/>
-                                    <p className="text-xs font-medium">Chọn hoặc kéo thả ảnh</p>
+                                <div className="text-slate-400 dark:text-slate-500 space-y-2">
+                                    <PhotoIcon className="h-12 w-12 mx-auto"/>
+                                    <p className="text-sm font-semibold">Chọn hoặc kéo thả ảnh</p>
+                                    <p className="text-xs">JPG, PNG, GIF, WEBP</p>
                                 </div>
                              )}
                              {/* Nút upload ẩn và overlay */}
-                             <label htmlFor="coverImage" className="absolute inset-0 cursor-pointer bg-black/40 dark:bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity duration-200 rounded-lg">
-                                <PencilIcon className="h-7 w-7 mb-1"/>
-                                <span className="text-xs font-medium">Thay đổi ảnh</span>
+                             <label htmlFor="coverImage" className="absolute inset-0 cursor-pointer bg-gradient-to-br from-black/50 to-black/70 dark:from-black/70 dark:to-black/90 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-all duration-300 rounded-2xl backdrop-blur-sm">
+                                <PencilIcon className="h-8 w-8 mb-2"/>
+                                <span className="text-sm font-semibold">Thay đổi ảnh</span>
                              </label>
                              <input id="coverImage" name="coverImage" type="file" className="sr-only" onChange={handleCoverImageChange} accept="image/jpeg,image/png,image/gif,image/webp" />
                         </div>
@@ -463,34 +472,39 @@ const StoryEditPage: React.FC = () => {
 
             {/* Quản lý Tập & Chương (chỉ hiển thị khi sửa truyện) */}
             {!isNewStory && storyId && (
-                <div className="bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-lg shadow-lg space-y-6 border border-slate-200 dark:border-slate-700">
+                <div className="bg-white dark:bg-slate-800 p-6 sm:p-8 rounded-2xl shadow-xl space-y-6 border border-slate-200 dark:border-slate-700">
                     {/* Header và ô tìm kiếm */}
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 dark:border-slate-700 pb-4 mb-6">
-                        <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-100 whitespace-nowrap">Quản lý Tập & Chương</h2>
-                        <div className="relative w-full sm:w-72">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 mb-6 border-b-2 border-slate-200 dark:border-slate-700">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg">
+                                <DocumentTextIcon className="h-5 w-5 text-white" />
+                            </div>
+                            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 whitespace-nowrap">Quản lý Tập & Chương</h2>
+                        </div>
+                        <div className="relative w-full sm:w-80">
                             <input
                                 type="text"
                                 placeholder="Tìm chương trong danh sách..."
                                 value={adminChapterSearchTerm}
                                 onChange={e => setAdminChapterSearchTerm(e.target.value)}
-                                className={inputStyles + " pl-10 text-sm"} // Thêm padding trái
+                                className={inputStyles + " pl-10 text-sm"}
                             />
                              <MagnifyingGlassIcon className="h-5 w-5 text-slate-400 dark:text-stone-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                         </div>
                     </div>
 
                     {/* Form thêm tập */}
-                    <form onSubmit={handleAddVolume} className="flex flex-col sm:flex-row gap-3 mb-6 p-4 bg-slate-50 dark:bg-slate-700/30 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <form onSubmit={handleAddVolume} className="flex flex-col sm:flex-row gap-3 mb-6 p-5 bg-gradient-to-r from-slate-50 to-orange-50 dark:from-slate-700/30 dark:to-slate-800/30 rounded-xl border-2 border-slate-200 dark:border-slate-700 shadow-md">
                         <input type="text" value={newVolumeTitle} onChange={(e) => setNewVolumeTitle(e.target.value)} placeholder="Tên tập mới (ví dụ: Tập 1: Mở Đầu)" className={inputStyles + " flex-grow"} required />
-                        <button type="submit" className="flex-shrink-0 flex items-center justify-center gap-1.5 px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 text-sm transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-slate-800"><PlusIcon className="h-4 w-4"/> Thêm Tập</button>
+                        <button type="submit" className="flex-shrink-0 flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold rounded-xl hover:from-green-700 hover:to-emerald-700 text-sm transition-all duration-200 shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 dark:focus:ring-offset-slate-800 transform hover:scale-105 active:scale-95"><PlusIcon className="h-5 w-5"/> Thêm Tập</button>
                     </form>
 
                     {/* Danh sách tập và chương */}
-                    <div className="space-y-5">
+                    <div className="space-y-4">
                         {filteredVolumes && filteredVolumes.length > 0 ? filteredVolumes.map((vol, volIndex) => (
-                            <div key={vol.id} className="border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm overflow-hidden">
+                            <div key={vol.id} className="border-2 border-slate-200 dark:border-slate-700 rounded-xl shadow-md overflow-hidden transition-all duration-200 hover:shadow-lg hover:border-orange-300 dark:hover:border-orange-700">
                                 {/* Header Tập */}
-                                <div className="flex flex-wrap justify-between items-center gap-2 p-3 bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-700/70 border-b border-slate-200 dark:border-slate-600">
+                                <div className="flex flex-wrap justify-between items-center gap-2 p-4 bg-gradient-to-r from-slate-100 via-slate-50 to-slate-100 dark:from-slate-700 dark:via-slate-700/80 dark:to-slate-700 border-b-2 border-slate-200 dark:border-slate-600">
                                     <div className="flex items-center gap-2">
                                         {/* Nút di chuyển tập */}
                                          <div className="flex flex-col bg-white dark:bg-slate-600 p-0.5 rounded border border-slate-200 dark:border-slate-500">
@@ -504,15 +518,15 @@ const StoryEditPage: React.FC = () => {
                                     <div className="flex items-center gap-1.5">
                                         <Link
                                             to={`/admin/story/${storyId}/volume/${vol.id}/chapter/new`}
-                                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-500 text-white font-medium rounded-md hover:bg-blue-600 text-xs transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 dark:focus:ring-offset-slate-800"
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-indigo-600 text-xs transition-all duration-200 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 dark:focus:ring-offset-slate-800 transform hover:scale-105"
                                             title="Thêm chương mới"
                                         >
-                                            <PlusIcon className="h-3.5 w-3.5"/> <span className="hidden sm:inline">Chương</span>
+                                            <PlusIcon className="h-4 w-4"/> <span className="hidden sm:inline">Chương</span>
                                         </Link>
-                                        <button title={`Sửa tên tập`} onClick={() => handleVolumeTitleChange(vol.id)} className="p-1.5 rounded-md text-slate-500 hover:bg-slate-300 dark:text-slate-400 dark:hover:bg-slate-600 transition-colors focus:outline-none focus:ring-1 focus:ring-slate-400">
+                                        <button title={`Sửa tên tập`} onClick={() => handleVolumeTitleChange(vol.id)} className="p-2 rounded-lg text-slate-600 hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-slate-400 hover:scale-110">
                                             <PencilIcon className="h-4 w-4"/>
                                         </button>
-                                        <button title={`Xóa tập`} onClick={() => handleVolumeDelete(vol.id, vol.title)} className="p-1.5 rounded-md text-red-500 hover:bg-red-100 dark:hover:bg-slate-600 transition-colors focus:outline-none focus:ring-1 focus:ring-red-400">
+                                        <button title={`Xóa tập`} onClick={() => handleVolumeDelete(vol.id, vol.title)} className="p-2 rounded-lg text-red-500 hover:bg-red-100 dark:hover:bg-slate-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-400 hover:scale-110">
                                             <TrashIcon className="h-4 w-4"/>
                                         </button>
                                     </div>
@@ -522,7 +536,7 @@ const StoryEditPage: React.FC = () => {
                                     {vol.chapters && vol.chapters.length > 0 ? (
                                         <ul className="divide-y divide-slate-100 dark:divide-slate-700">
                                             {vol.chapters.map((chap, chapIndex) => (
-                                            <li key={chap.id} className="flex justify-between items-center p-2 pl-3 group hover:bg-orange-50 dark:hover:bg-slate-700/50 transition-colors duration-150">
+                                                <li key={chap.id} className="flex justify-between items-center p-3 pl-4 group hover:bg-gradient-to-r hover:from-orange-50 hover:to-amber-50 dark:hover:from-slate-700/50 dark:hover:to-slate-700/30 transition-all duration-200">
                                                 {/* Tên chương và nút di chuyển */}
                                                 <div className="flex items-center gap-2 min-w-0">
                                                      <div className="flex flex-col opacity-0 group-hover:opacity-100 transition-opacity duration-150">
@@ -533,11 +547,11 @@ const StoryEditPage: React.FC = () => {
                                                      {chap.isRaw && <span className="ml-1.5 flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 bg-amber-200 text-amber-800 dark:bg-amber-900 dark:text-amber-300 rounded-full">RAW</span>}
                                                 </div>
                                                 {/* Nút hành động chương */}
-                                                <div className="flex-shrink-0 flex items-center gap-1 ml-2">
-                                                    <Link title={`Sửa chương`} to={`/admin/story/${storyId}/volume/${vol.id}/chapter/edit/${chap.id}`} className="p-1.5 rounded-full text-indigo-600 hover:bg-indigo-100 dark:text-indigo-400 dark:hover:bg-slate-600 transition-colors focus:outline-none focus:ring-1 focus:ring-indigo-400">
+                                                <div className="flex-shrink-0 flex items-center gap-2 ml-2">
+                                                    <Link title={`Sửa chương`} to={`/admin/story/${storyId}/volume/${vol.id}/chapter/edit/${chap.id}`} className="p-2 rounded-lg text-indigo-600 hover:bg-indigo-100 dark:text-indigo-400 dark:hover:bg-slate-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 hover:scale-110">
                                                         <PencilIcon className="h-4 w-4"/>
                                                     </Link>
-                                                    <button title={`Xóa chương`} onClick={() => handleChapterDelete(vol.id, chap.id, chap.title)} className="p-1.5 rounded-full text-red-500 hover:bg-red-100 dark:hover:bg-slate-600 transition-colors focus:outline-none focus:ring-1 focus:ring-red-400">
+                                                    <button title={`Xóa chương`} onClick={() => handleChapterDelete(vol.id, chap.id, chap.title)} className="p-2 rounded-lg text-red-500 hover:bg-red-100 dark:hover:bg-slate-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-400 hover:scale-110">
                                                         <TrashIcon className="h-4 w-4"/>
                                                     </button>
                                                 </div>
