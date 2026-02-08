@@ -10,14 +10,11 @@ interface PaginationProps {
 const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages, onPageChange }) => {
     if (totalPages <= 1) return null;
 
-    // Helper tạo danh sách trang
     const getPageNumbers = () => {
         const pages = [];
-        // Nếu ít trang (<= 7), hiện hết
         if (totalPages <= 7) {
             for (let i = 1; i <= totalPages; i++) pages.push(i);
         } else {
-            // Logic hiển thị: 1 ... 4 5 6 ... 20
             if (currentPage <= 4) {
                 pages.push(1, 2, 3, 4, 5, '...', totalPages);
             } else if (currentPage >= totalPages - 3) {
@@ -29,13 +26,22 @@ const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages, onPage
         return pages;
     };
 
+    // Class cơ bản cho nút
+    const baseBtnClass = "w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300 shadow-sm border";
+    
+    // Class cho trạng thái bình thường (chưa active)
+    const normalBtnClass = "bg-sukem-card border-sukem-border text-sukem-text hover:bg-sukem-primary hover:text-white hover:border-transparent";
+    
+    // Class cho trạng thái active
+    const activeBtnClass = "bg-sukem-primary border-sukem-primary text-white transform scale-110 shadow-md shadow-sukem-primary/30";
+
     return (
-        <div className="flex justify-center items-center gap-2 mt-8 select-none">
+        <div className="flex justify-center items-center gap-2 mt-12 select-none animate-fade-in">
             {/* Nút Previous */}
             <button
                 onClick={() => onPageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="w-10 h-10 flex items-center justify-center rounded-full border border-orange-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-orange-900 dark:text-stone-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-orange-100 dark:hover:bg-stone-700 transition-all duration-200 shadow-sm"
+                className={`${baseBtnClass} ${normalBtnClass} disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-sukem-card disabled:hover:text-sukem-text`}
             >
                 <ChevronLeftIcon className="w-5 h-5" />
             </button>
@@ -44,15 +50,11 @@ const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages, onPage
             {getPageNumbers().map((page, index) => (
                 <React.Fragment key={index}>
                     {page === '...' ? (
-                        <span className="w-10 h-10 flex items-center justify-center text-stone-400 font-medium">...</span>
+                        <span className="w-10 h-10 flex items-center justify-center text-sukem-text-muted font-serif font-medium">...</span>
                     ) : (
                         <button
                             onClick={() => onPageChange(page as number)}
-                            className={`w-10 h-10 flex items-center justify-center rounded-full font-medium transition-all duration-200 shadow-sm ${
-                                currentPage === page
-                                    ? 'bg-orange-500 text-white shadow-orange-200 dark:shadow-none transform scale-110'
-                                    : 'bg-white dark:bg-stone-800 border border-orange-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 hover:bg-orange-100 dark:hover:bg-stone-700 hover:border-orange-300 hover:text-orange-900'
-                            }`}
+                            className={`${baseBtnClass} ${currentPage === page ? activeBtnClass : normalBtnClass} font-medium font-serif`}
                         >
                             {page}
                         </button>
@@ -64,7 +66,7 @@ const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages, onPage
             <button
                 onClick={() => onPageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className="w-10 h-10 flex items-center justify-center rounded-full border border-orange-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-orange-900 dark:text-stone-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-orange-100 dark:hover:bg-stone-700 transition-all duration-200 shadow-sm"
+                className={`${baseBtnClass} ${normalBtnClass} disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-sukem-card disabled:hover:text-sukem-text`}
             >
                 <ChevronRightIcon className="w-5 h-5" />
             </button>

@@ -1,5 +1,3 @@
-// file: pages/ReaderPage.tsx
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Story, Chapter, ReaderPreferences, ReaderTheme } from '../types';
@@ -10,90 +8,57 @@ import ReaderControls from '../components/ReaderControls';
 import CommentSection from '../components/CommentSection';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useTheme } from '../contexts/ThemeContext';
-import {
-    ArrowLeftIcon, ArrowRightIcon,
-    HomeIcon,
-    SunIcon,
-    MoonIcon,
-    ListBulletIcon
-} from '@heroicons/react/24/solid';
+import { ArrowLeftIcon, ArrowRightIcon, HomeIcon, SunIcon, MoonIcon, ListBulletIcon } from '@heroicons/react/24/solid';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 
-// --- ReadingProgressBar ---
+// --- ReadingProgressBar: Dùng màu Primary (Hồng/Đỏ) ---
 const ReadingProgressBar: React.FC<{ progress: number }> = React.memo(({ progress }) => {
     return (
         <div className="fixed top-0 left-0 w-full h-1 bg-transparent z-[60] pointer-events-none">
             <div
-                className="h-1 bg-orange-600 dark:bg-amber-500 origin-left shadow-[0_0_10px_rgba(234,88,12,0.5)]"
-                style={{
-                    transform: `scaleX(${progress / 100})`,
-                    transition: 'transform 150ms ease-out',
-                    willChange: 'transform'
-                }}
+                className="h-1 bg-sukem-primary origin-left shadow-[0_0_10px_var(--color-sukem-primary)]"
+                style={{ transform: `scaleX(${progress / 100})`, transition: 'transform 150ms ease-out', willChange: 'transform' }}
             />
         </div>
     );
 });
 ReadingProgressBar.displayName = 'ReadingProgressBar';
 
-// --- FloatingNavBar ---
-const FloatingNavBar: React.FC<{
-    story: Story;
-    currentChapterId: string;
-    prevChapter?: Chapter | null;
-    nextChapter?: Chapter | null;
-    isVisible: boolean;
-}> = ({ story, currentChapterId, prevChapter, nextChapter, isVisible }) => {
+// --- FloatingNavBar: Dùng Style Glassmorphism & Sukem Colors ---
+const FloatingNavBar: React.FC<{ story: Story; currentChapterId: string; prevChapter?: Chapter | null; nextChapter?: Chapter | null; isVisible: boolean; }> = ({ story, currentChapterId, prevChapter, nextChapter, isVisible }) => {
     const navigate = useNavigate();
     const { theme, toggleTheme } = useTheme();
 
     const handleChapterSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const newChapterId = e.target.value;
-        if (newChapterId) navigate(`/story/${story.id}/chapter/${newChapterId}`);
+        if (e.target.value) navigate(`/story/${story.id}/chapter/${e.target.value}`);
     };
 
     const btnBaseClass = "p-2 rounded-full transition-all duration-200 flex items-center justify-center";
-    const btnActive = "hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 active:scale-95";
-    const btnDisabled = "opacity-30 cursor-not-allowed text-slate-400 dark:text-slate-600";
+    const btnActive = "hover:bg-sukem-primary hover:text-white text-sukem-text active:scale-95";
+    const btnDisabled = "opacity-30 cursor-not-allowed text-sukem-text-muted";
 
     return (
-        <div 
-            className={`fixed top-6 left-0 right-0 z-50 flex justify-center pointer-events-none transition-all duration-500 ease-spring ${
-                isVisible ? 'translate-y-0 opacity-100' : '-translate-y-16 opacity-0'
-            }`}
-        >
-            <div className="pointer-events-auto flex items-center gap-1 sm:gap-3 px-3 py-2 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 shadow-2xl rounded-full max-w-[95vw] sm:max-w-3xl transform transition-all">
-                <Link to={`/story/${story.id}`} className={`${btnBaseClass} ${btnActive}`} title="Về trang truyện">
-                    <HomeIcon className="h-5 w-5" />
-                </Link>
-                <div className="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-1"></div>
-                <Link to={prevChapter ? `/story/${story.id}/chapter/${prevChapter.id}` : '#'} className={`${btnBaseClass} ${prevChapter ? btnActive : btnDisabled}`} aria-disabled={!prevChapter}>
-                    <ArrowLeftIcon className="h-5 w-5" />
-                </Link>
+        <div className={`fixed top-6 left-0 right-0 z-50 flex justify-center pointer-events-none transition-all duration-500 ease-spring ${isVisible ? 'translate-y-0 opacity-100' : '-translate-y-16 opacity-0'}`}>
+            <div className="pointer-events-auto flex items-center gap-1 sm:gap-3 px-3 py-2 bg-sukem-card/90 backdrop-blur-xl border border-sukem-border shadow-2xl rounded-full max-w-[95vw] sm:max-w-3xl transform transition-all">
+                <Link to={`/story/${story.id}`} className={`${btnBaseClass} ${btnActive}`} title="Về trang truyện"><HomeIcon className="h-5 w-5" /></Link>
+                <div className="w-px h-5 bg-sukem-border mx-1"></div>
+                <Link to={prevChapter ? `/story/${story.id}/chapter/${prevChapter.id}` : '#'} className={`${btnBaseClass} ${prevChapter ? btnActive : btnDisabled}`} aria-disabled={!prevChapter}><ArrowLeftIcon className="h-5 w-5" /></Link>
+                
                 <div className="relative group max-w-[140px] sm:max-w-[200px]">
-                    <div className="absolute inset-y-0 left-0 flex items-center pl-2 pointer-events-none">
-                        <ListBulletIcon className="h-4 w-4 text-slate-500" />
-                    </div>
-                    <select
-                        value={currentChapterId}
-                        onChange={handleChapterSelect}
-                        className="w-full pl-8 pr-4 py-1.5 bg-transparent text-sm font-medium text-slate-800 dark:text-slate-200 border-none focus:ring-0 cursor-pointer appearance-none truncate text-center hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
-                    >
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-2 pointer-events-none"><ListBulletIcon className="h-4 w-4 text-sukem-text-muted" /></div>
+                    <select value={currentChapterId} onChange={handleChapterSelect} className="w-full pl-8 pr-4 py-1.5 bg-transparent text-sm font-medium text-sukem-text border-none focus:ring-0 cursor-pointer appearance-none truncate text-center hover:text-sukem-primary transition-colors">
                         {story.volumes.map(volume => (
-                            <optgroup label={volume.title} key={volume.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold">
-                                {volume.chapters.map(chap => (
-                                    <option key={chap.id} value={chap.id} className="font-normal">{chap.title}</option>
-                                ))}
+                            <optgroup label={volume.title} key={volume.id} className="bg-sukem-card text-sukem-text font-bold">
+                                {volume.chapters.map(chap => (<option key={chap.id} value={chap.id} className="font-normal">{chap.title}</option>))}
                             </optgroup>
                         ))}
                     </select>
                 </div>
-                <Link to={nextChapter ? `/story/${story.id}/chapter/${nextChapter.id}` : '#'} className={`${btnBaseClass} ${nextChapter ? btnActive : btnDisabled}`} aria-disabled={!nextChapter}>
-                    <ArrowRightIcon className="h-5 w-5" />
-                </Link>
-                <div className="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-1"></div>
-                <button onClick={toggleTheme} className={`${btnBaseClass} ${theme === 'dark' ? 'text-amber-400 hover:bg-slate-700' : 'text-orange-500 hover:bg-orange-50'}`} title={theme === 'dark' ? "Chuyển sáng" : "Chuyển tối"}>
+
+                <Link to={nextChapter ? `/story/${story.id}/chapter/${nextChapter.id}` : '#'} className={`${btnBaseClass} ${nextChapter ? btnActive : btnDisabled}`} aria-disabled={!nextChapter}><ArrowRightIcon className="h-5 w-5" /></Link>
+                <div className="w-px h-5 bg-sukem-border mx-1"></div>
+                <button onClick={toggleTheme} className={`${btnBaseClass} ${theme === 'dark' ? 'text-amber-400 hover:bg-slate-700' : 'text-sukem-primary hover:bg-sukem-bg'}`}>
                     {theme === 'dark' ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
                 </button>
             </div>
@@ -101,97 +66,26 @@ const FloatingNavBar: React.FC<{
     );
 };
 
-// --- CẤU HÌNH THEME (MỚI) ---
-const themeSpecificStyles: Record<ReaderTheme, { 
-    container: string; 
-    title: string; 
-    breadcrumb: string;
-    breadcrumbActive: string;
-    content: string;
-    border: string;
-    button: string;
-    buttonHover: string;
-    selectBg: string;
-    selectBorder: string;
-}> = {
-    // 1. Light (Cơ bản)
+// --- THEME SETTINGS: Light Theme mapped to SUKEM ---
+const themeSpecificStyles: Record<ReaderTheme, { container: string; title: string; breadcrumb: string; breadcrumbActive: string; content: string; border: string; button: string; buttonHover: string; selectBg: string; selectBorder: string; }> = {
+    // Light -> Sukem Theme
     light: {
-        container: 'bg-white',
-        title: 'text-slate-900',
-        breadcrumb: 'text-slate-500 hover:text-orange-600',
-        breadcrumbActive: 'text-orange-600',
-        content: 'text-slate-800',
-        border: 'border-slate-200',
-        button: 'border-slate-300 text-slate-700 bg-white',
-        buttonHover: 'hover:bg-orange-50 hover:border-orange-300 hover:text-orange-700',
-        selectBg: 'bg-white',
-        selectBorder: 'border-slate-300'
+        container: 'bg-[#FFF8E7]', // Sukem BG
+        title: 'text-[#4A2C2A]', // Sukem Text
+        breadcrumb: 'text-[#6E5C58] hover:text-[#FF6F91]', // Muted -> Primary
+        breadcrumbActive: 'text-[#FF6F91]',
+        content: 'text-[#4A2C2A]',
+        border: 'border-[#E8D5B5]', // Sukem Border
+        button: 'border-[#E8D5B5] text-[#4A2C2A] bg-[#FDEBD0]', // Sukem Card
+        buttonHover: 'hover:bg-[#FF6F91] hover:text-white hover:border-[#FF6F91]',
+        selectBg: 'bg-[#FDEBD0]',
+        selectBorder: 'border-[#E8D5B5]'
     },
-    // 2. Sepia (Vàng nâu - Cổ điển)
-    sepia: {
-        container: 'bg-[#fbf0d9]',
-        title: 'text-[#433422]',
-        breadcrumb: 'text-[#8c6d46] hover:text-[#5f4b32]',
-        breadcrumbActive: 'text-[#5f4b32]',
-        content: 'text-[#5f4b32]',
-        border: 'border-[#dcd3c1]',
-        button: 'border-[#c8b79a] text-[#5f4b32] bg-[#fbf0d9]',
-        buttonHover: 'hover:bg-[#f5e9d3] hover:border-[#a08d70]',
-        selectBg: 'bg-[#fbf0d9]',
-        selectBorder: 'border-[#dcd3c1]'
-    },
-    // 3. Dark (Đen xám - Tiêu chuẩn)
-    dark: {
-        container: 'bg-[#1c1917]', // Stone-900
-        title: 'text-[#e7e5e4]',
-        breadcrumb: 'text-[#a8a29e] hover:text-[#fbbf24]',
-        breadcrumbActive: 'text-[#fbbf24]',
-        content: 'text-[#d6d3d1]',
-        border: 'border-[#44403c]',
-        button: 'border-[#57534e] text-[#d6d3d1] bg-[#292524]',
-        buttonHover: 'hover:bg-[#44403c] hover:border-[#78716c] hover:text-white',
-        selectBg: 'bg-[#292524]',
-        selectBorder: 'border-[#57534e]'
-    },
-    // 4. Paper (Giấy in - Trắng đục)
-    paper: {
-        container: 'bg-[#f5f5f4]', // Stone-100
-        title: 'text-[#292524]', // Stone-800
-        breadcrumb: 'text-[#78716c] hover:text-[#292524]',
-        breadcrumbActive: 'text-[#292524]',
-        content: 'text-[#44403c]', // Stone-700
-        border: 'border-[#d6d3d1]',
-        button: 'border-[#d6d3d1] text-[#44403c] bg-[#f5f5f4]',
-        buttonHover: 'hover:bg-[#e7e5e4] hover:border-[#a8a29e]',
-        selectBg: 'bg-[#f5f5f4]',
-        selectBorder: 'border-[#d6d3d1]'
-    },
-    // 5. Midnight (Đêm xanh - Dịu mắt)
-    midnight: {
-        container: 'bg-[#0f172a]', // Slate-900
-        title: 'text-[#e2e8f0]', // Slate-200
-        breadcrumb: 'text-[#64748b] hover:text-[#94a3b8]',
-        breadcrumbActive: 'text-[#94a3b8]',
-        content: 'text-[#cbd5e1]', // Slate-300
-        border: 'border-[#1e293b]',
-        button: 'border-[#334155] text-[#cbd5e1] bg-[#1e293b]',
-        buttonHover: 'hover:bg-[#334155] hover:text-white hover:border-[#475569]',
-        selectBg: 'bg-[#1e293b]',
-        selectBorder: 'border-[#334155]'
-    },
-    // 6. Matrix (Hacker - Terminal)
-    matrix: {
-        container: 'bg-black',
-        title: 'text-[#22c55e]', // Green-500
-        breadcrumb: 'text-[#15803d] hover:text-[#4ade80]',
-        breadcrumbActive: 'text-[#4ade80]',
-        content: 'text-[#4ade80]', // Green-400
-        border: 'border-[#14532d]',
-        button: 'border-[#14532d] text-[#22c55e] bg-black',
-        buttonHover: 'hover:bg-[#052e16] hover:border-[#22c55e] hover:text-[#4ade80]',
-        selectBg: 'bg-black',
-        selectBorder: 'border-[#14532d]'
-    }
+    sepia: { container: 'bg-[#fbf0d9]', title: 'text-[#433422]', breadcrumb: 'text-[#8c6d46] hover:text-[#5f4b32]', breadcrumbActive: 'text-[#5f4b32]', content: 'text-[#5f4b32]', border: 'border-[#dcd3c1]', button: 'border-[#c8b79a] text-[#5f4b32] bg-[#fbf0d9]', buttonHover: 'hover:bg-[#f5e9d3] hover:border-[#a08d70]', selectBg: 'bg-[#fbf0d9]', selectBorder: 'border-[#dcd3c1]' },
+    dark: { container: 'bg-[#1c1917]', title: 'text-[#e7e5e4]', breadcrumb: 'text-[#a8a29e] hover:text-[#fbbf24]', breadcrumbActive: 'text-[#fbbf24]', content: 'text-[#d6d3d1]', border: 'border-[#44403c]', button: 'border-[#57534e] text-[#d6d3d1] bg-[#292524]', buttonHover: 'hover:bg-[#44403c] hover:border-[#78716c] hover:text-white', selectBg: 'bg-[#292524]', selectBorder: 'border-[#57534e]' },
+    paper: { container: 'bg-[#f5f5f4]', title: 'text-[#292524]', breadcrumb: 'text-[#78716c] hover:text-[#292524]', breadcrumbActive: 'text-[#292524]', content: 'text-[#44403c]', border: 'border-[#d6d3d1]', button: 'border-[#d6d3d1] text-[#44403c] bg-[#f5f5f4]', buttonHover: 'hover:bg-[#e7e5e4] hover:border-[#a8a29e]', selectBg: 'bg-[#f5f5f4]', selectBorder: 'border-[#d6d3d1]' },
+    midnight: { container: 'bg-[#0f172a]', title: 'text-[#e2e8f0]', breadcrumb: 'text-[#64748b] hover:text-[#94a3b8]', breadcrumbActive: 'text-[#94a3b8]', content: 'text-[#cbd5e1]', border: 'border-[#1e293b]', button: 'border-[#334155] text-[#cbd5e1] bg-[#1e293b]', buttonHover: 'hover:bg-[#334155] hover:text-white hover:border-[#475569]', selectBg: 'bg-[#1e293b]', selectBorder: 'border-[#334155]' },
+    matrix: { container: 'bg-black', title: 'text-[#22c55e]', breadcrumb: 'text-[#15803d] hover:text-[#4ade80]', breadcrumbActive: 'text-[#4ade80]', content: 'text-[#4ade80]', border: 'border-[#14532d]', button: 'border-[#14532d] text-[#22c55e] bg-black', buttonHover: 'hover:bg-[#052e16] hover:border-[#22c55e] hover:text-[#4ade80]', selectBg: 'bg-black', selectBorder: 'border-[#14532d]' }
 };
 
 const marginSettings: Record<number, { padding: string; maxWidth: string }> = {
@@ -215,11 +109,7 @@ const ReaderPage: React.FC = () => {
     const [loadingChapter, setLoadingChapter] = useState(false);
 
     const [preferences, setPreferences] = useLocalStorage<ReaderPreferences>('readerPreferences', {
-        fontSize: 18,
-        fontFamily: 'font-reader-lora',
-        lineHeight: 1.7,
-        margin: 10,
-        theme: 'light',
+        fontSize: 18, fontFamily: 'font-reader-lora', lineHeight: 1.7, margin: 10, theme: 'light',
     });
 
     const [scrollPercent, setScrollPercent] = useState(0);
@@ -228,11 +118,12 @@ const ReaderPage: React.FC = () => {
     const readerContentRef = useRef<HTMLDivElement>(null);
     const [isFloatingNavVisible, setIsFloatingNavVisible] = useState(false);
     const lastTap = useRef(0);
-
     const updateBookmarkRef = useRef(updateBookmark);
     useEffect(() => { updateBookmarkRef.current = updateBookmark; });
-
     const isAdmin = useMemo(() => currentUser?.role === 'admin', [currentUser]);
+
+    // ... (Giữ nguyên các useEffect logic load truyện, scroll, bookmark...)
+    // Tôi rút gọn phần logic lặp lại để tập trung vào UI, hãy giữ nguyên code logic của bạn
 
     useEffect(() => {
         if (!storyId) return;
@@ -253,11 +144,8 @@ const ReaderPage: React.FC = () => {
             try {
                 const fullChapter = await storyService.getChapterContent(storyId, chapterId);
                 setCurrentChapterWithContent(fullChapter);
-            } catch (error) {
-                console.error("Failed to load chapter content", error);
-            } finally {
-                setLoadingChapter(false);
-            }
+            } catch (error) { console.error("Failed to load content", error); } 
+            finally { setLoadingChapter(false); }
         };
         loadContent();
     }, [storyId, chapterId]);
@@ -266,8 +154,8 @@ const ReaderPage: React.FC = () => {
         if (!currentChapterWithContent) return;
         viewIncrementedRef.current = false;
         window.scrollTo(0, 0);
-
-        const savedBookmark = storyId ? bookmarks[storyId] : null;
+        // ... Logic restore scroll position (Keep existing logic)
+         const savedBookmark = storyId ? bookmarks[storyId] : null;
         if (savedBookmark && savedBookmark.chapterId === chapterId) {
              requestAnimationFrame(() => {
                  setTimeout(() => {
@@ -296,7 +184,8 @@ const ReaderPage: React.FC = () => {
         }
     }, [storyId, chapterId, bookmarks, currentChapterWithContent]);
 
-    useEffect(() => {
+    // ... Logic Scroll Listener (Keep existing logic)
+     useEffect(() => {
         if (!story || !storyId || !chapterId) return;
         if (!viewIncrementedRef.current && !isAdmin && currentChapterWithContent) {
             incrementChapterView(storyId, chapterId);
@@ -313,16 +202,13 @@ const ReaderPage: React.FC = () => {
         const handleScroll = () => {
             const contentElement = readerContentRef.current;
             if (!contentElement) return;
-
             const contentTop = contentElement.offsetTop;
             const contentHeight = contentElement.scrollHeight;
             const viewportHeight = window.innerHeight;
             const currentScrollTop = window.pageYOffset;
-
             let percentage = 0;
-            if (contentHeight <= viewportHeight) {
-                percentage = 100;
-            } else {
+            if (contentHeight <= viewportHeight) { percentage = 100; } 
+            else {
                  const scrollStartInContent = Math.max(0, currentScrollTop - contentTop);
                  const maxScrollInContent = contentHeight - viewportHeight;
                  percentage = maxScrollInContent > 0 ? Math.min(100, (scrollStartInContent / maxScrollInContent) * 100) : 100;
@@ -330,16 +216,11 @@ const ReaderPage: React.FC = () => {
             progressRef.current = percentage;
             setScrollPercent(percentage);
         };
-
         window.addEventListener('scroll', handleScroll, { passive: true });
-         handleScroll();
-
+        handleScroll();
         return () => {
             window.removeEventListener('scroll', handleScroll);
-            if (contentEl) {
-                contentEl.removeEventListener('contextmenu', preventAction);
-                contentEl.removeEventListener('copy', preventAction);
-            }
+            if (contentEl) { contentEl.removeEventListener('contextmenu', preventAction); contentEl.removeEventListener('copy', preventAction); }
             if (storyId && chapterId) {
                  const finalProgress = Math.round(progressRef.current >= 99 ? 100 : progressRef.current);
                 updateBookmarkRef.current(storyId, chapterId, finalProgress);
@@ -348,13 +229,9 @@ const ReaderPage: React.FC = () => {
     }, [story, storyId, chapterId, isAdmin, incrementChapterView, currentChapterWithContent]);
 
     const handleTapZoneClick = (event: React.MouseEvent<HTMLDivElement>) => {
-        if (window.getSelection()?.toString() || (event.target as HTMLElement).closest('a, button, select, [data-control-button]')) {
-            return;
-        }
+        if (window.getSelection()?.toString() || (event.target as HTMLElement).closest('a, button, select, [data-control-button]')) return;
         const now = Date.now();
-        if (now - lastTap.current < 400) {
-            setIsFloatingNavVisible(p => !p);
-        }
+        if (now - lastTap.current < 400) setIsFloatingNavVisible(p => !p);
         lastTap.current = now;
     };
 
@@ -363,10 +240,7 @@ const ReaderPage: React.FC = () => {
         const allChapters = story.volumes.flatMap(v => v.chapters);
         const index = allChapters.findIndex(c => c.id === chapterId);
         if (index === -1) return { prevChapter: null, nextChapter: null };
-        return {
-            prevChapter: index > 0 ? allChapters[index - 1] : null,
-            nextChapter: index < allChapters.length - 1 ? allChapters[index + 1] : null,
-        };
+        return { prevChapter: index > 0 ? allChapters[index - 1] : null, nextChapter: index < allChapters.length - 1 ? allChapters[index + 1] : null };
     }, [story, chapterId]);
 
     const cleanedContent = useMemo(() => {
@@ -374,23 +248,11 @@ const ReaderPage: React.FC = () => {
         return currentChapterWithContent.content.replace(/line-height:[^;"]*;/g, '');
     }, [currentChapterWithContent?.content]);
 
-    const contentStyle = useMemo(() => ({
-        fontSize: `${preferences.fontSize}px`,
-        lineHeight: preferences.lineHeight
-    }), [preferences.fontSize, preferences.lineHeight]);
+    const contentStyle = useMemo(() => ({ fontSize: `${preferences.fontSize}px`, lineHeight: preferences.lineHeight }), [preferences.fontSize, preferences.lineHeight]);
+    const handleChapterSelect = (e: React.ChangeEvent<HTMLSelectElement>) => { if (e.target.value) navigate(`/story/${storyId}/chapter/${e.target.value}`); };
 
-    const handleChapterSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const newChapterId = e.target.value;
-        if (newChapterId) navigate(`/story/${storyId}/chapter/${newChapterId}`);
-    };
-
-    if (loadingStory || (loadingChapter && !currentChapterWithContent)) {
-        return <div className="flex justify-center items-center h-screen bg-white dark:bg-stone-950"><LoadingSpinner /></div>;
-    }
-
-    if (!story || !currentChapterWithContent) {
-        return <div className="flex justify-center items-center h-screen bg-white dark:bg-stone-950 text-red-500">Không tìm thấy truyện hoặc chương.</div>;
-    }
+    if (loadingStory || (loadingChapter && !currentChapterWithContent)) return <div className="flex justify-center items-center h-screen bg-sukem-bg"><LoadingSpinner /></div>;
+    if (!story || !currentChapterWithContent) return <div className="flex justify-center items-center h-screen bg-sukem-bg text-sukem-primary">Không tìm thấy truyện hoặc chương.</div>;
 
     const themeStyle = themeSpecificStyles[preferences.theme] || themeSpecificStyles.light;
     const currentMarginSetting = marginSettings[preferences.margin] || marginSettings[10];
@@ -412,8 +274,7 @@ const ReaderPage: React.FC = () => {
                     </h1>
                 </div>
 
-                <div
-                    ref={readerContentRef}
+                <div ref={readerContentRef}
                     className={`max-w-none transition-all duration-300 ${preferences.fontFamily} chapter-content prevent-copy ${themeStyle.content}`}
                     style={contentStyle}
                     dangerouslySetInnerHTML={{ __html: cleanedContent }}
@@ -429,7 +290,7 @@ const ReaderPage: React.FC = () => {
                              <div className={`flex items-center justify-center gap-2 px-6 py-3 border rounded-lg font-medium opacity-50 cursor-not-allowed ${themeStyle.button}`}><ArrowLeftIcon className="h-5 w-5" /> <span>Chương trước</span></div>
                         )}
                         <div className="flex-grow sm:flex-grow-0 sm:min-w-[250px]">
-                            <select value={chapterId} onChange={handleChapterSelect} className={`w-full px-4 py-3 border rounded-lg transition appearance-none text-center cursor-pointer font-medium focus:ring-2 focus:ring-opacity-50 focus:ring-orange-400 focus:outline-none ${themeStyle.selectBg} ${themeStyle.selectBorder} ${themeStyle.content}`}>
+                            <select value={chapterId} onChange={handleChapterSelect} className={`w-full px-4 py-3 border rounded-lg transition appearance-none text-center cursor-pointer font-medium focus:ring-2 focus:ring-opacity-50 focus:ring-sukem-accent focus:outline-none ${themeStyle.selectBg} ${themeStyle.selectBorder} ${themeStyle.content}`}>
                                 {story.volumes.map(volume => (
                                     <optgroup label={volume.title} key={volume.id} className={themeStyle.selectBg}>
                                         {volume.chapters.map(chap => (<option key={chap.id} value={chap.id} className="font-normal py-1">{chap.title}</option>))}
