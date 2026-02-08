@@ -1,3 +1,4 @@
+// maihan88/novelweb/novelweb-367f3a44cd5ec3aa64d1df30fd841fd8db53199c/sukem-novel-backend/server.js
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
@@ -6,70 +7,35 @@ const connectDB = require('./config/db');
 // Load env vars
 dotenv.config();
 
-// Connect to database (optional for now)
-try {
-    connectDB();
-} catch (error) {
-    console.log('MongoDB connection failed, running without database...');
-}
+// Connect to database
+connectDB();
 
 const app = express();
 
-// CORS configuration - SỬA PHẦN NÀY
+// CORS configuration
 const corsOptions = {
     origin: [
-        'https://novelweb-phi.vercel.app', // Frontend production URL
-        'http://localhost:3000',           // Frontend development URL
-        'http://localhost:5173'            // Vite dev server
+        'https://novelweb-phi.vercel.app',
+        'http://localhost:3000',
+        'http://localhost:5173'
     ],
     credentials: true,
-    optionsSuccessStatus: 200,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 };
 
-// Middleware
-app.use(cors(corsOptions)); // Thay đổi từ cors() thành cors(corsOptions)
+// Middlewares
+app.use(cors(corsOptions));
 app.use(express.json());
-// Debug middleware để log mọi request
-app.use((req, res, next) => {
-    console.log('\n=== INCOMING REQUEST ===');
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-    console.log('Headers:', req.headers);
-    console.log('Body:', JSON.stringify(req.body, null, 2));
-    console.log('========================\n');
-    next();
-});
-
-// Error handling middleware - cập nhật để log chi tiết hơn
-app.use((err, req, res, next) => {
-    console.error('\n=== UNHANDLED ERROR ===');
-    console.error('Error name:', err.name);
-    console.error('Error message:', err.message);
-    console.error('Error stack:', err.stack);
-    console.error('Request URL:', req.url);
-    console.error('Request method:', req.method);
-    console.error('Request body:', req.body);
-    console.error('=====================\n');
-    
-    res.status(500).json({ 
-        message: 'Something went wrong!',
-        error: process.env.NODE_ENV === 'development' ? err.message : undefined
-    });
-});
 app.use(express.urlencoded({ extended: false }));
 
-app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-    console.log('Origin:', req.get('Origin'));
-    console.log('Headers:', req.headers);
-    
-    if (req.body && Object.keys(req.body).length > 0) {
-        console.log('Body:', JSON.stringify(req.body, null, 2));
-    }
-    
-    next();
-});
+// Request Logger (Development only)
+if (process.env.NODE_ENV === 'development') {
+    app.use((req, res, next) => {
+        console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+        next();
+    });
+}
 
 // Routes
 app.use('/api/stories', require('./routes/storyRoutes'));
@@ -77,29 +43,34 @@ app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/upload', require('./routes/uploadRoutes'));
 app.use('/api/comments', require('./routes/commentRoutes'));
 
-// Basic route
+// Health Check
 app.get('/', (req, res) => {
-    res.json({ message: 'Welcome to Sukem Novel API' });
+    res.json({ status: 'success', message: 'Sukem Novel API is running' });
 });
 
-// Test routes
-app.get('/api/test', (req, res) => {
-    res.json({ message: 'API test route working!' });
-});
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ message: 'Something went wrong!' });
-});
-
-// 404 handler
+// 404 Handler
 app.use('*', (req, res) => {
-    res.status(404).json({ message: 'Route not found' });
+    res.status(404).json({ message: 'Đường dẫn không tồn tại' });
+});
+
+// Global Error Handler
+app.use((err, req, res, next) => {
+    console.error('🔥 ERROR:', {
+        message: err.message,
+        stack: process.env.NODE_ENV === 'development' ? err.stack : 'REDACTED',
+        path: req.url
+    });
+
+    res.status(err.status || 500).json({
+        success: false,
+        message: err.message || 'Lỗi server nội bộ',
+        error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
 });
 
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`🚀 Server đang chạy tại: http://localhost:${PORT}`);
+    console.log(`🌍 Chế độ: ${process.env.NODE_ENV || 'production'}`);
 });
