@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom'; // <-- THÊM IMPORT LINK//
+import { Link } from 'react-router-dom';
 import { Comment } from '../types';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { TrashIcon, ArrowUturnLeftIcon } from '@heroicons/react/24/solid';
 
-// --- COMPONENT COMMENT FORM (không đổi) ---
+// --- COMPONENT COMMENT FORM ---
 export const CommentForm: React.FC<{
-  onSubmit: (text: string) => Promise<void>; // Hàm submit vẫn là async
+  onSubmit: (text: string) => Promise<void>;
   buttonText?: string;
   onCancel?: () => void;
-  initialText?: string; // Thêm initialText để hỗ trợ sửa comment sau này (nếu cần)
+  initialText?: string;
 }> = ({ onSubmit, buttonText = 'Gửi bình luận', onCancel, initialText = '' }) => {
   const [text, setText] = useState(initialText);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -20,11 +20,11 @@ export const CommentForm: React.FC<{
     setIsSubmitting(true);
     try {
         await onSubmit(text);
-        setText(''); // Chỉ reset text nếu submit thành công
-        onCancel?.(); // Gọi onCancel sau khi thành công
+        setText('');
+        onCancel?.();
     } catch (error) {
         console.error("Lỗi gửi bình luận/trả lời:", error);
-        alert("Gửi bình luận thất bại."); // Thông báo lỗi
+        alert("Gửi bình luận thất bại.");
     } finally {
         setIsSubmitting(false);
     }
@@ -35,17 +35,18 @@ export const CommentForm: React.FC<{
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        className="text-sm w-full p-2 border rounded bg-white dark:bg-stone-700 border-slate-300 dark:border-stone-600 focus:ring-2 focus:ring-orange-500 dark:focus:ring-amber-500 dark:text-white placeholder-slate-400 dark:placeholder-stone-500" // Thêm dark mode text/placeholder
+        // Input: bg-sukem-bg
+        className="text-sm w-full p-2 border rounded-lg bg-sukem-bg border-sukem-border focus:ring-2 focus:ring-sukem-primary text-sukem-text placeholder-sukem-text-muted transition-colors outline-none"
         placeholder="Viết bình luận của bạn..."
         rows={3}
         required
       />
       <div className="flex items-center gap-2 mt-2">
-        <button type="submit" disabled={isSubmitting || !text.trim()} className="px-4 py-2 bg-orange-500 dark:bg-amber-600 text-white font-semibold rounded hover:bg-orange-600 dark:hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"> {/* Thêm dark mode bg, hover, disabled style */}
+        <button type="submit" disabled={isSubmitting || !text.trim()} className="px-4 py-2 bg-sukem-primary text-white font-semibold rounded hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity text-sm shadow-sm">
           {isSubmitting ? 'Đang gửi...' : buttonText}
         </button>
         {onCancel && (
-          <button type="button" onClick={onCancel} className="px-4 py-2 bg-slate-200 dark:bg-stone-600 text-slate-800 dark:text-slate-200 rounded hover:bg-slate-300 dark:hover:bg-stone-500 transition-colors text-sm"> {/* Thêm dark mode style */}
+          <button type="button" onClick={onCancel} className="px-4 py-2 bg-sukem-card border border-sukem-border text-sukem-text rounded hover:bg-sukem-bg transition-colors text-sm">
             Hủy
           </button>
         )}
@@ -53,73 +54,64 @@ export const CommentForm: React.FC<{
     </form>
   );
 };
-// --- KẾT THÚC COMMENT FORM ---
-
 
 // --- INTERFACE PROPS CHO COMMENT ITEM ---
 interface CommentItemProps {
   comment: Comment;
-  onReply: (parentId: string, text: string) => Promise<void>; // Hàm trả lời vẫn là async
-  onDelete: (commentId: string) => void; // <--- SỬA: Hàm onDelete là đồng bộ (chỉ mở modal)
+  onReply: (parentId: string, text: string) => Promise<void>;
+  onDelete: (commentId: string) => void;
 }
-// --- KẾT THÚC INTERFACE ---
 
 const CommentItem: React.FC<CommentItemProps> = ({ comment, onReply, onDelete }) => {
   const { currentUser } = useAuth();
   const [isReplying, setIsReplying] = useState(false);
 
-  // Hàm xử lý submit trả lời (không đổi)
   const handleReplySubmit = async (text: string) => {
     await onReply(comment.id, text);
-    setIsReplying(false); // Tự đóng form trả lời sau khi gửi thành công
+    setIsReplying(false);
   };
 
-  // Hàm định dạng thời gian (ví dụ đơn giản)
   const formatTimestamp = (isoString: string) => {
       try {
           const date = new Date(isoString);
           return date.toLocaleString('vi-VN', {
-              day: '2-digit',
-              month: '2-digit',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
+              day: '2-digit', month: '2-digit', year: 'numeric',
+              hour: '2-digit', minute: '2-digit'
           });
       } catch {
           return 'Thời gian không hợp lệ';
       }
   };
 
-
   return (
-    <div className="flex flex-col animate-fade-in"> {/* Thêm hiệu ứng fade-in nhẹ */}
+    <div className="flex flex-col animate-fade-in">
         {/* Phần comment chính */}
         <div className="flex gap-3">
-            {/* Avatar Placeholder */}
-            <div className="w-10 h-10 rounded-full bg-orange-200 dark:bg-stone-700 flex-shrink-0 flex items-center justify-center text-orange-600 dark:text-amber-400 font-semibold text-lg">
+            {/* Avatar Placeholder: Dùng màu secondary */}
+            <div className="w-10 h-10 rounded-full bg-sukem-secondary/20 flex-shrink-0 flex items-center justify-center text-sukem-secondary font-bold text-lg border border-sukem-secondary/30">
                 {comment.username ? comment.username.charAt(0).toUpperCase() : '?'}
             </div>
-            {/* Nội dung comment + Tên + Thời gian */}
+            
+            {/* Nội dung comment */}
             <div className="flex-grow">
-                <div className="bg-orange-50 dark:bg-stone-800 rounded-lg p-3 border border-orange-100 dark:border-stone-700/50 shadow-sm">
-                    {/* Tên người dùng */}
-                    <p className="font-semibold text-sm text-stone-900 dark:text-white">{comment.username}</p>
-                    {/* Nội dung text */}
-                    <p className="mt-1 text-sm text-slate-700 dark:text-stone-300 whitespace-pre-wrap">{comment.text}</p>
+                {/* Bubble: bg-sukem-bg */}
+                <div className="bg-sukem-bg rounded-2xl rounded-tl-none p-3 border border-sukem-border shadow-sm">
+                    <p className="font-semibold text-sm text-sukem-text">{comment.username}</p>
+                    <p className="mt-1 text-sm text-sukem-text whitespace-pre-wrap leading-relaxed">{comment.text}</p>
                 </div>
-                {/* Actions: Thời gian, Trả lời, Xóa */}
-                <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-stone-400 mt-1.5 pl-1">
-                    {/* Thời gian */}
+                
+                {/* Actions */}
+                <div className="flex items-center gap-3 text-xs text-sukem-text-muted mt-1.5 pl-1">
                     <span>{formatTimestamp(comment.timestamp)}</span>
-                    {/* Nút Trả lời */}
-                    {currentUser && ( // Chỉ hiện nút trả lời khi đã đăng nhập
-                        <button onClick={() => setIsReplying(!isReplying)} className="font-semibold hover:underline flex items-center gap-1 transition-colors hover:text-orange-600 dark:hover:text-amber-400">
+                    
+                    {currentUser && (
+                        <button onClick={() => setIsReplying(!isReplying)} className="font-semibold hover:underline flex items-center gap-1 transition-colors text-sukem-text-muted hover:text-sukem-accent">
                             <ArrowUturnLeftIcon className="h-3.5 w-3.5" /> Trả lời
                         </button>
                     )}
-                    {/* Nút Xóa (chỉ cho admin) */}
+                    
                     {currentUser?.role === 'admin' && (
-                        <button onClick={() => onDelete(comment.id)} className="font-semibold hover:underline text-red-500 flex items-center gap-1 transition-colors hover:text-red-700">
+                        <button onClick={() => onDelete(comment.id)} className="font-semibold hover:underline text-red-500/70 flex items-center gap-1 transition-colors hover:text-red-600">
                             <TrashIcon className="h-3.5 w-3.5" /> Xóa
                         </button>
                     )}
@@ -127,26 +119,26 @@ const CommentItem: React.FC<CommentItemProps> = ({ comment, onReply, onDelete })
             </div>
         </div>
 
-        {/* Form trả lời (hiện khi isReplying là true) */}
+        {/* Form trả lời */}
         {isReplying && (
-            <div className="ml-12 mt-3 border-l-2 border-slate-200 dark:border-stone-700 pl-4 py-2"> {/* Thêm padding và border */}
+            <div className="ml-12 mt-3 border-l-2 border-sukem-border pl-4 py-2">
                 <CommentForm
                     onSubmit={handleReplySubmit}
                     buttonText="Gửi trả lời"
-                    onCancel={() => setIsReplying(false)} // Nút Hủy để đóng form
+                    onCancel={() => setIsReplying(false)}
                 />
             </div>
         )}
 
         {/* Phần hiển thị các comment trả lời (đệ quy) */}
         {comment.replies && comment.replies.length > 0 && (
-            <div className="ml-8 mt-4 pl-4 border-l-2 border-slate-200 dark:border-stone-700 space-y-4">
+            <div className="ml-8 mt-4 pl-4 border-l-2 border-sukem-border space-y-4">
                 {comment.replies.map(reply => (
                     <CommentItem
                         key={reply.id}
                         comment={reply}
-                        onReply={onReply} // Truyền xuống onReply
-                        onDelete={onDelete} // Truyền xuống onDelete
+                        onReply={onReply}
+                        onDelete={onDelete}
                     />
                 ))}
             </div>

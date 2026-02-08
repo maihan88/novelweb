@@ -45,25 +45,19 @@ const ProfilePage: React.FC = () => {
     return <Navigate to="/login" replace />;
   }
 
-  // --- DATA PROCESSING (Sử dụng useMemo để tối ưu hiệu suất và tránh crash) ---
+  // --- DATA PROCESSING ---
   const { processedReadingStories, processedFavoriteStories } = useMemo(() => {
-    // 1. Đảm bảo stories là mảng hợp lệ và lọc bỏ các phần tử null/undefined
     const safeStories = Array.isArray(stories) ? stories.filter(s => s && s.id) : [];
 
-    // 2. Xử lý truyện yêu thích
     const favoriteStories = safeStories.filter(story => 
         favorites && favorites.includes(story.id)
     );
 
-    // 3. Xử lý truyện đang đọc
     const readingStories = Object.entries(bookmarks || {})
       .map(([storyId, bookmark]) => {
-        // Tìm truyện tương ứng, dùng optional chaining để an toàn
         const story = safeStories.find(s => s.id === storyId);
         if (!story || !bookmark || !bookmark.chapterId) return null;
 
-        // Tìm chương vừa đọc trong tất cả volumes
-        // Thêm kiểm tra volumes và chapters để tránh lỗi 'id' của undefined
         const allChapters = story.volumes?.flatMap(v => v?.chapters || []) || [];
         const lastReadChapter = allChapters.find(c => c?.id === bookmark.chapterId);
 
@@ -97,9 +91,9 @@ const ProfilePage: React.FC = () => {
       ? processedFavoriteStories 
       : processedFavoriteStories.slice(0, INITIAL_FAVORITE_LIMIT);
 
-  // --- SUB-COMPONENT: Reading Card ---
+  // --- SUB-COMPONENT: Reading Card (Đã update màu) ---
   const ReadingStoryCard: React.FC<typeof processedReadingStories[0]> = (story) => (
-      <div className="group relative bg-white dark:bg-slate-800 rounded-xl p-3 shadow-sm border border-slate-100 dark:border-slate-700 flex gap-3 sm:gap-4 overflow-hidden">
+      <div className="group relative bg-sukem-card rounded-xl p-3 shadow-sm border border-sukem-border flex gap-3 sm:gap-4 overflow-hidden transition-colors duration-300">
         <Link to={`/story/${story.id}`} className="relative flex-shrink-0 w-20 h-28 sm:w-24 sm:h-36 rounded-lg overflow-hidden shadow-inner">
             <img 
                 src={story.coverImage} 
@@ -112,22 +106,23 @@ const ProfilePage: React.FC = () => {
         <div className="flex-grow flex flex-col justify-between py-0.5">
             <div>
                 <Link to={`/story/${story.id}`}>
-                    <h3 className="font-bold text-slate-900 dark:text-slate-100 text-[15px] sm:text-lg leading-tight line-clamp-1 mb-1">
+                    <h3 className="font-bold text-sukem-text text-[15px] sm:text-lg leading-tight line-clamp-1 mb-1 hover:text-sukem-primary transition-colors">
                         {story.title}
                     </h3>
                 </Link>
-                <p className="text-xs text-slate-500 mb-2 line-clamp-1">{story.author}</p>
+                <p className="text-xs text-sukem-text-muted mb-2 line-clamp-1">{story.author}</p>
                 
-                <div className="bg-slate-50 dark:bg-slate-700/50 rounded-md p-1.5 sm:p-2">
+                {/* Progress Bar Container */}
+                <div className="bg-sukem-bg rounded-md p-1.5 sm:p-2 border border-sukem-border/50">
                     <div className="flex justify-between items-center text-[10px] sm:text-xs mb-1">
-                        <span className="text-slate-600 dark:text-slate-300 font-medium truncate max-w-[100px] sm:max-w-[150px]">
+                        <span className="text-sukem-text-muted font-medium truncate max-w-[100px] sm:max-w-[150px]">
                             {story.lastReadChapterTitle}
                         </span>
-                        <span className="text-orange-600 dark:text-orange-400 font-bold">{Math.round(story.progress)}%</span>
+                        <span className="text-sukem-accent font-bold">{Math.round(story.progress)}%</span>
                     </div>
-                    <div className="w-full bg-slate-200 dark:bg-slate-600 rounded-full h-1">
+                    <div className="w-full bg-sukem-border/50 rounded-full h-1">
                         <div 
-                            className="bg-orange-500 h-1 rounded-full transition-all duration-500" 
+                            className="bg-sukem-accent h-1 rounded-full transition-all duration-500" 
                             style={{ width: `${story.progress}%` }}
                         ></div>
                     </div>
@@ -135,13 +130,13 @@ const ProfilePage: React.FC = () => {
             </div>
 
             <div className="flex items-end justify-between mt-1">
-                <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                <span className="text-[10px] text-sukem-text-muted flex items-center gap-1">
                     <ClockIcon className="h-3 w-3" />
                     {formatDate(story.lastReadDate)}
                 </span>
                 <Link
                   to={`/story/${story.id}/chapter/${story.continueChapterId}`}
-                  className="flex items-center gap-1 text-[11px] sm:text-sm font-bold text-white bg-orange-500 hover:bg-orange-600 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full shadow-sm transition-transform active:scale-95"
+                  className="flex items-center gap-1 text-[11px] sm:text-sm font-bold text-white bg-sukem-primary hover:opacity-90 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full shadow-sm transition-transform active:scale-95"
                 >
                   Đọc tiếp <ArrowRightIcon className="h-3 w-3" />
                 </Link>
@@ -151,37 +146,39 @@ const ProfilePage: React.FC = () => {
   );
 
   return (
-    <div className="animate-fade-in pb-20 max-w-5xl mx-auto">
+    <div className="animate-fade-in pb-20 max-w-5xl mx-auto text-sukem-text">
       
       {/* --- HEADER PROFILE --- */}
       <div className="relative mb-8 sm:mb-12 mt-4 sm:mt-8 px-4">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full sm:w-3/4 h-32 bg-orange-200/30 dark:bg-orange-900/20 blur-[50px] rounded-full -z-10"></div>
+          {/* Background Blur Effect - Dùng màu secondary */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full sm:w-3/4 h-32 bg-sukem-secondary/30 blur-[50px] rounded-full -z-10"></div>
           
           <div className="text-center">
               <div className="relative inline-block">
-                  <div className="w-20 h-20 sm:w-28 sm:h-28 mx-auto rounded-full bg-gradient-to-br from-white to-slate-100 dark:from-slate-800 dark:to-slate-900 p-1 shadow-lg border border-slate-200 dark:border-slate-700">
-                       <div className="w-full h-full rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center overflow-hidden">
-                            <UserCircleIcon className="w-full h-full text-slate-400" />
-                       </div>
+                  <div className="w-20 h-20 sm:w-28 sm:h-28 mx-auto rounded-full bg-sukem-card p-1 shadow-lg border border-sukem-border">
+                        <div className="w-full h-full rounded-full bg-sukem-bg flex items-center justify-center overflow-hidden">
+                            <UserCircleIcon className="w-full h-full text-sukem-text-muted" />
+                        </div>
                   </div>
               </div>
 
-              <h1 className="mt-3 text-xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+              <h1 className="mt-3 text-xl sm:text-3xl font-extrabold text-sukem-text tracking-tight">
                   {currentUser.username}
               </h1>
-              <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium mt-0.5">Thành viên tích cực</p>
+              <p className="text-sukem-text-muted text-xs sm:text-sm font-medium mt-0.5">Thành viên tích cực</p>
 
+              {/* Stats Badges */}
               <div className="flex justify-center gap-3 mt-4 sm:mt-6">
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 bg-white dark:bg-slate-800 rounded-full shadow-sm border border-slate-100 dark:border-slate-700">
-                      <BookOpenIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-orange-500"/>
-                      <span className="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
-                        {processedReadingStories.length} <span className="text-slate-400 font-normal">Đang đọc</span>
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 bg-sukem-card rounded-full shadow-sm border border-sukem-border">
+                      <BookOpenIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-sukem-secondary"/>
+                      <span className="text-xs sm:text-sm font-semibold text-sukem-text">
+                        {processedReadingStories.length} <span className="text-sukem-text-muted font-normal">Đang đọc</span>
                       </span>
                   </div>
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 bg-white dark:bg-slate-800 rounded-full shadow-sm border border-slate-100 dark:border-slate-700">
-                      <HeartIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-rose-500"/>
-                      <span className="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
-                        {processedFavoriteStories.length} <span className="text-slate-400 font-normal">Yêu thích</span>
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 bg-sukem-card rounded-full shadow-sm border border-sukem-border">
+                      <HeartIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-sukem-primary"/>
+                      <span className="text-xs sm:text-sm font-semibold text-sukem-text">
+                        {processedFavoriteStories.length} <span className="text-sukem-text-muted font-normal">Yêu thích</span>
                       </span>
                   </div>
               </div>
@@ -193,8 +190,8 @@ const ProfilePage: React.FC = () => {
         {/* --- SECTION: TRUYỆN ĐANG ĐỌC --- */}
         <section>
             <div className="flex items-center justify-between mb-4 sm:mb-6">
-                <h2 className="text-lg sm:text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2 sm:gap-3">
-                    <span className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400">
+                <h2 className="text-lg sm:text-2xl font-bold text-sukem-text flex items-center gap-2 sm:gap-3">
+                    <span className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-sukem-secondary/20 text-sukem-secondary">
                         <BookOpenIcon className="h-4 w-4 sm:h-5 sm:w-5"/>
                     </span>
                     Đọc tiếp
@@ -203,7 +200,7 @@ const ProfilePage: React.FC = () => {
                 {processedReadingStories.length > INITIAL_READING_LIMIT && (
                     <button 
                         onClick={() => setIsReadingExpanded(!isReadingExpanded)}
-                        className="group flex items-center gap-1 text-xs sm:text-sm font-semibold text-slate-500 hover:text-orange-600 transition-colors bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md"
+                        className="group flex items-center gap-1 text-xs sm:text-sm font-semibold text-sukem-text-muted hover:text-sukem-primary transition-colors bg-sukem-card border border-sukem-border px-2 py-1 rounded-md"
                     >
                         {isReadingExpanded ? 'Thu gọn' : 'Xem thêm'}
                         {isReadingExpanded ? <ChevronUpIcon className="h-3 w-3 sm:h-4 sm:w-4"/> : <ChevronDownIcon className="h-3 w-3 sm:h-4 sm:w-4"/>}
@@ -218,9 +215,9 @@ const ProfilePage: React.FC = () => {
                     ))}
                 </div>
             ) : (
-                <div className="flex flex-col items-center justify-center py-8 px-4 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
-                    <BookOpenIcon className="h-10 w-10 text-slate-300 mb-2" />
-                    <p className="text-slate-500 text-sm font-medium">Bạn chưa đọc truyện nào gần đây.</p>
+                <div className="flex flex-col items-center justify-center py-8 px-4 bg-sukem-card rounded-xl border border-dashed border-sukem-border">
+                    <BookOpenIcon className="h-10 w-10 text-sukem-border mb-2" />
+                    <p className="text-sukem-text-muted text-sm font-medium">Bạn chưa đọc truyện nào gần đây.</p>
                 </div>
             )}
         </section>
@@ -228,8 +225,8 @@ const ProfilePage: React.FC = () => {
         {/* --- SECTION: TRUYỆN YÊU THÍCH --- */}
         <section>
              <div className="flex items-center justify-between mb-4 sm:mb-6">
-                <h2 className="text-lg sm:text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2 sm:gap-3">
-                    <span className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400">
+                <h2 className="text-lg sm:text-2xl font-bold text-sukem-text flex items-center gap-2 sm:gap-3">
+                    <span className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-sukem-primary/20 text-sukem-primary">
                         <HeartIcon className="h-4 w-4 sm:h-5 sm:w-5"/>
                     </span>
                     Yêu thích
@@ -238,7 +235,7 @@ const ProfilePage: React.FC = () => {
                  {processedFavoriteStories.length > INITIAL_FAVORITE_LIMIT && (
                     <button 
                         onClick={() => setIsFavoritesExpanded(!isFavoritesExpanded)}
-                        className="group flex items-center gap-1 text-xs sm:text-sm font-semibold text-slate-500 hover:text-rose-600 transition-colors bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md"
+                        className="group flex items-center gap-1 text-xs sm:text-sm font-semibold text-sukem-text-muted hover:text-sukem-primary transition-colors bg-sukem-card border border-sukem-border px-2 py-1 rounded-md"
                     >
                         {isFavoritesExpanded ? 'Thu gọn' : 'Xem thêm'}
                         {isFavoritesExpanded ? <ChevronUpIcon className="h-3 w-3 sm:h-4 sm:w-4"/> : <ChevronDownIcon className="h-3 w-3 sm:h-4 sm:w-4"/>}
@@ -253,10 +250,10 @@ const ProfilePage: React.FC = () => {
                     ))}
                 </div>
             ) : (
-                 <div className="flex flex-col items-center justify-center py-8 px-4 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
-                    <HeartIcon className="h-10 w-10 text-slate-300 mb-2" />
-                    <p className="text-slate-500 text-sm font-medium">Chưa có truyện yêu thích.</p>
-                    <Link to="/" className="mt-2 text-xs font-bold text-orange-500 hover:underline">
+                 <div className="flex flex-col items-center justify-center py-8 px-4 bg-sukem-card rounded-xl border border-dashed border-sukem-border">
+                    <HeartIcon className="h-10 w-10 text-sukem-border mb-2" />
+                    <p className="text-sukem-text-muted text-sm font-medium">Chưa có truyện yêu thích.</p>
+                    <Link to="/" className="mt-2 text-xs font-bold text-sukem-accent hover:underline">
                         Khám phá ngay
                     </Link>
                 </div>
