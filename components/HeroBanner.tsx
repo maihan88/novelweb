@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Story } from '../types';
 import * as storyService from '../services/storyService'; // Đã sửa: Bỏ đuôi .ts để tránh lỗi import
-import { formatTimeAgo } from '../utils/formatDate';
 interface BannerStory extends Omit<Story, 'lastUpdatedAt'> {
   chapterCount?: number;
   firstChapterId?: string;

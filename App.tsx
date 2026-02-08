@@ -22,20 +22,11 @@ import ProtectedRoute from './components/ProtectedRoute';
 import DonatePage from './pages/DonatePage';
 import SearchPage from './pages/SearchPage';
 
-const BackgroundDecoration = React.memo(() => (
-  <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none select-none">
-    {/* Họa tiết nhiễu hạt (Noise) */}
-    <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 mix-blend-overlay"></div>
-    
-    {/* Đốm sáng */}
-    <div className="absolute top-[-10%] left-[-10%] w-[20rem] sm:w-[40rem] h-[20rem] sm:h-[40rem] bg-orange-400/20 dark:bg-orange-600/10 rounded-full blur-[60px] sm:blur-[100px] mix-blend-multiply dark:mix-blend-screen animate-blob will-change-transform transform-gpu"></div>
-    <div className="absolute top-[20%] right-[-10%] w-[18rem] sm:w-[35rem] h-[18rem] sm:h-[35rem] bg-amber-300/20 dark:bg-indigo-600/10 rounded-full blur-[60px] sm:blur-[100px] mix-blend-multiply dark:mix-blend-screen animate-blob animation-delay-2000 will-change-transform transform-gpu"></div>
-    <div className="absolute bottom-[-10%] left-[20%] w-[22rem] sm:w-[45rem] h-[22rem] sm:h-[45rem] bg-rose-300/20 dark:bg-rose-600/10 rounded-full blur-[60px] sm:blur-[100px] mix-blend-multiply dark:mix-blend-screen animate-blob animation-delay-4000 will-change-transform transform-gpu"></div>
-  </div>
-));
+// Đã xóa component BackgroundDecoration theo yêu cầu
 
 const AppContent: React.FC = () => {
   const location = useLocation();
+  // Kiểm tra xem có phải đang ở trang đọc truyện không (để ẩn Header/Footer)
   const isReaderPage = location.pathname.includes('/chapter/');
 
   // Tính toán class cho Main Content
@@ -51,9 +42,12 @@ const AppContent: React.FC = () => {
   }, [isReaderPage]);
   
   return (
-    <div className="min-h-screen flex flex-col font-sans text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-900 transition-colors duration-300 relative selection:bg-orange-500/30">
+    // THAY ĐỔI: Sử dụng biến màu semantic sukem-* thay vì slate-*
+    // bg-sukem-bg: Tự động đổi Cream (Sáng) / Espresso (Tối)
+    // text-sukem-text: Tự động đổi Nâu (Sáng) / Trắng ngà (Tối)
+    <div className="min-h-screen flex flex-col font-sans bg-sukem-bg text-sukem-text transition-colors duration-300 relative selection:bg-sukem-primary/30 selection:text-sukem-primary">
       
-      <BackgroundDecoration />
+      {/* Đã xóa <BackgroundDecoration /> */}
 
       {/* CHỈ HIỆN HEADER KHI KHÔNG PHẢI TRANG ĐỌC */}
       {!isReaderPage && <Header />}

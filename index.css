@@ -1,25 +1,56 @@
 @import "tailwindcss";
-
 @config "./tailwind.config.js";
 
+@layer base {
+  :root {
+    /* --- LIGHT MODE: Bánh Su Kem --- */
+    --color-sukem-bg: #FFF8E7;           /* Cream pastel */
+    --color-sukem-card: #FDEBD0;         /* Vanilla beige */
+    --color-sukem-text: #4A2C2A;         /* Dark chocolate brown */
+    --color-sukem-text-muted: #6E5C58;   /* Coffee gray */
+    --color-sukem-primary: #FF6F91;      /* Strawberry pink */
+    --color-sukem-secondary: #A8D5BA;    /* Pistachio green */
+    --color-sukem-accent: #D4A373;       /* Caramel gold */
+    --color-sukem-border: #E8D5B5;       /* Border nhẹ cho light mode */
+  }
+
+  .dark {
+    /* --- DARK MODE: Cà Phê & Bánh --- */
+    --color-sukem-bg: #2C1B18;           /* Espresso brown */
+    --color-sukem-card: #3E2C26;         /* Mocha brown */
+    --color-sukem-text: #F5EDE0;         /* Vanilla white */
+    --color-sukem-text-muted: #B8A89E;   /* Cappuccino gray */
+    --color-sukem-primary: #C94F4F;      /* Berry red */
+    --color-sukem-secondary: #D7C0AE;    /* Latte cream */
+    --color-sukem-accent: #E6B655;       /* Honey amber */
+    --color-sukem-border: #5C4038;       /* Border tối cho dark mode */
+  }
+}
+
+/* Thiết lập màu nền và chữ mặc định cho toàn trang */
+body {
+  @apply bg-sukem-bg text-sukem-text transition-colors duration-300;
+}
+
+/* --- Scrollbar Code cũ của bạn (Giữ nguyên) --- */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px; /* Hoặc kích thước bạn muốn */
+  width: 6px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent; /* Hoặc màu nền nhẹ */
+  background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(156, 163, 175, 0.5); /* Màu thumb xám mờ */
+  background-color: rgba(156, 163, 175, 0.5);
   border-radius: 20px;
-  border: 3px solid transparent; /* Tạo khoảng cách nếu cần */
+  border: 3px solid transparent;
 }
 .dark .custom-scrollbar::-webkit-scrollbar-thumb {
-    background-color: rgba(113, 113, 122, 0.5); /* Màu thumb tối hơn cho dark mode */
+    background-color: rgba(113, 113, 122, 0.5);
 }
 .custom-scrollbar {
-    scrollbar-width: thin; /* Cho Firefox */
-    scrollbar-color: rgba(156, 163, 175, 0.5) transparent; /* Cho Firefox */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
 }
  .dark .custom-scrollbar {
-    scrollbar-color: rgba(113, 113, 122, 0.5) transparent; /* Cho Firefox dark mode */
+    scrollbar-color: rgba(113, 113, 122, 0.5) transparent;
 }
