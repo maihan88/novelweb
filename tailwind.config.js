@@ -4,11 +4,10 @@ export default {
     "./index.html",
     "./{components,contexts,hooks,pages,services}/**/*.{js,ts,jsx,tsx}",
   ],
-  darkMode: 'class', // Quan trọng: Giữ nguyên để ThemeContext hoạt động
+  darkMode: 'class', 
   theme: {
     extend: {
         colors: {
-            // --- HỆ MÀU SUKEM NOVEL (Sử dụng CSS Variables) ---
             sukem: {
                 bg: 'var(--color-sukem-bg)',           // Nền chính
                 card: 'var(--color-sukem-card)',       // Nền phụ/Card
@@ -19,7 +18,6 @@ export default {
                 accent: 'var(--color-sukem-accent)',   // Màu nhấn/Link (Gold/Amber)
                 border: 'var(--color-sukem-border)',   // Viền
             },
-            // --- GIỮ LẠI MÀU CYAN CŨ ---
             'cyan': {
                 50: '#ecfeff',
                 100: '#cffafe',
@@ -35,8 +33,8 @@ export default {
             },
         },
         fontFamily: {
-            'sans': ['"Inter"', 'sans-serif'],
-            'serif': ['"Source Serif 4"', 'serif'],
+            'sans': ['"Manrope"', 'sans-serif'], 
+            'serif': ['"Lora"', 'serif'],
             'mono': ['"Inconsolata"', 'monospace'],
             'reader-times': ['"Times New Roman"', 'Times', 'serif'],
             'reader-lora': ['"Lora"', 'serif'],

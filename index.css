@@ -29,7 +29,7 @@
 
 /* Thiết lập màu nền và chữ mặc định cho toàn trang */
 body {
-  @apply bg-sukem-bg text-sukem-text transition-colors duration-300;
+  @apply bg-sukem-bg text-sukem-text transition-colors duration-300 font-medium;
 }
 
 /* --- Scrollbar Code cũ của bạn (Giữ nguyên) --- */

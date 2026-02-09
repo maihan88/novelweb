@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Story } from '../types';
 import * as storyService from '../services/storyService';
-import { FireIcon } from '@heroicons/react/24/solid';
+import { usePalette } from '../hooks/usePalette';
 
 interface BannerStory extends Omit<Story, 'lastUpdatedAt'> {
   chapterCount?: number;
@@ -62,19 +62,35 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ interval = 7000 }) => {
 
   const currentStory = stories[currentIndex];
 
-  // Loading skeleton - Dùng màu Sukem Card
+  const { data: palette } = usePalette(currentStory?.coverImage || '');
+
+  // Màu 1: Ưu tiên màu sáng nhất
+  const color1 = palette.lightVibrant || '#fde68a'; 
+  
+  // Màu 2: Tạo gradient
+  const color2 = (palette.vibrant !== color1 ? palette.vibrant : null) || palette.lightMuted || '#ffffff';
+
+  // Style Gradient + Viền trắng cho Text
+  const gradientStyle: React.CSSProperties = {
+      backgroundImage: `linear-gradient(to right bottom, ${color1}, ${color2})`,
+      WebkitBackgroundClip: 'text',
+      WebkitTextFillColor: 'transparent',
+      backgroundClip: 'text',
+      color: 'transparent',
+      filter: `drop-shadow(0 0 15px ${color1}50)`,
+      
+      // THÊM DÒNG NÀY: Tạo viền trắng mảnh xung quanh chữ
+      WebkitTextStroke: '0.5px rgba(255, 255, 255, 0.8)', 
+  };
+
   if (loading) return <div className="h-[450px] w-full bg-sukem-card animate-pulse rounded-2xl border border-sukem-border"></div>;
 
-  // Fallback
   if (stories.length === 0) {
     return (
         <div className="text-center rounded-2xl p-10 md:p-16 bg-gradient-to-br from-sukem-primary via-sukem-accent to-sukem-primary shadow-2xl shadow-sukem-primary/30 text-white">
             <h1 className="text-4xl font-extrabold font-serif tracking-tight sm:text-5xl md:text-6xl drop-shadow-lg">
             Khám Phá Thế Giới SukemNovel
             </h1>
-            <p className="mt-4 max-w-md mx-auto text-base text-white/90 sm:text-lg md:mt-6 md:text-xl md:max-w-3xl">
-            Đắm chìm trong những câu chuyện ngọt ngào nhất
-            </p>
         </div>
     );
   }
@@ -98,57 +114,63 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ interval = 7000 }) => {
          return (
             <div
                 key={story.id}
-                className={`absolute inset-0 w-full h-full bg-cover transition-opacity duration-[1500ms] ease-in-out ${dynamicClasses}`}
+                className={`absolute inset-0 w-full h-full bg-cover transition-opacity duration-[1500ms] ease-in-out z-0 ${dynamicClasses}`}
                 style={{ backgroundImage: `url(${story.coverImage})` }}
             />
          );
       })}
       
-      {/* Overlay: Gradient tối dần từ dưới lên để làm nổi text */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent z-10"></div>
 
-      <div className="relative h-full w-full flex flex-col items-center justify-end gap-4 text-center p-6 pb-12 sm:p-8 sm:pb-16 md:pb-12">
-        <div className="relative z-10 text-white animate-fade-in max-w-4xl">
-           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sukem-primary/80 backdrop-blur-sm text-xs font-bold mb-2 border border-white/20">
+      <div className="relative z-20 h-full w-full flex flex-col items-center justify-end gap-3 text-center p-6 pb-14 sm:p-8 sm:pb-16">
+        <div className="animate-fade-in max-w-3xl w-full flex flex-col items-center">
+           
+           {/* Chapter Count Badge */}
+           <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-black/40 text-[10px] md:text-xs font-bold mb-1 border border-white/20 text-white shadow-sm">
                <span>{currentStory.chapterCount || 0} Chương</span>
            </div>
            
-           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold font-serif tracking-tight drop-shadow-lg mt-1 sm:mt-2 text-transparent bg-clip-text bg-gradient-to-r from-white via-sukem-secondary to-white">
-            {currentStory.title}
-          </h1>
+           {/* Title: Đã có style mới */}
+           <Link 
+              to={`/story/${currentStory.id}`} 
+              className="group/title block"
+           >
+                <h1 
+                    className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold font-serif tracking-tight leading-tight py-2 px-4 transition-all duration-500 group-hover/title:scale-105"
+                    style={gradientStyle}
+                >
+                    {currentStory.title}
+                </h1>
+           </Link>
           
-          <p className="mt-3 text-sm sm:text-base text-white/90 drop-shadow max-w-2xl mx-auto line-clamp-2 leading-relaxed">
+          {/* Description */}
+          <p className="mt-2 text-xs sm:text-sm text-white/90 max-w-lg mx-auto line-clamp-2 leading-relaxed font-medium">
              {currentStory.alias && currentStory.alias.length > 0
                 ? (Array.isArray(currentStory.alias) ? currentStory.alias.join(' · ') : currentStory.alias)
                 : currentStory.description}
           </p>
 
-          <div className="flex flex-wrap gap-2 mt-4 sm:mt-5 justify-center">
+          {/* Tags */}
+          <div className="flex flex-wrap gap-1.5 mt-3 justify-center max-w-xl">
               {currentStory.tags.slice(0, 5).map(tag => (
-                <span key={tag} className="text-xs font-medium border border-white/30 bg-white/10 text-white px-3 py-1 rounded-full backdrop-blur-sm">
+                <span key={tag} className="text-[10px] sm:text-xs font-medium border border-white/20 bg-black/30 text-white/90 px-2.5 py-0.5 rounded-full">
                   {tag}
                 </span>
               ))}
           </div>
-          
-          {currentStory.firstChapterId && (
-            <Link
-                to={`/story/${currentStory.id}/chapter/${currentStory.firstChapterId}`}
-                className="mt-6 inline-flex items-center gap-2 px-8 py-2.5 bg-gradient-to-r from-sukem-primary to-sukem-accent text-white font-bold rounded-full shadow-lg shadow-sukem-primary/30 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
-            >
-                Đọc Ngay &rarr;
-            </Link>
-           )}
+
         </div>
       </div>
       
        {/* Dots Navigation */}
-       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2 z-20">
+       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-1.5 z-30">
         {stories.map((_, index) => (
           <button
             key={index}
             onClick={() => goToSlide(index)}
-            className={`h-1.5 rounded-full transition-all duration-300 ${currentIndex === index ? 'bg-sukem-primary w-6' : 'bg-white/40 w-1.5 hover:bg-white/80'}`}
+            className={`h-1 rounded-full transition-all duration-300 ${currentIndex === index ? 'w-5' : 'bg-white/40 w-1 hover:bg-white/80'}`}
+            style={{ backgroundColor: currentIndex === index ? color1 : undefined }} 
             aria-label={`Go to slide ${index + 1}`}
           />
         ))}
