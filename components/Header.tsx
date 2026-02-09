@@ -75,18 +75,14 @@ const Header: React.FC = () => {
 
       <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
-          
-          {/* Logo */}
+
+          {/*KHỐI LOGO */}
           <Link to="/" className="flex items-center gap-3 group relative z-10">
-             <div className="relative">
-                <div className="absolute -inset-1 bg-gradient-to-r from-sukem-primary to-sukem-accent rounded-lg blur opacity-20 group-hover:opacity-60 transition duration-200"></div>
-                <div className="relative h-11 w-11 bg-sukem-primary rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-md transform group-hover:scale-105 transition-transform">
-                    S
-                </div>
-             </div>
-            <span className="text-2xl font-bold font-serif text-sukem-text">
-              Sukem<span className="text-sukem-primary">Novel</span>
-            </span>
+             <img 
+                src="/logo_header_light.png" 
+                alt="SukemNovel Logo" 
+                className="h-26 w-auto object-contain"
+             />
           </Link>
 
           {/* Desktop Navigation */}
