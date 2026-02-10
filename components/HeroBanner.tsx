@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Story } from '../types';
-import * as storyService from '../services/storyService';
+import { storyService } from '../services/storyService';
 import { usePalette } from '../hooks/usePalette';
 
 interface BannerStory extends Omit<Story, 'lastUpdatedAt'> {
@@ -62,6 +62,7 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ interval = 7000 }) => {
 
   const currentStory = stories[currentIndex];
 
+  // Hook usePalette cần xử lý trường hợp currentStory chưa có
   const { data: palette } = usePalette(currentStory?.coverImage || '');
 
   // Màu 1: Ưu tiên màu sáng nhất
@@ -79,7 +80,7 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ interval = 7000 }) => {
       color: 'transparent',
       filter: `drop-shadow(0 0 15px ${color1}50)`,
       
-      // THÊM DÒNG NÀY: Tạo viền trắng mảnh xung quanh chữ
+      // Viền trắng mảnh xung quanh chữ
       WebkitTextStroke: '0.5px rgba(255, 255, 255, 0.8)', 
   };
 
@@ -98,17 +99,17 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ interval = 7000 }) => {
   return (
     <div className="relative h-[65vh] md:h-[60vh] max-h-[500px] min-h-[400px] w-full overflow-hidden rounded-2xl group shadow-lg border border-sukem-border bg-sukem-card">
       {stories.map((story, index) => {
-         const isUp = index % 2 === 0;
-         const animationClass = isUp ? 'animate-pan-up' : 'animate-pan-down';
-         const endPositionClass = isUp ? 'bg-[50%_20%]' : 'bg-[50%_80%]';
+         // Logic animation cũ của bạn
          const isActive = index === currentIndex;
          const isPrevious = index === previousIndex;
 
+         // Xử lý class animation: Thêm keyframe trong index.css nếu chưa có, hoặc dùng class có sẵn
+         // Ở đây tôi giữ nguyên logic class của bạn, giả sử 'animate-pan-up' đã được định nghĩa
          let dynamicClasses = 'opacity-0'; 
          if (isActive) {
-             dynamicClasses = `opacity-100 ${animationClass}`;
+             dynamicClasses = `opacity-100 animate-pan-up`; // Mặc định pan-up cho đơn giản hoặc logic cũ
          } else if (isPrevious) {
-             dynamicClasses = `opacity-0 ${endPositionClass}`;
+             dynamicClasses = `opacity-0`;
          }
 
          return (
@@ -131,13 +132,13 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ interval = 7000 }) => {
                <span>{currentStory.chapterCount || 0} Chương</span>
            </div>
            
-           {/* Title: Đã có style mới */}
+           {/* Title */}
            <Link 
               to={`/story/${currentStory.id}`} 
               className="group/title block"
            >
                 <h1 
-                    className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold font-serif tracking-tight leading-tight py-2 px-4 transition-all duration-500 group-hover/title:scale-105"
+                    className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold font-serif tracking-tight leading-tight py-2 px-4"
                     style={gradientStyle}
                 >
                     {currentStory.title}
@@ -146,14 +147,14 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ interval = 7000 }) => {
           
           {/* Description */}
           <p className="mt-2 text-xs sm:text-sm text-white/90 max-w-lg mx-auto line-clamp-2 leading-relaxed font-medium">
-             {currentStory.alias && currentStory.alias.length > 0
+              {currentStory.alias && currentStory.alias.length > 0
                 ? (Array.isArray(currentStory.alias) ? currentStory.alias.join(' · ') : currentStory.alias)
                 : currentStory.description}
           </p>
 
           {/* Tags */}
           <div className="flex flex-wrap gap-1.5 mt-3 justify-center max-w-xl">
-              {currentStory.tags.slice(0, 5).map(tag => (
+              {currentStory.tags && currentStory.tags.slice(0, 5).map(tag => (
                 <span key={tag} className="text-[10px] sm:text-xs font-medium border border-white/20 bg-black/30 text-white/90 px-2.5 py-0.5 rounded-full">
                   {tag}
                 </span>

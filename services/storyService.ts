@@ -1,12 +1,28 @@
 import api from './api';
 import { Story, Chapter, Volume, StoriesResponse, StoryFilterParams } from '../types';
 
+// Interface cho Dashboard (Dùng cho AdminDashboardPage)
+export interface DashboardData {
+    stats: {
+        totalStories: number;
+        totalUsers: number;
+        totalChapters: number;
+        totalViews: number;
+    };
+    stories: (Story & { chapterCount: number; totalViews: number })[];
+}
+
 // --- Story Operations ---
 
 export const getAllStories = async (): Promise<Story[]> => {
-    // Giữ tương thích ngược
     const response = await api.get('/stories?limit=1000');
     return response.data.stories;
+};
+
+// Hàm mới cho Dashboard (Đừng quên hàm này!)
+export const getDashboardStats = async (): Promise<DashboardData> => {
+    const response = await api.get('/stories/admin/stats');
+    return response.data;
 };
 
 export const getStoriesList = async (params: StoryFilterParams): Promise<StoriesResponse> => {
@@ -27,7 +43,6 @@ export const getStoryById = async (id: string): Promise<Story> => {
     return response.data;
 };
 
-// --- QUAN TRỌNG: API Lấy nội dung chương riêng lẻ ---
 export const getChapterContent = async (storyId: string, chapterId: string): Promise<Chapter> => {
     const response = await api.get(`/stories/${storyId}/chapters/${chapterId}`);
     return response.data;
@@ -106,4 +121,28 @@ export const reorderChapters = async (storyId: string, volumeId: string, ordered
 
 export const incrementChapterView = async (storyId: string, chapterId: string): Promise<void> => {
     await api.post(`/stories/${storyId}/chapters/${chapterId}/view`);
+};
+
+// --- QUAN TRỌNG: Export Object gom nhóm (Để hỗ trợ AdminDashboard & HeroBanner) ---
+export const storyService = {
+    getAllStories,
+    getDashboardStats,
+    getStoriesList,
+    getStoryById,
+    getChapterContent,
+    createStory,
+    updateStory,
+    deleteStory,
+    getBannerStories,
+    updateStoryBannerConfig,
+    rateStory,
+    addVolume,
+    updateVolume,
+    deleteVolume,
+    reorderVolumes,
+    addChapter,
+    updateChapter,
+    deleteChapter,
+    reorderChapters,
+    incrementChapterView
 };

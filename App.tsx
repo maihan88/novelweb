@@ -21,17 +21,15 @@ import ProfilePage from './pages/ProfilePage';
 import ProtectedRoute from './components/ProtectedRoute';
 import DonatePage from './pages/DonatePage';
 import SearchPage from './pages/SearchPage';
-
-// Đã xóa component BackgroundDecoration theo yêu cầu
+import TermsPage from './pages/TermsPage';
+import PrivacyPage from './pages/PrivacyPage';
 
 const AppContent: React.FC = () => {
   const location = useLocation();
-  // Kiểm tra xem có phải đang ở trang đọc truyện không (để ẩn Header/Footer)
   const isReaderPage = location.pathname.includes('/chapter/');
 
-  // Tính toán class cho Main Content
   const mainClasses = useMemo(() => {
-    // Base classes
+
     const baseClasses = 'flex-grow w-full relative z-10'; 
     
     if (isReaderPage) {
@@ -42,14 +40,8 @@ const AppContent: React.FC = () => {
   }, [isReaderPage]);
   
   return (
-    // THAY ĐỔI: Sử dụng biến màu semantic sukem-* thay vì slate-*
-    // bg-sukem-bg: Tự động đổi Cream (Sáng) / Espresso (Tối)
-    // text-sukem-text: Tự động đổi Nâu (Sáng) / Trắng ngà (Tối)
     <div className="min-h-screen flex flex-col font-sans bg-sukem-bg text-sukem-text transition-colors duration-300 relative selection:bg-sukem-primary/30 selection:text-sukem-primary">
-      
-      {/* Đã xóa <BackgroundDecoration /> */}
 
-      {/* CHỈ HIỆN HEADER KHI KHÔNG PHẢI TRANG ĐỌC */}
       {!isReaderPage && <Header />}
       
       <main className={mainClasses}>
@@ -94,6 +86,9 @@ const AppContent: React.FC = () => {
             path="/admin/story/:storyId/volume/:volumeId/chapter/edit/:chapterId"
             element={<ProtectedRoute><ChapterEditPage /></ProtectedRoute>}
           />
+
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
         </Routes>
       </main>
       

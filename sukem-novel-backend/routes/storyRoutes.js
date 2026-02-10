@@ -14,22 +14,22 @@ const {
     updateStoryBannerConfig,
     getChapterContent, 
     incrementChapterView,
-    reorderVolumes
+    reorderVolumes,
+    getDashboardStats
 } = require('../controllers/storyController');
-// Import thêm optionalAuth
 const { protect, admin, optionalAuth } = require('../middleware/authMiddleware');
 
 router.get('/banner/list', getBannerStories);
+
+// Route lấy thống kê
+router.get('/admin/stats', protect, admin, getDashboardStats);
 
 // Public
 router.get('/', getAllStories);
 router.get('/:id', getStoryById);
 
-// --- SỬA Ở ĐÂY ---
-// Thêm optionalAuth để Controller biết ai đang đọc (Khách hay Admin)
+// Thêm optionalAuth
 router.get('/:id/chapters/:chapterId', optionalAuth, getChapterContent);
-// -----------------
-
 router.post('/:id/chapters/:chapterId/view', incrementChapterView);
 
 // Admin
