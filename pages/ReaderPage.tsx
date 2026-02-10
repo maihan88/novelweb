@@ -97,8 +97,9 @@ const ReaderPage: React.FC = () => {
     const [loadingStory, setLoadingStory] = useState(true);
     const [loadingChapter, setLoadingChapter] = useState(false);
 
+    // --- CẬP NHẬT DEFAULT PREFERENCES ---
     const [preferences, setPreferences] = useLocalStorage<ReaderPreferences>('readerPreferences', {
-        fontSize: 18, fontFamily: 'font-reader-lora', lineHeight: 1.7, margin: 10, theme: 'light',
+        fontSize: 18, fontFamily: 'font-reader-lora', lineHeight: 1.7, margin: 10, theme: 'light', textAlign: 'text-justify'
     });
 
     const [scrollPercent, setScrollPercent] = useState(0);
@@ -300,9 +301,10 @@ const ReaderPage: React.FC = () => {
                         {currentChapterWithContent.title}
                     </h1>
                 </div>
-
+                
+                {/* --- ÁP DỤNG CLASS CĂN LỀ TỪ PREFERENCES --- */}
                 <div ref={readerContentRef}
-                    className={`max-w-none transition-all duration-300 ${preferences.fontFamily} chapter-content prevent-copy ${themeStyle.content}`}
+                    className={`max-w-none transition-all duration-300 ${preferences.fontFamily} ${preferences.textAlign} chapter-content prevent-copy ${themeStyle.content}`}
                     style={contentStyle}
                     dangerouslySetInnerHTML={{ __html: cleanedContent }}
                 />

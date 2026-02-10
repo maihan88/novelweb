@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ReaderPreferences, ReaderFont, ReaderTheme } from '../types';
+import { ReaderPreferences, ReaderFont, ReaderTheme, ReaderTextAlign } from '../types';
 import { 
     XMarkIcon, 
     SwatchIcon, 
@@ -9,7 +9,11 @@ import {
     MinusIcon, 
     PlusIcon, 
     QueueListIcon, 
-    LanguageIcon 
+    LanguageIcon,
+    Bars3Icon, 
+    Bars3BottomLeftIcon, 
+    Bars3BottomRightIcon, 
+    Bars2Icon
 } from '@heroicons/react/24/outline';
 
 interface ReaderControlsProps {
@@ -43,6 +47,9 @@ const ReaderControls: React.FC<ReaderControlsProps> = ({ preferences, setPrefere
   const handleThemeChange = (theme: ReaderTheme) => {
       setPreferences(p => ({ ...p, theme: theme }));
   };
+  const handleTextAlignChange = (align: ReaderTextAlign) => {
+      setPreferences(p => ({ ...p, textAlign: align }));
+  };
 
   const fontOptions: { key: ReaderFont; name: string; style: React.CSSProperties }[] = [
       { key: 'font-reader-times', name: 'Times', style: { fontFamily: '"Times New Roman", Times, serif' } },
@@ -57,6 +64,13 @@ const ReaderControls: React.FC<ReaderControlsProps> = ({ preferences, setPrefere
       { key: 'midnight', name: 'Đêm', bg: 'bg-[#0f172a]', border: 'border-slate-600', ring: 'ring-slate-400' },
       { key: 'dark', name: 'Tối', bg: 'bg-[#1c1917]', border: 'border-stone-600', ring: 'ring-stone-400' },
       { key: 'matrix', name: 'Matrix', bg: 'bg-black', border: 'border-green-800', ring: 'ring-green-500' },
+  ];
+
+  const alignOptions: { key: ReaderTextAlign; icon: any; label: string }[] = [
+      { key: 'text-left', icon: Bars3BottomLeftIcon, label: 'Trái' },
+      { key: 'text-justify', icon: Bars3Icon, label: 'Đều' }, 
+      { key: 'text-center', icon: Bars2Icon, label: 'Giữa' },
+      { key: 'text-right', icon: Bars3BottomRightIcon, label: 'Phải' },
   ];
 
   const desktopRef = useRef<HTMLDivElement>(null);
@@ -97,6 +111,26 @@ const ReaderControls: React.FC<ReaderControlsProps> = ({ preferences, setPrefere
         </div>
       </div>
       <div className="flex items-center justify-between">
+        <span className="font-medium text-sm">Căn chỉnh</span>
+        <div className="flex items-center gap-1 p-1 bg-sukem-bg rounded-full border border-sukem-border">
+            {alignOptions.map(opt => (
+                <button
+                    key={opt.key}
+                    data-control-button
+                    onClick={() => handleTextAlignChange(opt.key)}
+                    className={`p-2 rounded-full transition-colors ${
+                        preferences.textAlign === opt.key 
+                        ? 'bg-sukem-primary text-white shadow' 
+                        : 'hover:bg-sukem-card text-sukem-text-muted'
+                    }`}
+                    title={opt.label}
+                >
+                    <opt.icon className="w-5 h-5" />
+                </button>
+            ))}
+        </div>
+      </div>
+      <div className="flex items-center justify-between">
         <span className="font-medium text-sm">Giãn dòng</span>
         <div className="flex items-center gap-1 p-1 bg-sukem-bg rounded-full border border-sukem-border">
             <button data-control-button onClick={() => handleLineHeightChange(-0.1)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-sukem-card transition-colors">-</button>
@@ -105,7 +139,7 @@ const ReaderControls: React.FC<ReaderControlsProps> = ({ preferences, setPrefere
         </div>
       </div>
       <div className="flex items-center justify-between">
-        <span className="font-medium text-sm">Canh lề</span>
+        <span className="font-medium text-sm">Canh lề trang</span>
         <div className="flex items-center gap-1 p-1 bg-sukem-bg rounded-full border border-sukem-border">
             <button data-control-button onClick={() => handleMarginChange(-1)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-sukem-card transition-colors">-</button>
             <span className="text-sm w-10 text-center font-semibold">{preferences.margin}%</span>
@@ -192,6 +226,29 @@ const ReaderControls: React.FC<ReaderControlsProps> = ({ preferences, setPrefere
                                         }`}
                                     >
                                         <span style={font.style}>{font.name}</span>
+                                    </button>
+                                ))}
+                             </div>
+                        </div>
+                        
+                        <div className="h-px bg-sukem-border"></div>
+
+                        {/* DESKTOP ALIGNMENT CONTROLS */}
+                         <div className="space-y-2">
+                             <div className="text-xs font-semibold text-sukem-text-muted uppercase tracking-wider">Căn chỉnh</div>
+                             <div className="flex bg-sukem-bg rounded-lg border border-sukem-border p-1">
+                                {alignOptions.map(opt => (
+                                    <button
+                                        key={opt.key}
+                                        onClick={() => handleTextAlignChange(opt.key)}
+                                        className={`flex-1 flex items-center justify-center p-1.5 rounded transition-colors ${
+                                            preferences.textAlign === opt.key 
+                                            ? 'bg-sukem-card text-sukem-primary shadow-sm' 
+                                            : 'text-sukem-text-muted hover:bg-sukem-card/50'
+                                        }`}
+                                        title={opt.label}
+                                    >
+                                        <opt.icon className="w-4 h-4" />
                                     </button>
                                 ))}
                              </div>

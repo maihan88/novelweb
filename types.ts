@@ -4,7 +4,7 @@ export interface Chapter {
   title: string;
   content: string;
   createdAt: string;
-  updatedAt?: string; // --- ĐÃ THÊM DÒNG NÀY (Optional vì chương cũ có thể không có) ---
+  updatedAt?: string;
   views: number;
   isRaw?: boolean;
 }
@@ -65,6 +65,8 @@ export interface StoryFilterParams {
 
 export type ReaderFont = 'font-reader-times' | 'font-reader-lora' | 'font-reader-antiqua';
 export type ReaderTheme = 'light' | 'sepia' | 'dark' | 'midnight' | 'paper' | 'matrix';
+// --- THÊM TYPE CHO CĂN LỀ ---
+export type ReaderTextAlign = 'text-left' | 'text-justify' | 'text-right' | 'text-center';
 
 export interface ReaderPreferences {
   fontSize: number;
@@ -72,6 +74,7 @@ export interface ReaderPreferences {
   lineHeight: number;
   margin: number;
   theme: ReaderTheme;
+  textAlign: ReaderTextAlign; // --- CẬP NHẬT FIELD NÀY ---
 }
 
 export interface Bookmark {
