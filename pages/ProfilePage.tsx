@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { useStories } from '../contexts/StoryContext.tsx';
-import { useUserPreferences } from '../contexts/UserPreferencesContext.tsx';
+import { useStories } from '../contexts/StoryContext';
+import { useUserPreferences } from '../contexts/UserPreferencesContext';
 import { Link, Navigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext.tsx';
+import { useAuth } from '../contexts/AuthContext';
 import { 
     HeartIcon, 
     BookOpenIcon, 
@@ -12,7 +12,7 @@ import {
     ChevronDownIcon,
     ChevronUpIcon
 } from '@heroicons/react/24/solid';
-import StoryCard from '../components/StoryCard.tsx';
+import StoryCard from '../components/StoryCard';
 
 // --- CONFIG ---
 const INITIAL_READING_LIMIT = 4;
@@ -49,22 +49,43 @@ const ProfilePage: React.FC = () => {
   const { processedReadingStories, processedFavoriteStories } = useMemo(() => {
     const safeStories = Array.isArray(stories) ? stories.filter(s => s && s.id) : [];
 
+    // 1. Lọc truyện yêu thích
     const favoriteStories = safeStories.filter(story => 
         favorites && favorites.includes(story.id)
     );
 
+    // 2. Xử lý lịch sử đọc
     const readingStories = Object.entries(bookmarks || {})
       .map(([storyId, bookmark]) => {
         const story = safeStories.find(s => s.id === storyId);
+        
         if (!story || !bookmark || !bookmark.chapterId) return null;
 
-        const allChapters = story.volumes?.flatMap(v => v?.chapters || []) || [];
-        const lastReadChapter = allChapters.find(c => c?.id === bookmark.chapterId);
+        // --- LOGIC TÌM TÊN TẬP & CHƯƠNG ---
+        let volumeTitle = '';
+        let chapterTitle = 'Chương đã đọc'; // Mặc định
+        
+        if (story.volumes && Array.isArray(story.volumes)) {
+            for (const vol of story.volumes) {
+                if (vol.chapters && Array.isArray(vol.chapters)) {
+                    // Tìm chương trong tập này
+                    const chapter = vol.chapters.find(c => String(c.id) === String(bookmark.chapterId));
+                    if (chapter) {
+                        // 👉 Tách riêng 2 biến
+                        volumeTitle = vol.title;
+                        chapterTitle = chapter.title;
+                        break; 
+                    }
+                }
+            }
+        }
+        // ---------------------------------------
 
         return {
           ...story,
           continueChapterId: bookmark.chapterId,
-          lastReadChapterTitle: lastReadChapter?.title || 'Chương đã đọc',
+          lastReadVolumeTitle: volumeTitle,   // Tên tập
+          lastReadChapterTitle: chapterTitle, // Tên chương
           progress: bookmark.progress || 0,
           lastReadDate: bookmark.lastRead,
         };
@@ -91,7 +112,7 @@ const ProfilePage: React.FC = () => {
       ? processedFavoriteStories 
       : processedFavoriteStories.slice(0, INITIAL_FAVORITE_LIMIT);
 
-  // --- SUB-COMPONENT: Reading Card (Đã update màu) ---
+  // --- SUB-COMPONENT: Reading Card (Đã update Layout Tách Dòng) ---
   const ReadingStoryCard: React.FC<typeof processedReadingStories[0]> = (story) => (
       <div className="group relative bg-sukem-card rounded-xl p-3 shadow-sm border border-sukem-border flex gap-3 sm:gap-4 overflow-hidden transition-colors duration-300">
         <Link to={`/story/${story.id}`} className="relative flex-shrink-0 w-20 h-28 sm:w-24 sm:h-36 rounded-lg overflow-hidden shadow-inner">
@@ -112,14 +133,27 @@ const ProfilePage: React.FC = () => {
                 </Link>
                 <p className="text-xs text-sukem-text-muted mb-2 line-clamp-1">{story.author}</p>
                 
-                {/* Progress Bar Container */}
-                <div className="bg-sukem-bg rounded-md p-1.5 sm:p-2 border border-sukem-border/50">
-                    <div className="flex justify-between items-center text-[10px] sm:text-xs mb-1">
-                        <span className="text-sukem-text-muted font-medium truncate max-w-[100px] sm:max-w-[150px]">
+                {/* Info Container */}
+                <div className="bg-sukem-bg rounded-md p-2 border border-sukem-border/50">
+                    
+                    {/* Dòng 1: Tên Tập (Nhỏ, Mờ) */}
+                    {story.lastReadVolumeTitle && (
+                         <div className="text-[10px] sm:text-xs text-sukem-text-muted font-medium truncate mb-0.5">
+                            {story.lastReadVolumeTitle}
+                         </div>
+                    )}
+
+                    {/* Dòng 2: Tên Chương (Đậm, Rõ) + % Progress */}
+                    <div className="flex justify-between items-center text-[11px] sm:text-sm mb-1.5">
+                        <span className="text-sukem-text font-semibold truncate max-w-[140px] sm:max-w-[200px]" title={story.lastReadChapterTitle}>
                             {story.lastReadChapterTitle}
                         </span>
-                        <span className="text-sukem-accent font-bold">{Math.round(story.progress)}%</span>
+                        <span className="text-sukem-accent font-bold text-[10px] sm:text-xs shrink-0 ml-2">
+                            {Math.round(story.progress)}%
+                        </span>
                     </div>
+
+                    {/* Progress Bar */}
                     <div className="w-full bg-sukem-border/50 rounded-full h-1">
                         <div 
                             className="bg-sukem-accent h-1 rounded-full transition-all duration-500" 
@@ -129,14 +163,14 @@ const ProfilePage: React.FC = () => {
                 </div>
             </div>
 
-            <div className="flex items-end justify-between mt-1">
+            <div className="flex items-end justify-between mt-2">
                 <span className="text-[10px] text-sukem-text-muted flex items-center gap-1">
                     <ClockIcon className="h-3 w-3" />
                     {formatDate(story.lastReadDate)}
                 </span>
                 <Link
                   to={`/story/${story.id}/chapter/${story.continueChapterId}`}
-                  className="flex items-center gap-1 text-[11px] sm:text-sm font-bold text-white bg-sukem-primary hover:opacity-90 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full shadow-sm transition-transform active:scale-95"
+                  className="flex items-center gap-1 text-[11px] sm:text-sm font-bold text-white bg-sukem-primary hover:bg-red-500 px-3 py-1 sm:px-4 sm:py-1.5 rounded-full shadow-sm transition-all active:scale-95"
                 >
                   Đọc tiếp <ArrowRightIcon className="h-3 w-3" />
                 </Link>
@@ -150,7 +184,6 @@ const ProfilePage: React.FC = () => {
       
       {/* --- HEADER PROFILE --- */}
       <div className="relative mb-8 sm:mb-12 mt-4 sm:mt-8 px-4">
-          {/* Background Blur Effect - Dùng màu secondary */}
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full sm:w-3/4 h-32 bg-sukem-secondary/30 blur-[50px] rounded-full -z-10"></div>
           
           <div className="text-center">
@@ -167,7 +200,6 @@ const ProfilePage: React.FC = () => {
               </h1>
               <p className="text-sukem-text-muted text-xs sm:text-sm font-medium mt-0.5">Thành viên tích cực</p>
 
-              {/* Stats Badges */}
               <div className="flex justify-center gap-3 mt-4 sm:mt-6">
                   <div className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 bg-sukem-card rounded-full shadow-sm border border-sukem-border">
                       <BookOpenIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-sukem-secondary"/>
@@ -224,7 +256,7 @@ const ProfilePage: React.FC = () => {
 
         {/* --- SECTION: TRUYỆN YÊU THÍCH --- */}
         <section>
-             <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
                 <h2 className="text-lg sm:text-2xl font-bold text-sukem-text flex items-center gap-2 sm:gap-3">
                     <span className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-sukem-primary/20 text-sukem-primary">
                         <HeartIcon className="h-4 w-4 sm:h-5 sm:w-5"/>

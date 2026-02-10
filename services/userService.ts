@@ -1,4 +1,3 @@
-// services/userService.ts
 import api from './api';
 import { Bookmark } from '../types';
 
@@ -11,4 +10,9 @@ interface UserPreferences {
 export const updateUserPreferences = async (preferences: Partial<UserPreferences>): Promise<UserPreferences> => {
     const response = await api.put('/users/preferences', preferences);
     return response.data;
+};
+
+export const syncReadingProgress = async (storyId: string, chapterId: string, progress: number) => {
+    const response = await api.put('/users/progress', { storyId, chapterId, progress });
+    return response.data; // Trả về updated bookmarks map
 };

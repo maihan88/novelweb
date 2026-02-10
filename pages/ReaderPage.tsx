@@ -4,6 +4,7 @@ import { Story, Chapter, ReaderPreferences, ReaderTheme } from '../types';
 import { useStories } from '../contexts/StoryContext';
 import { useUserPreferences } from '../contexts/UserPreferencesContext';
 import * as storyService from '../services/storyService';
+import { syncReadingProgress } from '../services/userService'; // API sync nhẹ
 import ReaderControls from '../components/ReaderControls';
 import CommentSection from '../components/CommentSection';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -12,7 +13,7 @@ import { ArrowLeftIcon, ArrowRightIcon, HomeIcon, SunIcon, MoonIcon, ListBulletI
 import { useAuth } from '../contexts/AuthContext';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 
-// --- ReadingProgressBar: Dùng màu Primary (Hồng/Đỏ) ---
+// --- ReadingProgressBar ---
 const ReadingProgressBar: React.FC<{ progress: number }> = React.memo(({ progress }) => {
     return (
         <div className="fixed top-0 left-0 w-full h-1 bg-transparent z-[60] pointer-events-none">
@@ -25,7 +26,7 @@ const ReadingProgressBar: React.FC<{ progress: number }> = React.memo(({ progres
 });
 ReadingProgressBar.displayName = 'ReadingProgressBar';
 
-// --- FloatingNavBar: Dùng Style Glassmorphism & Sukem Colors ---
+// --- FloatingNavBar ---
 const FloatingNavBar: React.FC<{ story: Story; currentChapterId: string; prevChapter?: Chapter | null; nextChapter?: Chapter | null; isVisible: boolean; }> = ({ story, currentChapterId, prevChapter, nextChapter, isVisible }) => {
     const navigate = useNavigate();
     const { theme, toggleTheme } = useTheme();
@@ -66,21 +67,9 @@ const FloatingNavBar: React.FC<{ story: Story; currentChapterId: string; prevCha
     );
 };
 
-// --- THEME SETTINGS: Light Theme mapped to SUKEM ---
+// --- THEME SETTINGS ---
 const themeSpecificStyles: Record<ReaderTheme, { container: string; title: string; breadcrumb: string; breadcrumbActive: string; content: string; border: string; button: string; buttonHover: string; selectBg: string; selectBorder: string; }> = {
-    // Light -> Sukem Theme
-    light: {
-        container: 'bg-[#FFF8E7]', // Sukem BG
-        title: 'text-[#4A2C2A]', // Sukem Text
-        breadcrumb: 'text-[#6E5C58] hover:text-[#FF6F91]', // Muted -> Primary
-        breadcrumbActive: 'text-[#FF6F91]',
-        content: 'text-[#4A2C2A]',
-        border: 'border-[#E8D5B5]', // Sukem Border
-        button: 'border-[#E8D5B5] text-[#4A2C2A] bg-[#FDEBD0]', // Sukem Card
-        buttonHover: 'hover:bg-[#FF6F91] hover:text-white hover:border-[#FF6F91]',
-        selectBg: 'bg-[#FDEBD0]',
-        selectBorder: 'border-[#E8D5B5]'
-    },
+    light: { container: 'bg-[#FFF8E7]', title: 'text-[#4A2C2A]', breadcrumb: 'text-[#6E5C58] hover:text-[#FF6F91]', breadcrumbActive: 'text-[#FF6F91]', content: 'text-[#4A2C2A]', border: 'border-[#E8D5B5]', button: 'border-[#E8D5B5] text-[#4A2C2A] bg-[#FDEBD0]', buttonHover: 'hover:bg-[#FF6F91] hover:text-white hover:border-[#FF6F91]', selectBg: 'bg-[#FDEBD0]', selectBorder: 'border-[#E8D5B5]' },
     sepia: { container: 'bg-[#fbf0d9]', title: 'text-[#433422]', breadcrumb: 'text-[#8c6d46] hover:text-[#5f4b32]', breadcrumbActive: 'text-[#5f4b32]', content: 'text-[#5f4b32]', border: 'border-[#dcd3c1]', button: 'border-[#c8b79a] text-[#5f4b32] bg-[#fbf0d9]', buttonHover: 'hover:bg-[#f5e9d3] hover:border-[#a08d70]', selectBg: 'bg-[#fbf0d9]', selectBorder: 'border-[#dcd3c1]' },
     dark: { container: 'bg-[#1c1917]', title: 'text-[#e7e5e4]', breadcrumb: 'text-[#a8a29e] hover:text-[#fbbf24]', breadcrumbActive: 'text-[#fbbf24]', content: 'text-[#d6d3d1]', border: 'border-[#44403c]', button: 'border-[#57534e] text-[#d6d3d1] bg-[#292524]', buttonHover: 'hover:bg-[#44403c] hover:border-[#78716c] hover:text-white', selectBg: 'bg-[#292524]', selectBorder: 'border-[#57534e]' },
     paper: { container: 'bg-[#f5f5f4]', title: 'text-[#292524]', breadcrumb: 'text-[#78716c] hover:text-[#292524]', breadcrumbActive: 'text-[#292524]', content: 'text-[#44403c]', border: 'border-[#d6d3d1]', button: 'border-[#d6d3d1] text-[#44403c] bg-[#f5f5f4]', buttonHover: 'hover:bg-[#e7e5e4] hover:border-[#a8a29e]', selectBg: 'bg-[#f5f5f4]', selectBorder: 'border-[#d6d3d1]' },
@@ -118,13 +107,18 @@ const ReaderPage: React.FC = () => {
     const readerContentRef = useRef<HTMLDivElement>(null);
     const [isFloatingNavVisible, setIsFloatingNavVisible] = useState(false);
     const lastTap = useRef(0);
+    
+    // --- Refs for syncing ---
     const updateBookmarkRef = useRef(updateBookmark);
+    const currentUserRef = useRef(currentUser);
+    const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
     useEffect(() => { updateBookmarkRef.current = updateBookmark; });
+    useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
+
     const isAdmin = useMemo(() => currentUser?.role === 'admin', [currentUser]);
 
-    // ... (Giữ nguyên các useEffect logic load truyện, scroll, bookmark...)
-    // Tôi rút gọn phần logic lặp lại để tập trung vào UI, hãy giữ nguyên code logic của bạn
-
+    // 1. Fetch Story
     useEffect(() => {
         if (!storyId) return;
         if (!story || story.id !== storyId) {
@@ -136,6 +130,7 @@ const ReaderPage: React.FC = () => {
         }
     }, [storyId, story, getStoryById]);
 
+    // 2. Fetch Content
     useEffect(() => {
         const loadContent = async () => {
             if (!storyId || !chapterId) return;
@@ -150,12 +145,13 @@ const ReaderPage: React.FC = () => {
         loadContent();
     }, [storyId, chapterId]);
 
+    // 3. Handle Scroll Restoration & View Increment
     useEffect(() => {
         if (!currentChapterWithContent) return;
         viewIncrementedRef.current = false;
-        window.scrollTo(0, 0);
-        // ... Logic restore scroll position (Keep existing logic)
-         const savedBookmark = storyId ? bookmarks[storyId] : null;
+
+        const savedBookmark = storyId ? bookmarks[storyId] : null;
+        
         if (savedBookmark && savedBookmark.chapterId === chapterId) {
              requestAnimationFrame(() => {
                  setTimeout(() => {
@@ -168,25 +164,25 @@ const ReaderPage: React.FC = () => {
                             const maxScrollInContent = contentHeight - viewportHeight;
                             const targetScrollInContent = (maxScrollInContent * savedBookmark.progress) / 100;
                             const targetScrollPosition = contentTop + targetScrollInContent;
+                            
                             window.scrollTo({ top: targetScrollPosition, behavior: 'auto' });
-                             progressRef.current = savedBookmark.progress;
-                             setScrollPercent(savedBookmark.progress);
-                        } else {
-                            progressRef.current = 100;
-                            setScrollPercent(100);
+                            progressRef.current = savedBookmark.progress;
+                            setScrollPercent(savedBookmark.progress);
                         }
                     }
                  }, 150);
             });
         } else {
+             window.scrollTo(0, 0);
              progressRef.current = 0;
              setScrollPercent(0);
         }
-    }, [storyId, chapterId, bookmarks, currentChapterWithContent]);
+    }, [storyId, chapterId, currentChapterWithContent]); // Chỉ chạy khi đổi chương, không chạy khi bookmarks update
 
-    // ... Logic Scroll Listener (Keep existing logic)
-     useEffect(() => {
+    // 4. Scroll Listener & Sync Logic
+    useEffect(() => {
         if (!story || !storyId || !chapterId) return;
+        
         if (!viewIncrementedRef.current && !isAdmin && currentChapterWithContent) {
             incrementChapterView(storyId, chapterId);
             viewIncrementedRef.current = true;
@@ -198,6 +194,26 @@ const ReaderPage: React.FC = () => {
             contentEl.addEventListener('contextmenu', preventAction);
             contentEl.addEventListener('copy', preventAction);
         }
+
+        const debouncedSave = (newProgress: number) => {
+            if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+            
+            syncTimeoutRef.current = setTimeout(async () => {
+                const finalProgress = Math.round(newProgress >= 99 ? 100 : newProgress);
+                
+                // 1. Lưu Local State (để UI phản hồi nhanh)
+                updateBookmarkRef.current(storyId, chapterId, finalProgress);
+
+                // 2. Sync API (nếu đã đăng nhập)
+                if (currentUserRef.current) {
+                    try {
+                        await syncReadingProgress(storyId, chapterId, finalProgress);
+                    } catch (err) {
+                        console.error('Lỗi sync progress:', err);
+                    }
+                }
+            }, 1000); 
+        };
 
         const handleScroll = () => {
             const contentElement = readerContentRef.current;
@@ -213,17 +229,28 @@ const ReaderPage: React.FC = () => {
                  const maxScrollInContent = contentHeight - viewportHeight;
                  percentage = maxScrollInContent > 0 ? Math.min(100, (scrollStartInContent / maxScrollInContent) * 100) : 100;
             }
-            progressRef.current = percentage;
-            setScrollPercent(percentage);
+            
+            if (Math.abs(percentage - progressRef.current) > 1) {
+                progressRef.current = percentage;
+                setScrollPercent(percentage);
+                debouncedSave(percentage);
+            }
         };
+
         window.addEventListener('scroll', handleScroll, { passive: true });
         handleScroll();
+        
         return () => {
             window.removeEventListener('scroll', handleScroll);
             if (contentEl) { contentEl.removeEventListener('contextmenu', preventAction); contentEl.removeEventListener('copy', preventAction); }
+            if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+            
             if (storyId && chapterId) {
                  const finalProgress = Math.round(progressRef.current >= 99 ? 100 : progressRef.current);
-                updateBookmarkRef.current(storyId, chapterId, finalProgress);
+                 updateBookmarkRef.current(storyId, chapterId, finalProgress);
+                 if(currentUserRef.current) {
+                     syncReadingProgress(storyId, chapterId, finalProgress).catch(console.error);
+                 }
             }
         };
     }, [story, storyId, chapterId, isAdmin, incrementChapterView, currentChapterWithContent]);
@@ -293,7 +320,7 @@ const ReaderPage: React.FC = () => {
                             <select value={chapterId} onChange={handleChapterSelect} className={`w-full px-4 py-3 border rounded-lg transition appearance-none text-center cursor-pointer font-medium focus:ring-2 focus:ring-opacity-50 focus:ring-sukem-accent focus:outline-none ${themeStyle.selectBg} ${themeStyle.selectBorder} ${themeStyle.content}`}>
                                 {story.volumes.map(volume => (
                                     <optgroup label={volume.title} key={volume.id} className={themeStyle.selectBg}>
-                                        {volume.chapters.map(chap => (<option key={chap.id} value={chap.id} className="font-normal py-1">{chap.title}</option>))}
+                                         {volume.chapters.map(chap => (<option key={chap.id} value={chap.id} className="font-normal py-1">{chap.title}</option>))}
                                     </optgroup>
                                 ))}
                             </select>
