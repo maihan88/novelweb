@@ -5,353 +5,378 @@ import { useAuth } from '../contexts/AuthContext';
 import { useUserPreferences } from '../contexts/UserPreferencesContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import StarRating from '../components/StarRating';
-import { Story } from '../types';
-import { formatDate } from '../utils/formatDate';
+import { Story, Chapter } from '../types';
 import {
-    PencilIcon, BookOpenIcon, HeartIcon, CalendarDaysIcon, EyeIcon, UserIcon, TagIcon,
-    ListBulletIcon, MagnifyingGlassIcon, ArrowLeftIcon, ChevronDownIcon, ChevronUpIcon
+    BookOpenIcon, HeartIcon, EyeIcon, UserIcon,
+    ListBulletIcon, MagnifyingGlassIcon, HomeIcon,
+    PencilSquareIcon, ChevronLeftIcon, ChevronRightIcon,
+    InformationCircleIcon, ClockIcon 
 } from '@heroicons/react/24/solid';
+import { clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+import { formatDate } from '../utils/formatDate';
+
+const cn = (...inputs: (string | undefined | null | false)[]) => twMerge(clsx(inputs));
+
+const ITEMS_PER_PAGE = 50;
+
+interface ChapterWithVolume extends Chapter {
+    volumeTitle: string;
+    volumeId: string;
+}
 
 const StoryDetailPage: React.FC = () => {
-  const { storyId } = useParams<{ storyId: string }>();
-  const navigate = useNavigate();
-  const { getStoryById, addRatingToStory } = useStories();
-  const { currentUser } = useAuth();
-  const { isFavorite, toggleFavorite, getUserRating, addRating, bookmarks, removeBookmark  } = useUserPreferences();
+    const { storyId } = useParams<{ storyId: string }>();
+    const navigate = useNavigate();
+    const { getStoryById, addRatingToStory } = useStories();
+    const { currentUser } = useAuth();
+    const { isFavorite, toggleFavorite, getUserRating, addRating, bookmarks, removeBookmark } = useUserPreferences();
 
-  // States
-  const [story, setStory] = useState<Story | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [chapterSearchTerm, setChapterSearchTerm] = useState('');
-  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+    const [story, setStory] = useState<Story | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    
+    const [chapterSearchTerm, setChapterSearchTerm] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
 
-  // Derived states and memos
-  const isUserFavorite = storyId ? isFavorite(storyId) : false;
-  const userRating = storyId ? getUserRating(storyId) : undefined;
-  const currentBookmark = storyId ? bookmarks[storyId] : null;
+    const isUserFavorite = storyId ? isFavorite(storyId) : false;
+    const userRating = storyId ? getUserRating(storyId) : undefined;
+    const currentBookmark = storyId ? bookmarks[storyId] : null;
 
-  const bookmarkedChapterTitle = useMemo(() => {
-      if (!currentBookmark || !story) return null;
-      const chapter = story.volumes.flatMap(v => v.chapters).find(c => c.id === currentBookmark.chapterId);
-      return chapter?.title || null;
-  }, [currentBookmark, story]);
+    const fetchStory = useCallback(async () => {
+        if (!storyId) return;
+        setLoading(true);
+        try {
+            const fetchedStory = await getStoryById(storyId);
+            setStory(fetchedStory || null);
+            if (!fetchedStory) setError('Không tìm thấy truyện này.');
+        } catch (err: any) {
+            setError(err.message || 'Đã xảy ra lỗi khi tải truyện.');
+        } finally {
+            setLoading(false);
+        }
+    }, [storyId, getStoryById]);
 
-  const fetchStory = useCallback(async () => {
-    if (!storyId) return;
-    setLoading(true);
-    setError('');
-    try {
-      const fetchedStory = await getStoryById(storyId);
-      setStory(fetchedStory || null);
-      if (!fetchedStory) setError('Không tìm thấy truyện này.');
-    } catch (err: any) {
-      setError(err.message || 'Đã xảy ra lỗi khi tải truyện.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [storyId, getStoryById]);
+    useEffect(() => {
+        fetchStory();
+        window.scrollTo(0, 0);
+    }, [fetchStory]);
 
-  useEffect(() => {
-    fetchStory();
-    setIsDescriptionExpanded(false);
-    window.scrollTo(0, 0);
-  }, [fetchStory]);
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [chapterSearchTerm]);
 
-  const handleRating = async (rating: number) => {
-    if (!currentUser || !storyId) { alert("Bạn cần đăng nhập để đánh giá."); return; }
-    if (userRating !== undefined) { alert("Bạn đã đánh giá truyện này rồi."); return; }
-    setStory(prev => prev ? {
-        ...prev,
-        rating: (prev.rating * prev.ratingsCount + rating) / (prev.ratingsCount + 1),
-        ratingsCount: prev.ratingsCount + 1
-     } : null);
-    addRating(storyId, rating);
-    try { await addRatingToStory(storyId, rating); }
-    catch (e) { alert('Có lỗi xảy ra khi gửi đánh giá.'); fetchStory(); }
-  };
+    const handleRating = async (rating: number) => {
+        if (!currentUser || !storyId) { alert("Bạn cần đăng nhập để đánh giá."); return; }
+        if (userRating !== undefined) { alert("Bạn đã đánh giá truyện này rồi."); return; }
 
-  const firstChapter = story?.volumes?.[0]?.chapters?.[0];
+        setStory(prev => prev ? {
+            ...prev,
+            rating: (prev.rating * prev.ratingsCount + rating) / (prev.ratingsCount + 1),
+            ratingsCount: prev.ratingsCount + 1
+        } : null);
+        addRating(storyId, rating);
 
-  const handleReadFromBeginning = () => {
-     if (storyId) removeBookmark(storyId);
-     if (firstChapter && story) navigate(`/story/${story.id}/chapter/${firstChapter.id}`);
-  };
+        try { await addRatingToStory(storyId, rating); }
+        catch (e) { alert('Có lỗi xảy ra khi gửi đánh giá.'); fetchStory(); }
+    };
 
-  const filteredVolumes = useMemo(() => {
-    if (!story) return [];
-    if (!chapterSearchTerm.trim()) return story.volumes;
-    const lowerSearchTerm = chapterSearchTerm.toLowerCase();
-    return story.volumes
-        .map(volume => ({
-            ...volume,
-            chapters: volume.chapters.filter(chapter => chapter.title.toLowerCase().includes(lowerSearchTerm))
-        }))
-        .filter(volume => volume.title.toLowerCase().includes(lowerSearchTerm) || volume.chapters.length > 0);
-  }, [story, chapterSearchTerm]);
+    const allChaptersFlat = useMemo<ChapterWithVolume[]>(() => {
+        if (!story) return [];
+        return story.volumes.flatMap(vol => 
+            vol.chapters.map(chap => ({
+                ...chap,
+                volumeTitle: vol.title,
+                volumeId: vol.id
+            }))
+        );
+    }, [story]);
 
-  if (!storyId) return <Navigate to="/" replace />;
-  if (loading) return <div className="flex justify-center items-center h-96"><LoadingSpinner /></div>;
-  if (error || !story) return <div className="text-center py-20 text-sukem-primary">{error || 'Không thể tải thông tin truyện.'}</div>;
+    const { paginatedData, totalPages, totalChaptersCount } = useMemo(() => {
+        if (!story) return { paginatedData: [], totalPages: 0, totalChaptersCount: 0 };
 
-  const totalChapters = story.volumes.reduce((acc, vol) => acc + (vol.chapters?.length || 0), 0);
-  const statusClasses = story.status === 'Hoàn thành'
-    ? 'bg-green-100 text-green-700 border border-green-200'
-    : 'bg-sukem-primary/10 text-sukem-primary border border-sukem-primary/20';
-  const descriptionParagraphs = story.description?.split('\n') || [];
-  const descriptionNeedsExpansion = descriptionParagraphs.length > 5;
+        let filtered = allChaptersFlat;
+        
+        if (chapterSearchTerm.trim()) {
+            const lowerSearchTerm = chapterSearchTerm.toLowerCase();
+            filtered = allChaptersFlat.filter(c => c.title.toLowerCase().includes(lowerSearchTerm));
+        }
 
-  // --- START: Component nút bấm riêng biệt ---
-  const ActionButtons = () => (
-    <div className="flex flex-col gap-3 mt-6">
-        {currentBookmark ? (
-          <>
-            <Link
-              to={`/story/${story.id}/chapter/${currentBookmark.chapterId}`}
-              className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gradient-to-r from-sukem-primary to-sukem-accent text-white font-bold rounded-xl shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
-            >
-              <BookOpenIcon className="h-5 w-5 flex-shrink-0"/>
-              <span className="truncate">Đọc tiếp: {bookmarkedChapterTitle || 'Chương đã lưu'}</span>
-            </Link>
-            <button
-              onClick={handleReadFromBeginning}
-              className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-sukem-bg text-sukem-text font-semibold rounded-xl border border-sukem-border hover:bg-sukem-card transition-all"
-            >
-              <BookOpenIcon className="h-5 w-5"/>
-              <span>Đọc lại từ đầu</span>
-            </button>
-          </>
-        ) : ( firstChapter ? (
-          <Link
-            to={`/story/${story.id}/chapter/${firstChapter.id}`}
-            className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gradient-to-r from-sukem-primary to-sukem-accent text-white font-bold rounded-xl shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300">
-            <BookOpenIcon className="h-5 w-5"/>
-            <span>Đọc từ đầu</span>
-          </Link>
-        ) : (
-          <div className="text-center p-3 bg-sukem-bg rounded-xl border border-sukem-border text-sukem-text-muted text-sm italic">Truyện chưa có chương.</div>
-        ))}
+        const total = filtered.length;
+        const totalP = Math.ceil(total / ITEMS_PER_PAGE);
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        const end = start + ITEMS_PER_PAGE;
+        
+        const slice = filtered.slice(start, end);
 
-        {currentUser && (
-          <button
-            onClick={() => storyId && toggleFavorite(storyId)}
-            className={`flex items-center justify-center gap-2 w-full px-4 py-3 font-semibold rounded-xl border transition-all duration-300 ${isUserFavorite
-                ? 'bg-red-500 text-white border-red-500 hover:bg-red-600'
-                : 'bg-sukem-bg text-sukem-text border-sukem-border hover:text-red-500 hover:border-red-200 hover:bg-red-50'
-              }`}
-          >
-            <HeartIcon className={`h-5 w-5 ${isUserFavorite ? 'text-white' : 'text-slate-400 group-hover:text-red-500'}`}/>
-            <span>{isUserFavorite ? 'Đã yêu thích' : 'Yêu thích'}</span>
-          </button>
-        )}
+        const groupedSlice: { volumeTitle: string; chapters: ChapterWithVolume[] }[] = [];
+        
+        slice.forEach(chapter => {
+            const lastGroup = groupedSlice[groupedSlice.length - 1];
+            if (lastGroup && lastGroup.volumeTitle === chapter.volumeTitle) {
+                lastGroup.chapters.push(chapter);
+            } else {
+                groupedSlice.push({ volumeTitle: chapter.volumeTitle, chapters: [chapter] });
+            }
+        });
 
-        {currentUser?.role === 'admin' && (
-          <button onClick={() => navigate(`/admin/story/edit/${story.id}`)} className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-slate-700 text-white font-semibold rounded-xl shadow hover:bg-slate-800 transition-colors">
-            <PencilIcon className="h-5 w-5" />
-            Chỉnh sửa truyện
-          </button>
-        )}
-    </div>
-  );
-  // --- END: Component nút bấm riêng biệt ---
+        return { paginatedData: groupedSlice, totalPages: totalP, totalChaptersCount: total };
+    }, [story, allChaptersFlat, chapterSearchTerm, currentPage]);
 
-  return (
-    <div className="max-w-6xl mx-auto animate-fade-in space-y-8 pb-8">
-      {/* Nút quay lại */}
-      <div className="px-4 sm:px-0">
-        <Link to="/" className="inline-flex items-center gap-1.5 text-sukem-text-muted hover:text-sukem-primary text-sm font-medium group transition-colors">
-            <ArrowLeftIcon className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-1" />
-            Về trang chủ
-        </Link>
-      </div>
+    const firstChapter = allChaptersFlat.length > 0 ? allChaptersFlat[0] : null;
 
-      {/* Card thông tin truyện */}
-      <div className="bg-sukem-card rounded-2xl shadow-sm overflow-hidden mx-0 sm:mx-0 border border-sukem-border">
-        {/* Phần thông tin cơ bản */}
-        <div className="flex flex-col md:flex-row gap-6 p-6 md:gap-10 md:p-10">
+    const handleReadFromBeginning = () => {
+        if (storyId) removeBookmark(storyId);
+        if (firstChapter && story) navigate(`/story/${story.id}/chapter/${firstChapter.id}`);
+    };
 
-          {/* Cột trái: Ảnh bìa + Action Button Desktop */}
-          <div className="w-full md:w-1/3 flex-shrink-0 flex flex-col items-center">
-            <img 
-                className="w-48 md:w-full max-w-[280px] rounded-lg shadow-xl aspect-[2/3] object-cover border-4 border-white dark:border-sukem-bg" 
-                src={story.coverImage} 
-                alt={`Bìa truyện ${story.title}`} 
-            />
-            <div className="hidden md:block w-full max-w-[280px]">
-                <ActionButtons />
-            </div>
-          </div>
+    if (!storyId) return <Navigate to="/" replace />;
+    if (loading) return <div className="flex justify-center items-center h-screen"><LoadingSpinner /></div>;
+    if (error || !story) return <div className="text-center py-20 text-sukem-text-muted">{error || 'Không thể tải thông tin truyện.'}</div>;
 
-          {/* Cột phải: Thông tin chi tiết */}
-          <div className="w-full md:w-2/3 space-y-4">
-            <div className="text-center md:text-left">
-              <span className={`text-xs font-bold px-3 py-1 rounded-full ${statusClasses} inline-block mb-3`}>
-                  {story.status}
-              </span>
-              <h1 className="text-3xl md:text-4xl font-bold font-serif text-sukem-text leading-tight mb-2">{story.title}</h1>
-              {story.alias && story.alias.length > 0 && <p className="mt-2 text-sm text-sukem-text-muted italic">{Array.isArray(story.alias) ? story.alias.join(' · ') : story.alias}</p>}
-            </div>
+    const statusClasses = story.status === 'Hoàn thành'
+        ? 'bg-green-100 text-green-700 border-green-200'
+        : 'bg-sukem-primary/10 text-sukem-primary border-sukem-primary/20';
 
-            {/* Thông tin metadata - CĂN GIỮA HOÀN TOÀN */}
-            <div className="grid grid-cols-3 gap-4 border-y border-sukem-border py-4 my-4">
-                <div className="text-center">
-                    <p className="flex items-center justify-center gap-1 text-xs text-sukem-text-muted uppercase mb-1">
-                        <UserIcon className="h-4 w-4 text-sukem-primary"/> Tác giả
-                    </p>
-                    <p className="font-bold text-sukem-text truncate">{story.author}</p>
-                </div>
-                <div className="text-center border-l border-sukem-border">
-                    <p className="flex items-center justify-center gap-1 text-xs text-sukem-text-muted uppercase mb-1">
-                        <EyeIcon className="h-4 w-4 text-blue-500"/> Lượt xem
-                    </p>
-                    <p className="font-bold text-sukem-text">{story.views.toLocaleString('vi-VN')}</p>
-                </div>
-                <div className="text-center border-l border-sukem-border">
-                    <p className="flex items-center justify-center gap-1 text-xs text-sukem-text-muted uppercase mb-1">
-                        <ListBulletIcon className="h-4 w-4 text-green-500"/> Chương
-                    </p>
-                    <p className="font-bold text-sukem-text">{totalChapters}</p>
-                </div>
-            </div>
+    return (
+        <div className="max-w-7xl mx-auto animate-fade-in pb-12 px-4 sm:px-6">
+            <nav className="flex items-center text-sm text-sukem-text-muted mb-6 overflow-x-auto whitespace-nowrap px-1">
+                <Link to="/" className="hover:text-sukem-primary flex items-center gap-1 transition-colors">
+                    <HomeIcon className="w-4 h-4" /> Trang chủ
+                </Link>
+                <span className="mx-2 text-sukem-border">/</span>
+                <span className="font-medium text-sukem-text truncate max-w-[200px] sm:max-w-md">{story.title}</span>
+            </nav>
 
-             {/* Đánh giá - ĐÃ CĂN GIỮA */}
-            <div className="flex justify-center pb-2">
-                <StarRating 
-                    rating={story.rating} 
-                    count={story.ratingsCount} 
-                    userRating={userRating} 
-                    onRate={handleRating} 
-                />
-            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8 items-stretch relative">
+                
+                {/* 1. CARD THÔNG TIN TRUYỆN */}
+                <div className="lg:col-span-8">
+                    <div className="bg-sukem-card rounded-2xl shadow-sm border border-sukem-border p-5 md:p-6 h-full">
+                        <div className="flex flex-col sm:flex-row items-start gap-6 md:gap-8 h-full">
+                            <div className="w-48 sm:w-56 md:w-64 flex-shrink-0 mx-auto sm:mx-0 shadow-md rounded-xl overflow-hidden border border-sukem-border relative group">
+                                <div className="aspect-[2/3] w-full relative">
+                                    <img 
+                                        src={story.coverImage} 
+                                        className="absolute inset-0 w-full h-full object-cover" 
+                                        alt={story.title} 
+                                    />
+                                </div>
+                            </div>
 
-             {/* Tags */}
-            {story.tags && story.tags.length > 0 && (
-                <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
-                    <TagIcon className="h-5 w-5 text-sukem-text-muted mr-1 flex-shrink-0"/>
-                    {story.tags.map(tag => (
-                        <span key={tag} className="text-xs font-medium bg-sukem-bg text-sukem-text-muted px-2.5 py-1 rounded border border-sukem-border cursor-default">
-                        {tag}
-                        </span>
-                    ))}
-                </div>
-            )}
+                            <div className="flex-1 min-w-0 flex flex-col h-full self-stretch">
+                                <div className="flex flex-wrap items-center gap-2 mb-2 justify-center sm:justify-start">
+                                    <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full border", statusClasses)}>{story.status}</span>
+                                    {story.isHot && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500 text-white">HOT</span>}
+                                </div>
 
-            {/* Mô tả: Desktop Scroll | Mobile Collapse */}
-            <div className="bg-sukem-bg p-5 rounded-xl border border-sukem-border/50 mt-4">
-              <h3 className="font-bold font-serif text-lg mb-2 text-sukem-text">Giới thiệu</h3>
-              <div className="relative text-sukem-text leading-relaxed text-sm">
-                  <div className={`
-                      overflow-hidden 
-                      ${!isDescriptionExpanded ? 'line-clamp-4 md:line-clamp-none' : ''} 
-                      md:max-h-60 md:overflow-y-auto md:custom-scrollbar md:pr-2
-                  `}>
-                      {descriptionParagraphs.length > 0 ? (
-                          descriptionParagraphs.map((paragraph, index) => (
-                              <p key={index} className="mb-2 last:mb-0">{paragraph || '\u00A0'}</p>
-                          ))
-                      ) : (
-                          <p className="italic text-sukem-text-muted">Chưa có mô tả.</p>
-                      )}
-                  </div>
-                  
-                  {descriptionNeedsExpansion && (
-                        <button
-                          onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
-                          className="mt-2 text-sukem-primary font-bold text-sm flex items-center gap-1 hover:underline md:hidden"
-                      >
-                          {isDescriptionExpanded ? 'Thu gọn' : 'Xem thêm'}
-                          {isDescriptionExpanded
-                              ? <ChevronUpIcon className="h-4 w-4" />
-                              : <ChevronDownIcon className="h-4 w-4" />
-                          }
-                      </button>
-                  )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* --- Phần Nút Bấm MOBILE --- */}
-        <div className="md:hidden px-6 pb-6">
-          <ActionButtons />
-        </div>
-
-        {/* Danh sách chương */}
-        <div className="p-6 md:p-10 border-t border-sukem-border bg-sukem-bg/30">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-              <h2 className="text-xl font-bold font-serif text-sukem-text whitespace-nowrap flex items-center gap-2">
-                <ListBulletIcon className="h-6 w-6 text-sukem-primary"/>
-                Danh sách chương
-              </h2>
-              <div className="relative w-full sm:w-64">
-                <input
-                    type="text"
-                    placeholder="Tìm chương..."
-                    value={chapterSearchTerm}
-                    onChange={e => setChapterSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border rounded-full bg-sukem-bg border-sukem-border focus:ring-2 focus:ring-sukem-accent focus:border-transparent text-sm shadow-sm outline-none text-sukem-text"
-                />
-                <MagnifyingGlassIcon className="h-5 w-5 text-sukem-text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"/>
-              </div>
-          </div>
-          
-          <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-              {filteredVolumes.length > 0 ? filteredVolumes.map(volume => (
-                <div key={volume.id} className="bg-sukem-bg border border-sukem-border rounded-xl overflow-hidden shadow-sm">
-                  <h3 className="text-base font-bold font-serif text-sukem-text px-4 py-3 bg-sukem-card border-b border-sukem-border sticky top-0 z-10">
-                      {volume.title}
-                  </h3>
-                  <div className="divide-y divide-sukem-border/50">
-                      {volume.chapters && volume.chapters.length > 0 ? volume.chapters.map(chapter => {
-                        const isReading = currentBookmark && currentBookmark.chapterId === chapter.id;
-                        return (
-                          <Link
-                              key={chapter.id}
-                              to={`/story/${story.id}/chapter/${chapter.id}`}
-                              className={`flex justify-between items-center px-4 py-3 transition-colors duration-150 text-sm group ${
-                                isReading
-                                  ? 'bg-sukem-primary/10 text-sukem-primary font-medium'
-                                  : 'text-sukem-text hover:bg-sukem-card'
-                              }`}
-                          >
-                              <div className="flex items-center gap-2 overflow-hidden">
-                                {isReading && <BookOpenIcon className="h-4 w-4 flex-shrink-0 text-sukem-primary"/>}
-                                <span className="truncate">{chapter.title}</span>
-                                {chapter.isRaw && (
-                                  <span className="flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded-full">RAW</span>
+                                <h1 className="text-2xl md:text-3xl font-bold font-serif text-sukem-text leading-tight text-center sm:text-left mb-1">{story.title}</h1>
+                                
+                                {story.alias && story.alias.length > 0 && (
+                                    <p className="text-sm text-sukem-text-muted italic text-center sm:text-left mb-3">
+                                        <span className="font-semibold not-italic text-sukem-text">Tên khác: </span> 
+                                        {Array.isArray(story.alias) ? story.alias.join(' · ') : story.alias}
+                                    </p>
                                 )}
-                              </div>
-                              
-                              <div className="flex items-center gap-3 flex-shrink-0 text-xs text-sukem-text-muted">
-                                {currentUser?.role === 'admin' && (
-                                    <span className="hidden sm:flex items-center gap-1">
-                                        <EyeIcon className="h-3.5 w-3.5"/>
-                                        {chapter.views?.toLocaleString()}
+
+                                {/* --- STATS SECTION --- */}
+                                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-x-3 gap-y-2 text-sukem-text-muted text-sm mb-4">
+                                    <span className="flex items-center gap-1"><UserIcon className="w-4 h-4 text-sukem-primary"/> {story.author}</span>
+                                    <span className="hidden sm:inline text-sukem-border">|</span>
+                                    <span className="flex items-center gap-1"><ListBulletIcon className="w-4 h-4 text-green-500"/> {allChaptersFlat.length} chương</span>
+                                    <span className="hidden sm:inline text-sukem-border">|</span>
+                                    <span className="flex items-center gap-1"><EyeIcon className="w-4 h-4 text-blue-500"/> {story.views.toLocaleString()} lượt xem</span>
+                                    <span className="hidden sm:inline text-sukem-border">|</span>
+                                    <span className="flex items-center gap-1" title="Cập nhật lần cuối">
+                                        <ClockIcon className="w-4 h-4 text-orange-500"/> 
+                                        {formatDate(story.lastUpdatedAt)}
                                     </span>
+                                </div>
+
+                                {/* Tags */}
+                                {story.tags && (
+                                    <div className="flex flex-wrap justify-center sm:justify-start gap-2 mb-4">
+                                        {story.tags.map(tag => (
+                                            <span key={tag} className="text-xs px-2 py-1 rounded-md bg-sukem-bg border border-sukem-border text-sukem-text hover:text-sukem-primary cursor-pointer transition-colors">
+                                                #{tag}
+                                            </span>
+                                        ))}
+                                    </div>
                                 )}
-                                <span className="flex items-center gap-1">
-                                    <CalendarDaysIcon className="h-3.5 w-3.5"/>
-                                    {formatDate(chapter.updatedAt || chapter.createdAt)}
-                                </span>
-                              </div>
-                          </Link>
-                        );
-                      }) : (
-                           chapterSearchTerm && <p className="text-sm p-4 text-center text-sukem-text-muted italic">Không tìm thấy chương nào khớp.</p>
-                      )}
-                  </div>
+
+                                {/* Rating */}
+                                <div className="mt-auto bg-sukem-bg/50 rounded-xl p-3 border border-sukem-border">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex flex-col items-center leading-none">
+                                                <span className="text-2xl font-bold text-sukem-text">{story.rating.toFixed(1)}</span>
+                                                <span className="text-[10px] text-sukem-text-muted">{story.ratingsCount} đánh giá</span>
+                                            </div>
+                                            <div className="h-8 w-px bg-sukem-border"></div>
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] uppercase font-bold text-sukem-text-muted">Đánh giá</span>
+                                                <StarRating rating={story.rating} count={0} userRating={userRating} onRate={handleRating}/>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Buttons */}
+                                <div className="flex gap-2 mt-4">
+                                    {currentBookmark ? (
+                                        <>
+                                            <Link to={`/story/${story.id}/chapter/${currentBookmark.chapterId}`} className="flex-1 btn-primary py-2.5 rounded-lg flex items-center justify-center gap-2 font-bold text-white bg-gradient-to-r from-sukem-primary to-sukem-accent shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all">
+                                                <BookOpenIcon className="w-5 h-5"/> Đọc tiếp
+                                            </Link>
+                                            <button onClick={handleReadFromBeginning} className="px-4 py-2.5 rounded-lg border border-sukem-border font-semibold text-sukem-text hover:bg-sukem-bg transition-colors">
+                                                Đọc lại
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <Link to={firstChapter ? `/story/${story.id}/chapter/${firstChapter.id}` : '#'} className={cn("flex-1 btn-primary py-2.5 rounded-lg flex items-center justify-center gap-2 font-bold text-white bg-gradient-to-r from-sukem-primary to-sukem-accent shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all", !firstChapter && "opacity-50 cursor-not-allowed")}>
+                                            <BookOpenIcon className="w-5 h-5"/> Đọc ngay
+                                        </Link>
+                                    )}
+                                    {currentUser && (
+                                        <button onClick={() => toggleFavorite(story.id)} className={cn("px-3 rounded-lg border flex items-center justify-center transition-colors", isUserFavorite ? "border-red-200 bg-red-50 text-red-500" : "border-sukem-border text-sukem-text hover:text-red-500")}>
+                                            <HeartIcon className={cn("w-6 h-6", isUserFavorite ? "fill-current" : "")}/>
+                                        </button>
+                                    )}
+                                    {currentUser?.role === 'admin' && (
+                                        <button onClick={() => navigate(`/admin/story/edit/${story.id}`)} className="px-3 rounded-lg border border-sukem-border text-sukem-text hover:bg-sukem-bg">
+                                            <PencilSquareIcon className="w-5 h-5"/>
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-              )) : (
-                 <p className="text-center py-10 text-sukem-text-muted italic">
-                    {chapterSearchTerm ? 'Không tìm thấy chương nào.' : 'Truyện chưa có chương nào.'}
-                 </p>
-              )}
+
+                {/* 2. CARD MÔ TẢ (Chiếm 4/12) */}
+                <div className="lg:col-span-4 relative">
+                    <div className="bg-sukem-card rounded-2xl shadow-sm border border-sukem-border flex flex-col overflow-hidden max-h-[350px] lg:max-h-none lg:absolute lg:inset-0 lg:h-full">
+                        <div className="p-3 border-b border-sukem-border bg-sukem-bg/30 font-bold text-sukem-text flex items-center gap-2 shrink-0">
+                             <InformationCircleIcon className="w-5 h-5 text-sukem-primary"/>
+                             Mô tả
+                        </div>
+                        <div className="p-5 overflow-y-auto custom-scrollbar flex-1">
+                            <div className="text-sukem-text leading-loose text-justify text-sm whitespace-pre-wrap">
+                                {story.description ? story.description : <span className="block text-center italic text-sukem-text-muted">Đang cập nhật...</span>}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* --- BOTTOM SECTION: CHAPTER LIST --- */}
+            <div className="bg-sukem-card rounded-2xl border border-sukem-border shadow-sm overflow-hidden" id="chapter-list">
+                <div className="p-4 border-b border-sukem-border bg-sukem-bg/30 flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <h3 className="font-bold text-sukem-text text-lg flex items-center gap-2">
+                        <ListBulletIcon className="w-6 h-6 text-sukem-primary"/> 
+                        Danh sách chương 
+                        <span className="text-sm font-normal text-sukem-text-muted">({totalChaptersCount} chương)</span>
+                    </h3>
+                    
+                    <div className="relative w-full sm:w-64">
+                        <input 
+                            type="text" 
+                            placeholder="Tìm số chương, tên chương..." 
+                            value={chapterSearchTerm} 
+                            onChange={e => setChapterSearchTerm(e.target.value)} 
+                            className="w-full pl-9 pr-4 py-2 rounded-lg border border-sukem-border bg-sukem-bg focus:ring-1 focus:ring-sukem-primary outline-none text-sm text-sukem-text transition-all" 
+                        />
+                        <MagnifyingGlassIcon className="h-4 w-4 text-sukem-text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"/>
+                    </div>
+                </div>
+
+                <div className="p-5">
+                    {paginatedData.length > 0 ? (
+                        <div className="space-y-6">
+                            {paginatedData.map((group, index) => (
+                                <div key={`${group.volumeTitle}-${index}`} className="animate-fade-in">
+                                    <div className="flex items-center gap-3 mb-4 mt-2">
+                                        <div className="h-8 w-1.5 bg-sukem-primary rounded-full shadow-sm"></div>
+                                        <div className="flex-1">
+                                            <h4 className="text-base font-bold text-sukem-text uppercase tracking-wide flex items-center gap-2">
+                                                <BookOpenIcon className="w-5 h-5 text-sukem-primary"/>
+                                                {group.volumeTitle}
+                                            </h4>
+                                            <div className="h-px w-full bg-gradient-to-r from-sukem-primary/30 to-transparent mt-1"></div>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                        {group.chapters.map(chapter => {
+                                            const isReading = currentBookmark?.chapterId === chapter.id;
+                                            return (
+                                                <Link 
+                                                    key={chapter.id} 
+                                                    to={`/story/${story.id}/chapter/${chapter.id}`} 
+                                                    className={cn(
+                                                        "flex items-center justify-between gap-3 p-3 rounded-lg text-sm transition-all border group",
+                                                        isReading 
+                                                            ? "bg-sukem-primary/10 border-sukem-primary/40 text-sukem-primary font-medium shadow-sm" 
+                                                            : "bg-sukem-bg/30 border-transparent hover:bg-sukem-bg hover:border-sukem-border text-sukem-text shadow-sm hover:shadow-md"
+                                                    )}
+                                                >
+                                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                        <span className="truncate group-hover:text-sukem-primary transition-colors">{chapter.title}</span>
+                                                        {chapter.isRaw && <span className="text-[9px] font-bold px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded-full flex-shrink-0">RAW</span>}
+                                                        {isReading && <span className="text-[9px] font-bold px-1.5 py-0.5 bg-sukem-primary text-white rounded-full flex-shrink-0">Đang đọc</span>}
+                                                    </div>
+                                                    
+                                                    <div className="flex items-center gap-1 text-[10px] text-sukem-text-muted whitespace-nowrap flex-shrink-0 group-hover:text-sukem-primary/70 transition-colors">
+                                                        <div className="h-3 w-3"/>
+                                                        {formatDate(chapter.updatedAt || chapter.createdAt)}
+                                                    </div>
+                                                </Link>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ))}
+
+                            {totalPages > 1 && (
+                                <div className="flex justify-center items-center gap-2 mt-8 pt-6 border-t border-sukem-border border-dashed">
+                                    <button 
+                                        onClick={() => {
+                                            setCurrentPage(prev => Math.max(prev - 1, 1));
+                                            document.getElementById('chapter-list')?.scrollIntoView({ behavior: 'smooth' });
+                                        }}
+                                        disabled={currentPage === 1}
+                                        className="p-2 rounded-lg border border-sukem-border bg-sukem-bg hover:bg-sukem-bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        <ChevronLeftIcon className="w-5 h-5 text-sukem-text"/>
+                                    </button>
+                                    
+                                    <span className="text-sm font-medium text-sukem-text px-4">
+                                        Trang {currentPage} / {totalPages}
+                                    </span>
+
+                                    <button 
+                                        onClick={() => {
+                                            setCurrentPage(prev => Math.min(prev + 1, totalPages));
+                                            document.getElementById('chapter-list')?.scrollIntoView({ behavior: 'smooth' });
+                                        }}
+                                        disabled={currentPage === totalPages}
+                                        className="p-2 rounded-lg border border-sukem-border bg-sukem-bg hover:bg-sukem-bg-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        <ChevronRightIcon className="w-5 h-5 text-sukem-text"/>
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="text-center py-12 text-sukem-text-muted italic flex flex-col items-center">
+                            <BookOpenIcon className="w-12 h-12 mb-2 text-sukem-border"/>
+                            Không tìm thấy chương nào phù hợp.
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
-      </div>
-    </div>
-  );
+    );
 };
 
 export default StoryDetailPage;

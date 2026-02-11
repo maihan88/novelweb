@@ -160,7 +160,7 @@ exports.getStoryById = async (req, res) => {
         }
 
         const chapters = await Chapter.find({ storyId: story._id })
-            .select('id title volumeId views isRaw createdAt')
+            .select('id title volumeId views isRaw createdAt updatedAt')
             .sort({ createdAt: 1 })
             .lean();
 
