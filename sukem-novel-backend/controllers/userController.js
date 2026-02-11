@@ -156,7 +156,7 @@ exports.updateUserPreferences = async (req, res) => {
 // @route   PUT /api/users/progress
 // @access  Private
 exports.updateReadingProgress = async (req, res) => {
-    const { storyId, chapterId, progress } = req.body;
+    const { storyId, chapterId, progress, chapterTitle, volumeTitle } = req.body;
 
     if (!storyId || !chapterId) {
         return res.status(400).json({ message: 'Thiếu thông tin storyId hoặc chapterId' });
@@ -167,15 +167,27 @@ exports.updateReadingProgress = async (req, res) => {
         if (!user) return res.status(404).json({ message: 'User not found' });
 
         const safeProgress = typeof progress === 'number' ? progress : 0;
+        
+        const existingBookmark = user.bookmarks.get(storyId);
+        
+        let finalChapterTitle = chapterTitle || '';
+        let finalVolumeTitle = volumeTitle || '';
 
+        if (existingBookmark && existingBookmark.chapterId === chapterId) {
+            if (!finalChapterTitle) finalChapterTitle = existingBookmark.chapterTitle;
+            if (!finalVolumeTitle) finalVolumeTitle = existingBookmark.volumeTitle;
+        }
+
+        // Lưu vào database
         user.bookmarks.set(storyId, {
             chapterId,
             progress: safeProgress, 
-            lastRead: new Date()
+            lastRead: new Date(),
+            chapterTitle: finalChapterTitle,
+            volumeTitle: finalVolumeTitle
         });
 
         await user.save();
-        
         res.status(200).json(user.bookmarks);
     } catch (error) {
         console.error("Error syncing progress:", error);

@@ -4,7 +4,7 @@ import { Story, Chapter, ReaderPreferences, ReaderTheme } from '../types';
 import { useStories } from '../contexts/StoryContext';
 import { useUserPreferences } from '../contexts/UserPreferencesContext';
 import * as storyService from '../services/storyService';
-import { syncReadingProgress } from '../services/userService'; // API sync nhẹ
+import { syncReadingProgress } from '../services/userService';
 import ReaderControls from '../components/ReaderControls';
 import CommentSection from '../components/CommentSection';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -13,7 +13,7 @@ import { ArrowLeftIcon, ArrowRightIcon, HomeIcon, SunIcon, MoonIcon, ListBulletI
 import { useAuth } from '../contexts/AuthContext';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 
-// --- ReadingProgressBar ---
+// --- ReadingProgressBar (Giữ nguyên) ---
 const ReadingProgressBar: React.FC<{ progress: number }> = React.memo(({ progress }) => {
     return (
         <div className="fixed top-0 left-0 w-full h-1 bg-transparent z-[60] pointer-events-none">
@@ -26,7 +26,7 @@ const ReadingProgressBar: React.FC<{ progress: number }> = React.memo(({ progres
 });
 ReadingProgressBar.displayName = 'ReadingProgressBar';
 
-// --- FloatingNavBar ---
+// --- FloatingNavBar (Giữ nguyên) ---
 const FloatingNavBar: React.FC<{ story: Story; currentChapterId: string; prevChapter?: Chapter | null; nextChapter?: Chapter | null; isVisible: boolean; }> = ({ story, currentChapterId, prevChapter, nextChapter, isVisible }) => {
     const navigate = useNavigate();
     const { theme, toggleTheme } = useTheme();
@@ -67,7 +67,7 @@ const FloatingNavBar: React.FC<{ story: Story; currentChapterId: string; prevCha
     );
 };
 
-// --- THEME SETTINGS ---
+// --- THEME SETTINGS (Giữ nguyên) ---
 const themeSpecificStyles: Record<ReaderTheme, { container: string; title: string; breadcrumb: string; breadcrumbActive: string; content: string; border: string; button: string; buttonHover: string; selectBg: string; selectBorder: string; }> = {
     light: { container: 'bg-[#FFF8E7]', title: 'text-[#4A2C2A]', breadcrumb: 'text-[#6E5C58] hover:text-[#FF6F91]', breadcrumbActive: 'text-[#FF6F91]', content: 'text-[#4A2C2A]', border: 'border-[#E8D5B5]', button: 'border-[#E8D5B5] text-[#4A2C2A] bg-[#FDEBD0]', buttonHover: 'hover:bg-[#FF6F91] hover:text-white hover:border-[#FF6F91]', selectBg: 'bg-[#FDEBD0]', selectBorder: 'border-[#E8D5B5]' },
     sepia: { container: 'bg-[#fbf0d9]', title: 'text-[#433422]', breadcrumb: 'text-[#8c6d46] hover:text-[#5f4b32]', breadcrumbActive: 'text-[#5f4b32]', content: 'text-[#5f4b32]', border: 'border-[#dcd3c1]', button: 'border-[#c8b79a] text-[#5f4b32] bg-[#fbf0d9]', buttonHover: 'hover:bg-[#f5e9d3] hover:border-[#a08d70]', selectBg: 'bg-[#fbf0d9]', selectBorder: 'border-[#dcd3c1]' },
@@ -97,7 +97,6 @@ const ReaderPage: React.FC = () => {
     const [loadingStory, setLoadingStory] = useState(true);
     const [loadingChapter, setLoadingChapter] = useState(false);
 
-    // --- CẬP NHẬT DEFAULT PREFERENCES ---
     const [preferences, setPreferences] = useLocalStorage<ReaderPreferences>('readerPreferences', {
         fontSize: 18, fontFamily: 'font-reader-lora', lineHeight: 1.7, margin: 10, theme: 'light', textAlign: 'text-justify'
     });
@@ -109,10 +108,11 @@ const ReaderPage: React.FC = () => {
     const [isFloatingNavVisible, setIsFloatingNavVisible] = useState(false);
     const lastTap = useRef(0);
     
-    // --- Refs for syncing ---
+    // --- FIX: Refs for syncing with Titles ---
     const updateBookmarkRef = useRef(updateBookmark);
     const currentUserRef = useRef(currentUser);
     const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const currentTitlesRef = useRef<{ chapter: string; volume: string }>({ chapter: '', volume: '' }); // Lưu Title vào Ref
 
     useEffect(() => { updateBookmarkRef.current = updateBookmark; });
     useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
@@ -146,7 +146,22 @@ const ReaderPage: React.FC = () => {
         loadContent();
     }, [storyId, chapterId]);
 
-    // 3. Handle Scroll Restoration & View Increment
+    // --- FIX: Cập nhật currentTitlesRef khi có dữ liệu chương mới ---
+    useEffect(() => {
+        if (story && currentChapterWithContent && currentChapterWithContent.id === chapterId) {
+            let vTitle = '';
+            const vol = story.volumes.find(v => v.chapters.some(c => c.id === chapterId));
+            if (vol) vTitle = vol.title;
+            
+            // Cập nhật ref để dùng cho cleanup/scroll
+            currentTitlesRef.current = {
+                chapter: currentChapterWithContent.title,
+                volume: vTitle
+            };
+        }
+    }, [story, currentChapterWithContent, chapterId]);
+
+    // 3. Scroll Restoration & View Increment
     useEffect(() => {
         if (!currentChapterWithContent) return;
         viewIncrementedRef.current = false;
@@ -178,7 +193,7 @@ const ReaderPage: React.FC = () => {
              progressRef.current = 0;
              setScrollPercent(0);
         }
-    }, [storyId, chapterId, currentChapterWithContent]); // Chỉ chạy khi đổi chương, không chạy khi bookmarks update
+    }, [storyId, chapterId, currentChapterWithContent]);
 
     // 4. Scroll Listener & Sync Logic
     useEffect(() => {
@@ -201,19 +216,20 @@ const ReaderPage: React.FC = () => {
             
             syncTimeoutRef.current = setTimeout(async () => {
                 const finalProgress = Math.round(newProgress >= 99 ? 100 : newProgress);
-                
-                // 1. Lưu Local State (để UI phản hồi nhanh)
-                updateBookmarkRef.current(storyId, chapterId, finalProgress);
+                const { chapter: cTitle, volume: vTitle } = currentTitlesRef.current; // Lấy từ Ref
 
-                // 2. Sync API (nếu đã đăng nhập)
+                // 1. Cập nhật Local State
+                updateBookmarkRef.current(storyId, chapterId, finalProgress, cTitle, vTitle);
+
+                // 2. Sync Server
                 if (currentUserRef.current) {
                     try {
-                        await syncReadingProgress(storyId, chapterId, finalProgress);
+                        await syncReadingProgress(storyId, chapterId, finalProgress, cTitle, vTitle);
                     } catch (err) {
-                        console.error('Lỗi sync progress:', err);
+                        console.error('Lỗi sync:', err);
                     }
                 }
-            }, 1000); 
+            }, 1000);
         };
 
         const handleScroll = () => {
@@ -248,14 +264,18 @@ const ReaderPage: React.FC = () => {
             
             if (storyId && chapterId) {
                  const finalProgress = Math.round(progressRef.current >= 99 ? 100 : progressRef.current);
-                 updateBookmarkRef.current(storyId, chapterId, finalProgress);
+                 // --- FIX QUAN TRỌNG: Dùng currentTitlesRef.current để lấy title cho cleanup ---
+                 const { chapter: cTitle, volume: vTitle } = currentTitlesRef.current;
+                 
+                 updateBookmarkRef.current(storyId, chapterId, finalProgress, cTitle, vTitle);
                  if(currentUserRef.current) {
-                     syncReadingProgress(storyId, chapterId, finalProgress).catch(console.error);
+                     syncReadingProgress(storyId, chapterId, finalProgress, cTitle, vTitle).catch(console.error);
                  }
             }
         };
     }, [story, storyId, chapterId, isAdmin, incrementChapterView, currentChapterWithContent]);
 
+    // ... phần render giữ nguyên ...
     const handleTapZoneClick = (event: React.MouseEvent<HTMLDivElement>) => {
         if (window.getSelection()?.toString() || (event.target as HTMLElement).closest('a, button, select, [data-control-button]')) return;
         const now = Date.now();
@@ -302,7 +322,6 @@ const ReaderPage: React.FC = () => {
                     </h1>
                 </div>
                 
-                {/* --- ÁP DỤNG CLASS CĂN LỀ TỪ PREFERENCES --- */}
                 <div ref={readerContentRef}
                     className={`max-w-none transition-all duration-300 ${preferences.fontFamily} ${preferences.textAlign} chapter-content prevent-copy ${themeStyle.content}`}
                     style={contentStyle}

@@ -6,6 +6,8 @@ const bookmarkSchema = new mongoose.Schema({
     chapterId: { type: String, required: true },
     progress: { type: Number, default: 0 }, // Lưu % (0-100)
     lastRead: { type: Date, default: Date.now },
+    chapterTitle: { type: String, default: '' },
+    volumeTitle: { type: String, default: '' }
 }, { _id: false });
 
 const userSchema = new mongoose.Schema({

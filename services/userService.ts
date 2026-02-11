@@ -12,7 +12,19 @@ export const updateUserPreferences = async (preferences: Partial<UserPreferences
     return response.data;
 };
 
-export const syncReadingProgress = async (storyId: string, chapterId: string, progress: number) => {
-    const response = await api.put('/users/progress', { storyId, chapterId, progress });
-    return response.data; // Trả về updated bookmarks map
+export const syncReadingProgress = async (
+    storyId: string, 
+    chapterId: string, 
+    progress: number,
+    chapterTitle?: string, // Thêm
+    volumeTitle?: string   // Thêm
+) => {
+    const response = await api.put('/users/progress', { 
+        storyId, 
+        chapterId, 
+        progress,
+        chapterTitle, // Gửi đi
+        volumeTitle   // Gửi đi
+    });
+    return response.data;
 };

@@ -80,7 +80,9 @@ export interface ReaderPreferences {
 export interface Bookmark {
   chapterId: string;
   progress: number;
-  lastRead: string;
+  lastRead: string; // ISO Date string
+  chapterTitle?: string; // Optional vì dữ liệu cũ có thể chưa có
+  volumeTitle?: string;  // Optional
 }
 
 export interface User {

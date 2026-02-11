@@ -61,32 +61,33 @@ const ProfilePage: React.FC = () => {
         
         if (!story || !bookmark || !bookmark.chapterId) return null;
 
-        // --- LOGIC TÌM TÊN TẬP & CHƯƠNG ---
-        let volumeTitle = '';
-        let chapterTitle = 'Chương đã đọc'; // Mặc định
+        // --- CORE LOGIC: Ưu tiên lấy Title từ Bookmark (O(1)) ---
+        let volumeTitle = bookmark.volumeTitle || '';
+        let chapterTitle = bookmark.chapterTitle || '';
         
-        if (story.volumes && Array.isArray(story.volumes)) {
-            for (const vol of story.volumes) {
-                if (vol.chapters && Array.isArray(vol.chapters)) {
-                    // Tìm chương trong tập này
-                    const chapter = vol.chapters.find(c => String(c.id) === String(bookmark.chapterId));
-                    if (chapter) {
-                        // 👉 Tách riêng 2 biến
-                        volumeTitle = vol.title;
-                        chapterTitle = chapter.title;
-                        break; 
+        // --- FALLBACK LOGIC: Nếu dữ liệu cũ chưa có Title, tìm thủ công (O(N)) ---
+        if (!chapterTitle || !volumeTitle) {
+            chapterTitle = 'Chương đã đọc'; // Giá trị mặc định an toàn
+            if (story.volumes && Array.isArray(story.volumes)) {
+                for (const vol of story.volumes) {
+                    if (vol.chapters && Array.isArray(vol.chapters)) {
+                        const chapter = vol.chapters.find(c => String(c.id) === String(bookmark.chapterId));
+                        if (chapter) {
+                            if (!volumeTitle) volumeTitle = vol.title;
+                            if (!bookmark.chapterTitle) chapterTitle = chapter.title;
+                            break; 
+                        }
                     }
                 }
             }
         }
-        // ---------------------------------------
 
         return {
           ...story,
           continueChapterId: bookmark.chapterId,
-          lastReadVolumeTitle: volumeTitle,   // Tên tập
-          lastReadChapterTitle: chapterTitle, // Tên chương
-          progress: bookmark.progress || 0,
+          lastReadVolumeTitle: volumeTitle,   
+          lastReadChapterTitle: chapterTitle, 
+          progress: typeof bookmark.progress === 'number' ? bookmark.progress : 0,
           lastReadDate: bookmark.lastRead,
         };
       })
@@ -112,28 +113,31 @@ const ProfilePage: React.FC = () => {
       ? processedFavoriteStories 
       : processedFavoriteStories.slice(0, INITIAL_FAVORITE_LIMIT);
 
-  // --- SUB-COMPONENT: Reading Card (Đã update Layout Tách Dòng) ---
+  // --- SUB-COMPONENT: Reading Card (Đã tối ưu Responsive Mobile) ---
   const ReadingStoryCard: React.FC<typeof processedReadingStories[0]> = (story) => (
-      <div className="group relative bg-sukem-card rounded-xl p-3 shadow-sm border border-sukem-border flex gap-3 sm:gap-4 overflow-hidden transition-colors duration-300">
-        <Link to={`/story/${story.id}`} className="relative flex-shrink-0 w-20 h-28 sm:w-24 sm:h-36 rounded-lg overflow-hidden shadow-inner">
+      <div className="group relative bg-sukem-card rounded-xl p-2.5 sm:p-3 shadow-sm border border-sukem-border flex gap-3 overflow-hidden transition-colors duration-300">
+        {/* Cover Image: Responsive sizes */}
+        <Link to={`/story/${story.id}`} className="relative flex-shrink-0 w-[70px] h-[105px] sm:w-24 sm:h-36 rounded-lg overflow-hidden shadow-inner">
             <img 
                 src={story.coverImage} 
                 alt={story.title} 
-                className="w-full h-full object-cover" 
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
                 onError={(e) => { (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150x200?text=No+Cover'; }}
             />
         </Link>
 
-        <div className="flex-grow flex flex-col justify-between py-0.5">
+        {/* Content Container */}
+        <div className="flex-grow flex flex-col justify-between py-0.5 min-w-0">
             <div>
+                {/* Title */}
                 <Link to={`/story/${story.id}`}>
-                    <h3 className="font-bold text-sukem-text text-[15px] sm:text-lg leading-tight line-clamp-1 mb-1 hover:text-sukem-primary transition-colors">
+                    <h3 className="font-bold text-sukem-text text-sm sm:text-lg leading-tight line-clamp-1 mb-1 hover:text-sukem-primary transition-colors" title={story.title}>
                         {story.title}
                     </h3>
                 </Link>
                 <p className="text-xs text-sukem-text-muted mb-2 line-clamp-1">{story.author}</p>
                 
-                {/* Info Container */}
+                {/* Info Box: Progress & Chapter */}
                 <div className="bg-sukem-bg rounded-md p-2 border border-sukem-border/50">
                     
                     {/* Dòng 1: Tên Tập (Nhỏ, Mờ) */}
@@ -143,12 +147,12 @@ const ProfilePage: React.FC = () => {
                          </div>
                     )}
 
-                    {/* Dòng 2: Tên Chương (Đậm, Rõ) + % Progress */}
-                    <div className="flex justify-between items-center text-[11px] sm:text-sm mb-1.5">
-                        <span className="text-sukem-text font-semibold truncate max-w-[140px] sm:max-w-[200px]" title={story.lastReadChapterTitle}>
+                    {/* Dòng 2: Tên Chương + % (Flex Fluid Layout) */}
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="text-sukem-text font-semibold text-[11px] sm:text-sm truncate flex-1 min-w-0" title={story.lastReadChapterTitle}>
                             {story.lastReadChapterTitle}
                         </span>
-                        <span className="text-sukem-accent font-bold text-[10px] sm:text-xs shrink-0 ml-2">
+                        <span className="text-sukem-accent font-bold text-[10px] sm:text-xs shrink-0 whitespace-nowrap">
                             {Math.round(story.progress)}%
                         </span>
                     </div>
@@ -163,14 +167,16 @@ const ProfilePage: React.FC = () => {
                 </div>
             </div>
 
+            {/* Footer: Date & Button */}
             <div className="flex items-end justify-between mt-2">
-                <span className="text-[10px] text-sukem-text-muted flex items-center gap-1">
+                <span className="text-[10px] text-sukem-text-muted flex items-center gap-1 shrink-0">
                     <ClockIcon className="h-3 w-3" />
                     {formatDate(story.lastReadDate)}
                 </span>
+                
                 <Link
                   to={`/story/${story.id}/chapter/${story.continueChapterId}`}
-                  className="flex items-center gap-1 text-[11px] sm:text-sm font-bold text-white bg-sukem-primary hover:bg-red-500 px-3 py-1 sm:px-4 sm:py-1.5 rounded-full shadow-sm transition-all active:scale-95"
+                  className="flex items-center gap-1 text-[10px] sm:text-sm font-bold text-white bg-sukem-primary hover:bg-red-500 px-2.5 py-1 sm:px-4 sm:py-1.5 rounded-full shadow-sm transition-all active:scale-95 shrink-0 ml-2"
                 >
                   Đọc tiếp <ArrowRightIcon className="h-3 w-3" />
                 </Link>
@@ -195,21 +201,21 @@ const ProfilePage: React.FC = () => {
                   </div>
               </div>
 
-              <h1 className="mt-3 text-xl sm:text-3xl font-extrabold text-sukem-text tracking-tight">
+              <h1 className="mt-3 text-xl sm:text-3xl font-extrabold text-sukem-text tracking-tight truncate px-4">
                   {currentUser.username}
               </h1>
               <p className="text-sukem-text-muted text-xs sm:text-sm font-medium mt-0.5">Thành viên tích cực</p>
 
-              <div className="flex justify-center gap-3 mt-4 sm:mt-6">
+              <div className="flex flex-wrap justify-center gap-3 mt-4 sm:mt-6">
                   <div className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 bg-sukem-card rounded-full shadow-sm border border-sukem-border">
                       <BookOpenIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-sukem-secondary"/>
-                      <span className="text-xs sm:text-sm font-semibold text-sukem-text">
+                      <span className="text-xs sm:text-sm font-semibold text-sukem-text whitespace-nowrap">
                         {processedReadingStories.length} <span className="text-sukem-text-muted font-normal">Đang đọc</span>
                       </span>
                   </div>
                   <div className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 bg-sukem-card rounded-full shadow-sm border border-sukem-border">
                       <HeartIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-sukem-primary"/>
-                      <span className="text-xs sm:text-sm font-semibold text-sukem-text">
+                      <span className="text-xs sm:text-sm font-semibold text-sukem-text whitespace-nowrap">
                         {processedFavoriteStories.length} <span className="text-sukem-text-muted font-normal">Yêu thích</span>
                       </span>
                   </div>
@@ -217,7 +223,8 @@ const ProfilePage: React.FC = () => {
           </div>
       </div>
 
-      <div className="space-y-8 sm:space-y-12 px-4 sm:px-6">
+      <div className="space-y-8 sm:space-y-12 px-3 sm:px-6"> 
+        {/* Adjusted padding px-3 for mobile to have more space for content */}
           
         {/* --- SECTION: TRUYỆN ĐANG ĐỌC --- */}
         <section>
