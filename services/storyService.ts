@@ -26,13 +26,24 @@ export const getDashboardStats = async (): Promise<DashboardData> => {
 };
 
 export const getStoriesList = async (params: StoryFilterParams): Promise<StoriesResponse> => {
-    const { page = 1, limit = 12, sort = 'updated', status, keyword } = params;
+    const { 
+        page = 1, limit = 12, sort = 'updated', 
+        status, keyword, isHot, chapterRange 
+    } = params;
+
     const queryParams = new URLSearchParams();
     queryParams.append('page', page.toString());
     queryParams.append('limit', limit.toString());
     queryParams.append('sort', sort);
-    if (status) queryParams.append('status', status);
+    
+    if (status && status !== 'all') queryParams.append('status', status);
     if (keyword) queryParams.append('keyword', keyword);
+    if (isHot) queryParams.append('isHot', 'true');
+    
+    // Gửi tham số range
+    if (chapterRange && chapterRange !== 'all') {
+        queryParams.append('chapterRange', chapterRange);
+    }
 
     const response = await api.get(`/stories?${queryParams.toString()}`);
     return response.data;

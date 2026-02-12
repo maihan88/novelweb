@@ -139,7 +139,7 @@ const StoryDetailPage: React.FC = () => {
         : 'bg-sukem-primary/10 text-sukem-primary border-sukem-primary/20';
 
     return (
-        <div className="max-w-7xl mx-auto animate-fade-in pb-12 px-4 sm:px-6">
+        <div className="max-w-7xl mx-auto animate-fade-in pb-12 sm:px-6">
             <nav className="flex items-center text-sm text-sukem-text-muted mb-6 overflow-x-auto whitespace-nowrap px-1">
                 <Link to="/" className="hover:text-sukem-primary flex items-center gap-1 transition-colors">
                     <HomeIcon className="w-4 h-4" /> Trang chủ
@@ -222,28 +222,60 @@ const StoryDetailPage: React.FC = () => {
                                 </div>
 
                                 {/* Buttons */}
-                                <div className="flex gap-2 mt-4">
+                                <div className="flex flex-wrap gap-3 mt-4 md:flex-nowrap md:gap-2">
+                                    {/* 1. NÚT ĐỌC (Tiếp hoặc Ngay) */}
+                                    {/* Mobile: w-full để chiếm hết dòng đầu tiên. Desktop: flex-1 để tự co giãn như cũ */}
                                     {currentBookmark ? (
-                                        <>
-                                            <Link to={`/story/${story.id}/chapter/${currentBookmark.chapterId}`} className="flex-1 btn-primary py-2.5 rounded-lg flex items-center justify-center gap-2 font-bold text-white bg-gradient-to-r from-sukem-primary to-sukem-accent shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all">
-                                                <BookOpenIcon className="w-5 h-5"/> Đọc tiếp
-                                            </Link>
-                                            <button onClick={handleReadFromBeginning} className="px-4 py-2.5 rounded-lg border border-sukem-border font-semibold text-sukem-text hover:bg-sukem-bg transition-colors">
-                                                Đọc lại
-                                            </button>
-                                        </>
+                                        <Link 
+                                            to={`/story/${story.id}/chapter/${currentBookmark.chapterId}`} 
+                                            className="btn-primary py-3 md:py-2.5 rounded-lg flex items-center justify-center gap-2 font-bold text-white bg-gradient-to-r from-sukem-primary to-sukem-accent shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all w-full md:w-auto md:flex-1 text-base md:text-sm"
+                                        >
+                                            <BookOpenIcon className="w-5 h-5"/> Đọc tiếp
+                                        </Link>
                                     ) : (
-                                        <Link to={firstChapter ? `/story/${story.id}/chapter/${firstChapter.id}` : '#'} className={cn("flex-1 btn-primary py-2.5 rounded-lg flex items-center justify-center gap-2 font-bold text-white bg-gradient-to-r from-sukem-primary to-sukem-accent shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all", !firstChapter && "opacity-50 cursor-not-allowed")}>
+                                        <Link 
+                                            to={firstChapter ? `/story/${story.id}/chapter/${firstChapter.id}` : '#'} 
+                                            className={cn(
+                                                "btn-primary py-3 md:py-2.5 rounded-lg flex items-center justify-center gap-2 font-bold text-white bg-gradient-to-r from-sukem-primary to-sukem-accent shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all w-full md:w-auto md:flex-1 text-base md:text-sm", 
+                                                !firstChapter && "opacity-50 cursor-not-allowed"
+                                            )}
+                                        >
                                             <BookOpenIcon className="w-5 h-5"/> Đọc ngay
                                         </Link>
                                     )}
+
+                                    {/* 2. NÚT ĐỌC LẠI */}
+                                    {/* Thứ tự DOM giữ nguyên ngay sau nút Đọc. */}
+                                    {/* Mobile: flex-1 để chiếm phần còn lại của dòng 2. Desktop: flex-none (hoặc mặc định) để hiển thị như cũ */}
+                                    {currentBookmark && (
+                                        <button 
+                                            onClick={handleReadFromBeginning} 
+                                            className="px-4 py-3 md:py-2.5 rounded-lg border border-sukem-border font-semibold text-sukem-text hover:bg-sukem-bg transition-colors flex-1 md:flex-none whitespace-nowrap"
+                                        >
+                                            Đọc lại
+                                        </button>
+                                    )}
+
+                                    {/* 3. NÚT YÊU THÍCH */}
+                                    {/* Mobile: Chỉ hiện icon, không co giãn. Desktop: Giữ nguyên */}
                                     {currentUser && (
-                                        <button onClick={() => toggleFavorite(story.id)} className={cn("px-3 rounded-lg border flex items-center justify-center transition-colors", isUserFavorite ? "border-red-200 bg-red-50 text-red-500" : "border-sukem-border text-sukem-text hover:text-red-500")}>
+                                        <button 
+                                            onClick={() => toggleFavorite(story.id)} 
+                                            className={cn(
+                                                "px-4 md:px-3 py-3 md:py-0 rounded-lg border flex items-center justify-center transition-colors", 
+                                                isUserFavorite ? "border-red-200 bg-red-50 text-red-500" : "border-sukem-border text-sukem-text hover:text-red-500"
+                                            )}
+                                        >
                                             <HeartIcon className={cn("w-6 h-6", isUserFavorite ? "fill-current" : "")}/>
                                         </button>
                                     )}
+
+                                    {/* 4. NÚT SỬA (ADMIN) */}
                                     {currentUser?.role === 'admin' && (
-                                        <button onClick={() => navigate(`/admin/story/edit/${story.id}`)} className="px-3 rounded-lg border border-sukem-border text-sukem-text hover:bg-sukem-bg">
+                                        <button 
+                                            onClick={() => navigate(`/admin/story/edit/${story.id}`)} 
+                                            className="px-4 md:px-3 py-3 md:py-0 rounded-lg border border-sukem-border text-sukem-text hover:bg-sukem-bg flex items-center justify-center"
+                                        >
                                             <PencilSquareIcon className="w-5 h-5"/>
                                         </button>
                                     )}

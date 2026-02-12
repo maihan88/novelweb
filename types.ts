@@ -61,6 +61,8 @@ export interface StoryFilterParams {
   sort?: 'updated' | 'hot' | 'new' | 'view';
   status?: string;
   keyword?: string;
+  chapterRange?: string; // Thay đổi: dùng string range "0-50", "50-100"
+  isHot?: boolean;
 }
 
 export type ReaderFont = 'font-reader-times' | 'font-reader-lora' | 'font-reader-antiqua';

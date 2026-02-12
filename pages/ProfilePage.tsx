@@ -121,7 +121,7 @@ const ProfilePage: React.FC = () => {
             <img 
                 src={story.coverImage} 
                 alt={story.title} 
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                className="w-full h-full object-cover" 
                 onError={(e) => { (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150x200?text=No+Cover'; }}
             />
         </Link>
@@ -140,7 +140,6 @@ const ProfilePage: React.FC = () => {
                 {/* Info Box: Progress & Chapter */}
                 <div className="bg-sukem-bg rounded-md p-2 border border-sukem-border/50">
                     
-                    {/* Dòng 1: Tên Tập (Nhỏ, Mờ) */}
                     {story.lastReadVolumeTitle && (
                          <div className="text-[10px] sm:text-xs text-sukem-text-muted font-medium truncate mb-0.5">
                             {story.lastReadVolumeTitle}

@@ -15,12 +15,10 @@ const getStoryQuery = (id) => {
 // @route   GET /api/stories/admin/stats
 exports.getDashboardStats = async (req, res) => {
     try {
-        // 1. Đếm tổng số
         const totalStories = await Story.countDocuments();
         const totalUsers = await User.countDocuments();
         const totalChapters = await Chapter.countDocuments();
 
-        // 2. Tính tổng lượt xem
         const viewsStats = await Story.aggregate([
             {
                 $group: {
@@ -31,7 +29,6 @@ exports.getDashboardStats = async (req, res) => {
         ]);
         const totalViews = viewsStats.length > 0 ? viewsStats[0].totalViews : 0;
 
-        // 3. Lấy danh sách truyện cho bảng
         const stories = await Story.aggregate([
             { $sort: { lastUpdatedAt: -1 } },
             { $limit: 20 },
@@ -45,36 +42,24 @@ exports.getDashboardStats = async (req, res) => {
             },
             {
                 $project: {
-                    title: 1,
-                    author: 1,
-                    totalViews: 1,
-                    status: 1,
-                    coverImage: 1,
-                    createdAt: 1,
-                    updatedAt: 1,
-                    lastUpdatedAt: 1,
+                    title: 1, author: 1, totalViews: 1, status: 1, coverImage: 1,
+                    createdAt: 1, updatedAt: 1, lastUpdatedAt: 1,
                     chapterCount: { $size: "$chapters" }
                 }
             }
         ]);
 
         res.json({
-            stats: {
-                totalStories,
-                totalUsers,
-                totalChapters,
-                totalViews
-            },
+            stats: { totalStories, totalUsers, totalChapters, totalViews },
             stories
         });
-
     } catch (error) {
         console.error("Dashboard Stats Error:", error);
         res.status(500).json({ message: "Lỗi server khi lấy thống kê" });
     }
 };
 
-// @desc    Lấy danh sách stories (Home/Search)
+// @desc    Lấy danh sách stories (Home + Search + Filter)
 // @route   GET /api/stories
 exports.getAllStories = async (req, res) => {
     try {
@@ -83,73 +68,141 @@ exports.getAllStories = async (req, res) => {
         const sortType = req.query.sort || 'updated';
         const status = req.query.status;
         const keyword = req.query.keyword;
+        const isHot = req.query.isHot === 'true';
+        
+        // Nhận tham số khoảng chương (VD: "0-50", "1000-max")
+        const chapterRange = req.query.chapterRange;
+        
+        let minChapter = 0;
+        let maxChapter = 999999;
 
-        const query = {};
-        if (status && status !== 'all') query.status = status;
-        if (keyword) {
-            query.$or = [
-                { title: { $regex: keyword, $options: 'i' } },
-                { author: { $regex: keyword, $options: 'i' } },
-                { alias: { $regex: keyword, $options: 'i' } }
-            ];
-        }
-        if (req.query.isHot === 'true') query.isHot = true;
-
-        let sortOption = {};
-        switch (sortType) {
-            case 'hot':
-                query.isHot = true;
-                sortOption = { bannerPriority: 1, lastUpdatedAt: -1 };
-                break;
-            case 'new': 
-                sortOption = { createdAt: -1 };
-                break;
-            case 'view': 
-                sortOption = { totalViews: -1, lastUpdatedAt: -1 };
-                break;
-            case 'updated': 
-            default:
-                sortOption = { lastUpdatedAt: -1 };
-                break;
-        }
-
-        const skip = (page - 1) * limit;
-
-        const [storiesRaw, totalDocs] = await Promise.all([
-            Story.find(query).sort(sortOption).skip(skip).limit(limit).lean(),
-            Story.countDocuments(query)
-        ]);
-
-        const storiesWithLatest = await Promise.all(storiesRaw.map(async (story) => {
-            const latestChapter = await Chapter.findOne({ 
-                storyId: story._id,
-                isRaw: false 
-            })
-            .select('title createdAt id') 
-            .sort({ createdAt: -1 });
-
-            return {
-                ...story,
-                latestChapter: latestChapter || null
-            };
-        }));
-
-        res.json({
-            stories: storiesWithLatest,
-            pagination: {
-                page, limit, totalDocs,
-                totalPages: Math.ceil(totalDocs / limit),
+        // Phân tích chapterRange thành min/max
+        if (chapterRange) {
+            const parts = chapterRange.split('-');
+            if (parts.length === 2) {
+                minChapter = parseInt(parts[0]) || 0;
+                // Nếu part[1] là 'max' hoặc số quá lớn
+                maxChapter = parts[1] === 'max' ? 999999 : (parseInt(parts[1]) || 999999);
             }
-        });
+        }
 
+        const useAdvancedFilter = (minChapter > 0 || maxChapter < 999999);
+
+        // --- LUỒNG 1: CƠ BẢN (Home/List thường) ---
+        if (!useAdvancedFilter) {
+            const query = {};
+            if (status && status !== 'all') {
+                if(status === 'ongoing') query.status = 'Đang dịch';
+                else if(status === 'completed') query.status = 'Hoàn thành';
+                else query.status = status;
+            }
+            if (isHot) query.isHot = true;
+            if (keyword) {
+                query.$or = [
+                    { title: { $regex: keyword, $options: 'i' } },
+                    { author: { $regex: keyword, $options: 'i' } },
+                    { alias: { $regex: keyword, $options: 'i' } }
+                ];
+            }
+
+            let sortOption = {};
+            switch (sortType) {
+                case 'hot': query.isHot = true; sortOption = { bannerPriority: 1, lastUpdatedAt: -1 }; break;
+                case 'new': sortOption = { createdAt: -1 }; break;
+                case 'view': sortOption = { totalViews: -1, lastUpdatedAt: -1 }; break;
+                case 'updated': default: sortOption = { lastUpdatedAt: -1 }; break;
+            }
+
+            const skip = (page - 1) * limit;
+            const [storiesRaw, totalDocs] = await Promise.all([
+                Story.find(query).sort(sortOption).skip(skip).limit(limit).lean(),
+                Story.countDocuments(query)
+            ]);
+
+            const storiesWithLatest = await Promise.all(storiesRaw.map(async (story) => {
+                const latestChapter = await Chapter.findOne({ storyId: story._id, isRaw: false })
+                    .select('title createdAt id').sort({ createdAt: -1 });
+                const count = await Chapter.countDocuments({ storyId: story._id });
+                return { ...story, latestChapter: latestChapter || null, chapterCount: count };
+            }));
+
+            return res.json({
+                stories: storiesWithLatest,
+                pagination: { page, limit, totalDocs, totalPages: Math.ceil(totalDocs / limit) }
+            });
+        }
+
+        // --- LUỒNG 2: NÂNG CAO (Có lọc chương) ---
+        else {
+            const skip = (page - 1) * limit;
+            let pipeline = [];
+            const matchStage = {};
+            
+            if (status && status !== 'all') {
+                if(status === 'ongoing') matchStage.status = 'Đang dịch';
+                else if(status === 'completed') matchStage.status = 'Hoàn thành';
+                else matchStage.status = status;
+            }
+            if (isHot) matchStage.isHot = true;
+            if (keyword) {
+                matchStage.$or = [
+                    { title: { $regex: keyword, $options: 'i' } },
+                    { author: { $regex: keyword, $options: 'i' } },
+                    { alias: { $regex: keyword, $options: 'i' } }
+                ];
+            }
+            pipeline.push({ $match: matchStage });
+
+            pipeline.push({
+                $lookup: { from: 'chapters', localField: '_id', foreignField: 'storyId', as: 'chapterData' }
+            });
+
+            pipeline.push({
+                $addFields: { calculatedChapterCount: { $size: "$chapterData" } }
+            });
+
+            pipeline.push({
+                $match: { calculatedChapterCount: { $gte: minChapter, $lte: maxChapter } }
+            });
+
+            let sortStage = {};
+            switch (sortType) {
+                case 'hot': sortStage = { isHot: -1, bannerPriority: 1, lastUpdatedAt: -1 }; break;
+                case 'new': sortStage = { createdAt: -1 }; break;
+                case 'view': sortStage = { totalViews: -1, lastUpdatedAt: -1 }; break;
+                case 'updated': default: sortStage = { lastUpdatedAt: -1 }; break;
+            }
+            pipeline.push({ $sort: sortStage });
+
+            pipeline.push({
+                $facet: {
+                    stories: [ { $skip: skip }, { $limit: limit }, { $project: { chapterData: 0 } } ],
+                    totalCount: [{ $count: "count" }]
+                }
+            });
+
+            const results = await Story.aggregate(pipeline);
+            const storiesRaw = results[0].stories;
+            const totalDocs = results[0].totalCount[0] ? results[0].totalCount[0].count : 0;
+
+            const storiesWithLatest = await Promise.all(storiesRaw.map(async (story) => {
+                const latestChapter = await Chapter.findOne({ storyId: story._id, isRaw: false })
+                    .select('title createdAt id').sort({ createdAt: -1 });
+                return { ...story, latestChapter: latestChapter || null, chapterCount: story.calculatedChapterCount };
+            }));
+
+            return res.json({
+                stories: storiesWithLatest,
+                pagination: { page, limit, totalDocs, totalPages: Math.ceil(totalDocs / limit) }
+            });
+        }
     } catch (error) {
         console.error('Error getAllStories:', error);
-        res.status(500).json({ message: "Server Error" });
+        res.status(500).json({ message: "Server Error", error: error.message });
     }
 };
 
-// @desc    Lấy chi tiết Story (Hỗ trợ cả _id và custom id)
-// @route   GET /api/stories/:id
+// @desc    Lấy chi tiết Story
 exports.getStoryById = async (req, res) => {
     try {
         const query = getStoryQuery(req.params.id);
@@ -167,13 +220,9 @@ exports.getStoryById = async (req, res) => {
         if (story.volumes && story.volumes.length > 0) {
             story.volumes = story.volumes.map(vol => {
                 const volChapters = chapters.filter(c => c.volumeId === vol.id);
-                return {
-                    ...vol,
-                    chapters: volChapters
-                };
+                return { ...vol, chapters: volChapters };
             });
         }
-
         story.views = story.totalViews; 
         res.json(story);
     } catch (error) {
@@ -182,30 +231,25 @@ exports.getStoryById = async (req, res) => {
     }
 };
 
-// @desc    Lấy NỘI DUNG 1 chương
+// @desc    Lấy nội dung chương
 exports.getChapterContent = async (req, res) => {
     try {
         const chapter = await Chapter.findOne({ id: req.params.chapterId });
-        
         if (!chapter) return res.status(404).json({ message: 'Chapter not found' });
 
         const isAdmin = req.user && req.user.role === 'admin';
-
         if (!isAdmin) {
             chapter.views += 1;
             await chapter.save();
-            Story.findByIdAndUpdate(chapter.storyId, { 
-                $inc: { totalViews: 1 }
-            }).exec();
+            Story.findByIdAndUpdate(chapter.storyId, { $inc: { totalViews: 1 } }).exec();
         }
-
         res.json(chapter);
     } catch (error) {
          res.status(500).json({ message: "Server Error" });
     }
 };
 
-// --- CÁC HÀM ADMIN ---
+// --- ADMIN FUNCTIONS ---
 
 exports.createStory = async (req, res) => {
     try {
@@ -230,7 +274,6 @@ exports.updateStory = async (req, res) => {
     try {
         const query = getStoryQuery(req.params.id);
         const story = await Story.findOne(query);
-        
         if (!story) return res.status(404).json({ message: 'Story not found' });
 
         const { title, author, description, coverImage, status, isHot, isInBanner, bannerPriority } = req.body;
@@ -244,8 +287,7 @@ exports.updateStory = async (req, res) => {
         if(isInBanner !== undefined) story.isInBanner = isInBanner;
         if(bannerPriority !== undefined) story.bannerPriority = bannerPriority;
 
-        story.lastUpdatedAt = new Date(); // Cập nhật thời gian sửa
-
+        story.lastUpdatedAt = new Date();
         const updatedStory = await story.save();
         res.json(updatedStory);
     } catch (error) {
@@ -257,17 +299,11 @@ exports.addVolume = async (req, res) => {
     try {
         const query = getStoryQuery(req.params.id);
         const story = await Story.findOne(query);
-        
         if (!story) return res.status(404).json({ message: 'Story not found' });
 
-        const newVolume = { 
-            id: `vol-${Date.now()}`, 
-            title: req.body.title 
-        };
-        
+        const newVolume = { id: `vol-${Date.now()}`, title: req.body.title };
         story.volumes.push(newVolume);
         await story.save();
-        
         res.json(newVolume);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -277,10 +313,8 @@ exports.addVolume = async (req, res) => {
 exports.addChapter = async (req, res) => {
     try {
         const { title, content, isRaw } = req.body;
-        
         const query = getStoryQuery(req.params.id);
         const story = await Story.findOne(query);
-        
         if (!story) return res.status(404).json({ message: 'Story not found' });
         
         const volumeExists = story.volumes.find(v => v.id === req.params.volumeId);
@@ -290,22 +324,14 @@ exports.addChapter = async (req, res) => {
             storyId: story._id,
             volumeId: req.params.volumeId,
             id: `ch-${Date.now()}`,
-            title,
-            content,
-            isRaw: !!isRaw,
-            views: 0,
-            createdAt: new Date(),
-            updatedAt: new Date()
+            title, content, isRaw: !!isRaw, views: 0,
+            createdAt: new Date(), updatedAt: new Date()
         });
 
         await newChapter.save();
-
         if (!newChapter.isRaw) {
-            await Story.findByIdAndUpdate(story._id, { 
-                lastUpdatedAt: new Date() 
-            });
+            await Story.findByIdAndUpdate(story._id, { lastUpdatedAt: new Date() });
         }
-
         res.json(newChapter);
     } catch (error) {
         console.error(error);
@@ -319,21 +345,15 @@ exports.updateChapter = async (req, res) => {
         if (!chapter) return res.status(404).json({ message: 'Chapter not found' });
 
         const { title, content, isRaw } = req.body;
-        
         if (title) chapter.title = title;
         if (content) chapter.content = content;
         if (isRaw !== undefined) chapter.isRaw = isRaw;
         
         chapter.updatedAt = new Date(); 
-
         await chapter.save();
-
         if (!chapter.isRaw) {
-            await Story.findByIdAndUpdate(chapter.storyId, { 
-                lastUpdatedAt: new Date() 
-            });
+            await Story.findByIdAndUpdate(chapter.storyId, { lastUpdatedAt: new Date() });
         }
-
         res.json(chapter);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -347,11 +367,7 @@ exports.deleteChapter = async (req, res) => {
 
         const storyId = chapter.storyId;
         await Chapter.deleteOne({ id: req.params.chapterId });
-
-        await Story.findByIdAndUpdate(storyId, { 
-            lastUpdatedAt: new Date() 
-        });
-
+        await Story.findByIdAndUpdate(storyId, { lastUpdatedAt: new Date() });
         res.json({ message: 'Chapter removed' });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -364,31 +380,13 @@ exports.getBannerStories = async (req, res) => {
             { $match: { isInBanner: true } },
             { $sort: { bannerPriority: 1, lastUpdatedAt: -1 } },
             { $limit: 10 },
-            {
-                $lookup: {
-                    from: 'chapters',
-                    localField: '_id',
-                    foreignField: 'storyId',
-                    as: 'chapterList'
-                }
-            },
-            {
-                $addFields: {
-                    chapterCount: { 
-                        $size: { 
-                            $filter: {
-                                input: "$chapterList",
-                                as: "ch",
-                                cond: { $ne: ["$$ch.isRaw", true] }
-                            }
-                        } 
-                    },
-                    firstChapterId: { $arrayElemAt: ["$chapterList.id", 0] }
-                }
-            },
+            { $lookup: { from: 'chapters', localField: '_id', foreignField: 'storyId', as: 'chapterList' } },
+            { $addFields: { 
+                chapterCount: { $size: { $filter: { input: "$chapterList", as: "ch", cond: { $ne: ["$$ch.isRaw", true] } } } },
+                firstChapterId: { $arrayElemAt: ["$chapterList.id", 0] }
+            }},
             { $project: { chapterList: 0 } }
         ]);
-
         res.json(stories);
     } catch (error) {
         console.error("Banner Error:", error);
@@ -399,7 +397,6 @@ exports.getBannerStories = async (req, res) => {
 exports.updateStoryBannerConfig = async (req, res) => {
     try {
         const { isInBanner, bannerPriority } = req.body;
-        
         const query = getStoryQuery(req.params.id);
         const story = await Story.findOne(query);
 
@@ -439,7 +436,6 @@ exports.incrementChapterView = async (req, res) => {
         if(chapter) {
             chapter.views += 1;
             await chapter.save();
-            
             await Story.findByIdAndUpdate(chapter.storyId, { $inc: { totalViews: 1 } });
             res.json({ message: 'View updated' });
         } else {
@@ -453,7 +449,6 @@ exports.incrementChapterView = async (req, res) => {
 exports.reorderVolumes = async (req, res) => {
     try {
         const { orderedVolumeIds } = req.body;
-        
         const query = getStoryQuery(req.params.id);
         const story = await Story.findOne(query);
 

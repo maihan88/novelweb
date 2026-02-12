@@ -328,7 +328,7 @@ const ChapterEditPage: React.FC = () => {
           <label className="block text-sm font-bold text-sukem-text mb-1.5">
             Nội dung chương
           </label>
-          <div className="rounded-xl border border-sukem-border overflow-hidden bg-white">
+          <div className="rounded-xl border border-sukem-border bg-white">
              <CustomEditor key={editorKey} value={content} onChange={setContent} />
           </div>
         </div>
