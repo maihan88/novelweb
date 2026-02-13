@@ -17,7 +17,8 @@ import {
     SwatchIcon,
     EyeDropperIcon,
     ChevronUpIcon,
-    ChevronDownIcon
+    ChevronDownIcon,
+    SparklesIcon
 } from '@heroicons/react/24/outline';
 import { uploadImage } from '../services/uploadService';
 
@@ -118,6 +119,9 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
     const [isToolbarCollapsed, setIsToolbarCollapsed] = useState(() => localStorage.getItem('editorToolbarCollapsed') === 'true');
     const [showColorPicker, setShowColorPicker] = useState(false);
     const [currentColor, setCurrentColor] = useState('#000000');
+    
+    // State mới: Chế độ Upload HD
+    const [isHighQuality, setIsHighQuality] = useState(false);
 
     const useEyeDropper = () => {
         const [supported, setSupported] = useState(false);
@@ -201,9 +205,12 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
         input.onchange = async () => {
             if (input.files && input.files[0]) {
                 const placeholderId = `img-${Date.now()}`;
-                execCmd('insertHTML', `<div id="${placeholderId}">Đang tải ảnh...</div>`);
+                const qualityText = isHighQuality ? " (HD)" : "";
+                execCmd('insertHTML', `<div id="${placeholderId}">Đang tải ảnh${qualityText}...</div>`);
                 try {
-                    const imageUrl = await uploadImage(input.files[0]);
+                    const uploadType = isHighQuality ? 'cover' : 'editor';
+                    const imageUrl = await uploadImage(input.files[0], uploadType);
+                    
                     const placeholder = editorRef.current?.querySelector(`#${placeholderId}`);
                     if (placeholder) {
                         const img = document.createElement('img');
@@ -211,7 +218,11 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
                         placeholder.parentNode?.replaceChild(img, placeholder);
                     }
                     handleInput();
-                } catch (e) { console.error(e); }
+                } catch (e) { 
+                    console.error(e);
+                    const placeholder = editorRef.current?.querySelector(`#${placeholderId}`);
+                    if (placeholder) placeholder.remove();
+                }
             }
         };
         input.click();
@@ -234,9 +245,10 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
     const handleColorChange = (color: string) => { execCmd('foreColor', color); setCurrentColor(color); setShowColorPicker(false); };
     const handleEyeDropperClick = async () => { const color = await openEyeDropper(); if (color) handleColorChange(color); };
 
-    const ToolbarButton: React.FC<{ children: React.ReactNode, onClick?: () => void, ariaLabel: string, isActive?: boolean, title?: string }> = ({ children, onClick, ariaLabel, isActive, title }) => (
+    // Update ToolbarButton: Thêm 'flex items-center justify-center' để nội dung luôn nằm ngang
+    const ToolbarButton: React.FC<{ children: React.ReactNode, onClick?: () => void, ariaLabel: string, isActive?: boolean, title?: string, className?: string }> = ({ children, onClick, ariaLabel, isActive, title, className }) => (
         <button type="button" onClick={onClick} onMouseDown={(e) => e.preventDefault()}
-            className={`p-2 rounded hover:bg-sukem-bg transition-colors ${isActive ? 'bg-sukem-bg text-sukem-primary font-bold shadow-sm border border-sukem-border' : 'text-sukem-text-muted'}`}
+            className={`p-2 rounded hover:bg-sukem-bg transition-colors flex items-center justify-center ${isActive ? 'bg-sukem-bg text-sukem-primary font-bold shadow-sm border border-sukem-border' : 'text-sukem-text-muted'} ${className || ''}`}
             aria-label={ariaLabel} title={title || ariaLabel}>
             {children}
         </button>
@@ -294,8 +306,29 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
                         <ToolbarButton onClick={() => execCmd('justifyCenter')} ariaLabel="Căn giữa"><Bars3Icon className="w-5 h-5" /></ToolbarButton>
                         <ToolbarButton onClick={() => execCmd('justifyRight')} ariaLabel="Căn phải"><Bars3BottomRightIcon className="w-5 h-5" /></ToolbarButton>
                         <div className="w-px h-5 bg-sukem-border mx-1"></div>
-                        <ToolbarButton onClick={handleImageUpload} ariaLabel="Tải ảnh" title="Chèn ảnh"><PhotoIcon className="w-5 h-5" /></ToolbarButton>
+                        
+                        {/* --- KHU VỰC UPLOAD ẢNH & HD TOGGLE --- */}
                         <div className="flex items-center bg-sukem-bg/50 border border-sukem-border rounded px-1 gap-0.5">
+                            <ToolbarButton onClick={handleImageUpload} ariaLabel="Tải ảnh" title={isHighQuality ? "Tải ảnh (Chất lượng cao HD)" : "Tải ảnh (Tiết kiệm dung lượng)"}>
+                                <PhotoIcon className="w-5 h-5" />
+                            </ToolbarButton>
+                            
+                            {/* NÚT HD: Đã thêm gap-0.5 để chữ và icon nằm ngang và sát nhau */}
+                            <ToolbarButton 
+                                onClick={() => setIsHighQuality(!isHighQuality)} 
+                                ariaLabel="Chế độ HD" 
+                                isActive={isHighQuality}
+                                title={isHighQuality ? "Đang bật chế độ HD (1200px) - Tắt để tiết kiệm" : "Đang tắt chế độ HD (500x750) - Bật để ảnh nét hơn"}
+                                className={`gap-0.5 ${isHighQuality ? "text-amber-500" : ""}`}
+                            >
+                                <SparklesIcon className="w-4 h-4" />
+                                {/* text-[10px] và leading-none giúp chữ nhỏ gọn, không làm phình nút */}
+                                <span className="text-[10px] font-bold leading-none">{isHighQuality ? 'HD' : 'SD'}</span>
+                            </ToolbarButton>
+                        </div>
+                        {/* --- HẾT KHU VỰC UPLOAD --- */}
+
+                        <div className="flex items-center bg-sukem-bg/50 border border-sukem-border rounded px-1 gap-0.5 ml-1">
                             <ToolbarButton onClick={() => insertFrame('normal')} ariaLabel="Khung thường" title="Chèn khung thường"><StopIcon className="w-5 h-5" /></ToolbarButton>
                             <ToolbarButton onClick={() => insertFrame('letter')} ariaLabel="Khung thư" title="Chèn khung thư"><EnvelopeIcon className="w-5 h-5" /></ToolbarButton>
                             <ToolbarButton onClick={() => insertFrame('system')} ariaLabel="Khung hệ thống" title="Chèn khung hệ thống"><CommandLineIcon className="w-5 h-5" /></ToolbarButton>

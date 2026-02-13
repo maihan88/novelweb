@@ -7,6 +7,7 @@ const {
     updateStory,
     deleteStory,
     addVolume,
+    updateVolume, // <--- Đã thêm
     addChapter,
     updateChapter,
     deleteChapter,
@@ -41,6 +42,7 @@ router.put('/:id/banner', protect, admin, updateStoryBannerConfig);
 // Volumes
 router.post('/:id/volumes', protect, admin, addVolume);
 router.put('/:id/volumes/reorder', protect, admin, reorderVolumes);
+router.put('/:id/volumes/:volumeId', protect, admin, updateVolume); // <--- Đã thêm route này
 
 // Chapters
 router.post('/:id/volumes/:volumeId/chapters', protect, admin, addChapter);

@@ -310,6 +310,39 @@ exports.addVolume = async (req, res) => {
     }
 };
 
+// --- HÀM MỚI THÊM: Cập nhật Volume ---
+exports.updateVolume = async (req, res) => {
+    try {
+        const { title } = req.body;
+        const query = getStoryQuery(req.params.id);
+        const story = await Story.findOne(query);
+
+        if (!story) {
+            return res.status(404).json({ message: 'Story not found' });
+        }
+
+        // Tìm volume trong mảng volumes
+        const volume = story.volumes.find(v => v.id === req.params.volumeId);
+        
+        if (!volume) {
+            return res.status(404).json({ message: 'Volume not found' });
+        }
+
+        // Cập nhật dữ liệu
+        if (title) volume.title = title;
+
+        // Lưu thay đổi
+        story.lastUpdatedAt = new Date();
+        await story.save();
+
+        res.json(volume);
+    } catch (error) {
+        console.error("Update Volume Error:", error);
+        res.status(500).json({ message: error.message });
+    }
+};
+// -------------------------------------
+
 exports.addChapter = async (req, res) => {
     try {
         const { title, content, isRaw } = req.body;

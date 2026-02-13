@@ -9,26 +9,40 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Cấu hình lưu trữ trên Cloudinary (Đã tối ưu hóa độ nét)
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
-  params: {
-    folder: 'sukem-novel', // Tên thư mục trên Cloudinary
-    allowed_formats: ['jpg', 'png', 'jpeg', 'gif', 'webp'], // Thêm 'webp' để tối ưu dung lượng
-    transformation: [
-      { 
-        width: 1200, 
-        crop: 'limit', 
-        quality: 'auto' 
-      }
-    ]
+  params: async (req, file) => {
+    const type = req.query.type;
+
+    let transformation = [];
+    
+    if (type === 'editor') {
+      transformation = [
+        { 
+          width: 500, 
+          height: 750, 
+          crop: 'limit',
+          quality: 'auto'
+        } 
+      ];
+    } else {
+      transformation = [
+        { width: 1200, crop: 'limit', quality: 'auto' }
+      ];
+    }
+
+    return {
+      folder: 'sukem-novel',
+      allowed_formats: ['jpg', 'png', 'jpeg', 'gif', 'webp'],
+      transformation: transformation
+    };
   },
 });
 
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 10 * 1024 * 1024 // Giới hạn 10MB
+    fileSize: 10 * 1024 * 1024 // 10MB
   },
   fileFilter: function (req, file, cb) {
     if (file.mimetype.startsWith('image/')) {
@@ -39,9 +53,6 @@ const upload = multer({
   }
 });
 
-// @desc    Upload image to Cloudinary
-// @route   POST /api/upload
-// @access  Private/Admin
 exports.uploadImage = async (req, res) => {
   try {
     if (!req.file) {
@@ -61,5 +72,4 @@ exports.uploadImage = async (req, res) => {
   }
 };
 
-// Xuất multer để sử dụng trong file routes
 exports.upload = upload.single('image');
