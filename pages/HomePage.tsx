@@ -94,7 +94,7 @@ const HomePage: React.FC = () => {
 
       {/* Section Truyện Hot */}
       {hotStories.length > 0 && (
-        <section className="container mx-auto px-4">
+        <section className="container mx-auto px-2">
            {/* Dùng màu Primary (Strawberry/Berry Red) cho icon Hot */}
            <SectionHeader title="Truyện Đề Cử" icon={FireIcon} iconColorClass="text-red-500 animate-pulse" />
            <div className={gridClasses}>
@@ -106,7 +106,7 @@ const HomePage: React.FC = () => {
       )}
 
       {/* Section Mới cập nhật */}
-      <section id="updated-section" className="scroll-mt-28 container mx-auto px-4">
+      <section id="updated-section" className="scroll-mt-28 container mx-auto px-2">
            {/* Dùng màu Accent (Caramel/Honey) cho icon Thời gian */}
            <SectionHeader title="Mới Cập Nhật" icon={ClockIcon} iconColorClass="text-sukem-accent" />
            

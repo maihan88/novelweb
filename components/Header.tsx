@@ -31,7 +31,6 @@ const Header: React.FC = () => {
   const [localSearch, setLocalSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   
-  // Thay đổi: Dùng 1 state duy nhất cho range
   const [selectedRange, setSelectedRange] = useState<string>('all');
 
   useEffect(() => {
@@ -42,24 +41,31 @@ const Header: React.FC = () => {
       
       const q = searchParams.get('q') || '';
       const status = searchParams.get('status') || 'all';
-      const range = searchParams.get('chapterRange') || 'all'; // Đọc range từ URL
+      const range = searchParams.get('chapterRange') || 'all';
 
       setLocalSearch(q);
       setStatusFilter(status);
       setSelectedRange(range);
   }, [location.pathname, searchParams]);
 
+  // --- SỬA LỖI Ở ĐÂY ---
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
+      // Logic mới: Nếu Menu Mobile đang mở (isMenuOpen === true)
+      // thì KHÔNG chạy logic đóng popup, để tránh xung đột với nút bấm trên mobile.
+      if (isMenuOpen) return;
+
       if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
         setIsFilterOpen(false);
       }
     }
+
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [filterRef]);
+  }, [filterRef, isMenuOpen]); // Thêm isMenuOpen vào dependency
+  // ---------------------
 
   const handleSearch = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -67,15 +73,20 @@ const Header: React.FC = () => {
     const params = new URLSearchParams();
     if (localSearch.trim()) params.append('q', localSearch.trim());
     if (statusFilter !== 'all') params.append('status', statusFilter);
-    if (selectedRange !== 'all') params.append('chapterRange', selectedRange); // Gửi range lên URL
+    if (selectedRange !== 'all') params.append('chapterRange', selectedRange);
 
     navigate(`/search?${params.toString()}`);
     setIsFilterOpen(false); 
     setIsMenuOpen(false);
   };
 
-  const FilterPanel = () => (
-      <div className="absolute top-full right-0 mt-3 w-80 bg-sukem-card border border-sukem-border rounded-xl shadow-2xl z-50 p-5 animate-fade-in-down">
+  const FilterPanel = ({ isMobile = false }: { isMobile?: boolean }) => (
+      <div className={`${
+        isMobile 
+            ? 'relative w-full mt-2 shadow-none border-t border-sukem-border pt-4' 
+            : 'absolute top-full right-0 mt-3 w-80 shadow-2xl border border-sukem-border rounded-xl'
+        } bg-sukem-card z-50 p-5 animate-fade-in-down transition-all`}>
+          
           <div className="space-y-5">
               {/* Lọc Trạng thái */}
               <div>
@@ -102,7 +113,7 @@ const Header: React.FC = () => {
                   </div>
               </div>
 
-              {/* Lọc Số chương (Dạng Checklist/Grid) */}
+              {/* Lọc Số chương */}
               <div>
                   <label className="text-xs font-bold text-sukem-text-muted uppercase mb-2 block tracking-wider">Số lượng chương</label>
                   <div className="grid grid-cols-2 gap-2">
@@ -146,13 +157,10 @@ const Header: React.FC = () => {
           </div>
       </div>
   );
-
-  // ... (Phần DesktopNavLinks, MobileNavLinks và Return giữ nguyên, chỉ thay đổi phần gọi FilterPanel)
-  // Để tiết kiệm không gian, tôi chỉ paste lại phần return chính, các phần helper function bên trên giữ nguyên như file cũ.
   
-  const getDesktopLinkClass = (path: string) => { /* Code cũ */ const isActive = location.pathname === path || (path === '/admin' && location.pathname.startsWith('/admin')); return `relative px-4 py-2 text-sm font-medium transition-colors duration-200 group ${isActive ? 'text-sukem-accent' : 'text-sukem-text hover:text-sukem-accent'}`; };
-  const DesktopNavLinks = () => ( /* Code cũ */ <> <Link to="/" className={getDesktopLinkClass('/')}> Trang Chủ <span className="absolute bottom-0 left-1/2 w-0 h-0.5 bg-sukem-primary transition-all duration-300 group-hover:w-1/2 group-hover:left-1/4"></span> </Link> {currentUser?.role === 'admin' && ( <Link to="/admin" className={getDesktopLinkClass('/admin')}> Quản Trị <span className="absolute bottom-0 left-1/2 w-0 h-0.5 bg-sukem-primary transition-all duration-300 group-hover:w-1/2 group-hover:left-1/4"></span> </Link> )} <Link to="/donate" className="flex items-center gap-1.5 px-5 py-2 text-sm font-medium rounded-full bg-sukem-primary text-white hover:shadow-lg hover:bg-opacity-90 hover:-translate-y-0.5 transition-all duration-200 ml-4"> <HeartIcon className="h-4 w-4" /> Ủng hộ </Link> </> );
-  const MobileNavLinks = () => ( /* Code cũ */ <> <Link to="/" className="block px-4 py-3 rounded-lg hover:bg-sukem-bg text-sukem-text font-medium transition-colors">Trang Chủ</Link> {currentUser?.role === 'admin' && ( <Link to="/admin" className="block px-4 py-3 rounded-lg hover:bg-sukem-bg text-sukem-text font-medium transition-colors">Quản Trị</Link> )} <Link to="/donate" className="flex items-center gap-2 px-4 py-3 rounded-lg text-sukem-primary bg-sukem-bg font-medium mt-2"> <HeartIcon className="h-5 w-5" /> Ủng hộ </Link> </> );
+  const getDesktopLinkClass = (path: string) => { const isActive = location.pathname === path || (path === '/admin' && location.pathname.startsWith('/admin')); return `relative px-4 py-2 text-sm font-medium transition-colors duration-200 group ${isActive ? 'text-sukem-accent' : 'text-sukem-text hover:text-sukem-accent'}`; };
+  const DesktopNavLinks = () => ( <> <Link to="/" className={getDesktopLinkClass('/')}> Trang Chủ <span className="absolute bottom-0 left-1/2 w-0 h-0.5 bg-sukem-primary transition-all duration-300 group-hover:w-1/2 group-hover:left-1/4"></span> </Link> {currentUser?.role === 'admin' && ( <Link to="/admin" className={getDesktopLinkClass('/admin')}> Quản Trị <span className="absolute bottom-0 left-1/2 w-0 h-0.5 bg-sukem-primary transition-all duration-300 group-hover:w-1/2 group-hover:left-1/4"></span> </Link> )} <Link to="/donate" className="flex items-center gap-1.5 px-5 py-2 text-sm font-medium rounded-full bg-sukem-primary text-white hover:shadow-lg hover:bg-opacity-90 hover:-translate-y-0.5 transition-all duration-200 ml-4"> <HeartIcon className="h-4 w-4" /> Ủng hộ </Link> </> );
+  const MobileNavLinks = () => ( <> <Link to="/" className="block px-4 py-3 rounded-lg hover:bg-sukem-bg text-sukem-text font-medium transition-colors">Trang Chủ</Link> {currentUser?.role === 'admin' && ( <Link to="/admin" className="block px-4 py-3 rounded-lg hover:bg-sukem-bg text-sukem-text font-medium transition-colors">Quản Trị</Link> )} <Link to="/donate" className="flex items-center gap-2 px-4 py-3 rounded-lg text-sukem-primary bg-sukem-bg font-medium mt-2"> <HeartIcon className="h-5 w-5" /> Ủng hộ </Link> </> );
 
   return (
     <header className="relative w-full z-40 bg-sukem-card border-b border-sukem-border shadow-sm transition-colors duration-300">
@@ -163,6 +171,7 @@ const Header: React.FC = () => {
              <img src="/logo_header_light.png" alt="SukemNovel Logo" className="h-26 w-auto object-contain"/>
           </Link>
 
+          {/* DESKTOP MENU */}
           <div className="hidden md:flex items-center gap-8">
             <div className="relative group" ref={filterRef}>
                 <form onSubmit={handleSearch} className="relative flex items-center">
@@ -172,6 +181,7 @@ const Header: React.FC = () => {
                         <FunnelIcon className="h-4 w-4" />
                     </button>
                 </form>
+                {/* Desktop: Absolute */}
                 {isFilterOpen && <FilterPanel />}
             </div>
             <nav className="flex items-center gap-2"><DesktopNavLinks /></nav>
@@ -202,19 +212,30 @@ const Header: React.FC = () => {
         </div>
       </div>
 
-      <div className={`md:hidden absolute top-full left-0 w-full bg-sukem-card border-b border-sukem-border shadow-xl transition-all duration-300 ease-in-out overflow-hidden ${isMenuOpen ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0'}`}>
+      {/* MOBILE MENU */}
+      <div className={`md:hidden absolute top-full left-0 w-full bg-sukem-card border-b border-sukem-border shadow-xl transition-all duration-300 ease-in-out overflow-hidden ${isMenuOpen ? 'max-h-[85vh] opacity-100 overflow-y-auto' : 'max-h-0 opacity-0'}`}>
          <div className="p-4 space-y-4">
             <div className="space-y-2 border-b border-sukem-border pb-4">
                 <form onSubmit={handleSearch} className="relative">
                     <input type="text" placeholder="Tìm kiếm truyện..." value={localSearch} onChange={e => setLocalSearch(e.target.value)} className="w-full py-3 pl-11 pr-4 bg-sukem-bg border border-sukem-border rounded-xl focus:ring-2 focus:ring-sukem-accent outline-none text-sukem-text transition-all placeholder-sukem-text-muted/70" />
                     <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-sukem-text-muted"/>
                 </form>
-                <button onClick={() => setIsFilterOpen(!isFilterOpen)} className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-sukem-bg border border-sukem-border rounded-lg text-sm font-medium text-sukem-text hover:bg-sukem-border transition-colors">
+                
+                <button 
+                  onClick={() => setIsFilterOpen(!isFilterOpen)} 
+                  className={`w-full flex items-center justify-center gap-2 px-3 py-2 border rounded-lg text-sm font-medium transition-colors ${isFilterOpen ? 'bg-sukem-primary text-white border-sukem-primary' : 'bg-sukem-bg border-sukem-border text-sukem-text hover:bg-sukem-border'}`}
+                >
                     <FunnelIcon className="h-5 w-5" /> {isFilterOpen ? 'Đóng bộ lọc' : 'Mở bộ lọc nâng cao'}
                 </button>
-                {isFilterOpen && (<div className="bg-sukem-bg/50 p-3 rounded-xl border border-sukem-border mt-2"><div className="relative"><FilterPanel /></div></div>)}
+
+                {/* Mobile: Relative (Embedded) */}
+                {isFilterOpen && (
+                   <FilterPanel isMobile={true} />
+                )}
             </div>
+            
             <nav className="space-y-1"><MobileNavLinks /></nav>
+            
             <div className="border-t border-sukem-border pt-4">
               {currentUser ? (
                 <div className="space-y-3">

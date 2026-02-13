@@ -5,7 +5,8 @@ import { Story } from '../../types';
 import {
     PlusIcon, TrashIcon, PencilIcon, ArrowPathIcon,
     ArrowUpIcon, ArrowDownIcon, PhotoIcon, ArrowUturnLeftIcon,
-    ExclamationTriangleIcon, MagnifyingGlassIcon, CheckIcon, DocumentTextIcon
+    ExclamationTriangleIcon, MagnifyingGlassIcon, CheckIcon, DocumentTextIcon,
+    XMarkIcon // Import thêm XMarkIcon
 } from '@heroicons/react/24/solid';
 import { uploadImage } from '../../services/uploadService';
 import LoadingSpinner from '../../components/LoadingSpinner';
@@ -60,6 +61,11 @@ const StoryEditPage: React.FC = () => {
     const [imageUploading, setImageUploading] = useState(false);
     const [adminChapterSearchTerm, setAdminChapterSearchTerm] = useState('');
     const [confirmDelete, setConfirmDelete] = useState<ConfirmDeleteState>({ isOpen: false, itemType: null, itemId: '', itemTitle: '' });
+
+    // --- State cho Inline Editing (Sửa tên tập) ---
+    const [editingVolumeId, setEditingVolumeId] = useState<string | null>(null);
+    const [editVolumeTitle, setEditVolumeTitle] = useState('');
+    // ----------------------------------------------
 
     useEffect(() => {
         setLoading(true);
@@ -216,27 +222,48 @@ const StoryEditPage: React.FC = () => {
                 showToast('Đã thêm tập mới', 'success');
             } catch (err) { showToast('Thêm tập thất bại.', 'error'); }
         }
-    }, [storyId, newVolumeTitle, addVolume]);
+    }, [storyId, newVolumeTitle, addVolume, showToast]);
 
     const handleVolumeDelete = useCallback((volumeId: string, volumeTitle: string) => {
         openConfirmation('volume', volumeId, volumeTitle);
     }, []);
 
-    const handleVolumeTitleChange = useCallback(async (volumeId: string) => {
-        const currentVolume = storyData.volumes?.find(v => v.id === volumeId);
-        const newTitle = prompt("Nhập tên tập mới:", currentVolume?.title || '');
-        if (storyId && newTitle !== null && newTitle.trim() !== '' && newTitle.trim() !== currentVolume?.title) {
-            try {
-                await updateVolume(storyId, volumeId, newTitle.trim());
-                setStoryData(prev => ({
-                    ...prev,
-                    volumes: prev.volumes?.map(v => v.id === volumeId ? { ...v, title: newTitle.trim() } : v)
+    // --- LOGIC MỚI: Bắt đầu sửa tên tập (Inline) ---
+    const startEditingVolume = (volumeId: string, currentTitle: string) => {
+        setEditingVolumeId(volumeId);
+        setEditVolumeTitle(currentTitle);
+    };
 
-                }));
-                showToast('Đã đổi tên tập thành công!', 'success');
-            } catch (err) { showToast('Đổi tên tập thất bại.', 'error'); }
+    // --- LOGIC MỚI: Hủy sửa ---
+    const cancelEditingVolume = () => {
+        setEditingVolumeId(null);
+        setEditVolumeTitle('');
+    };
+
+    // --- LOGIC MỚI: Lưu tên tập (Thay thế prompt) ---
+    const saveVolumeTitle = async () => {
+        if (!storyId || !editingVolumeId || !editVolumeTitle.trim()) return;
+        
+        const oldTitle = storyData.volumes?.find(v => v.id === editingVolumeId)?.title;
+        if (editVolumeTitle.trim() === oldTitle) {
+            cancelEditingVolume();
+            return;
         }
-    }, [storyId, storyData.volumes, updateVolume]);
+
+        try {
+            await updateVolume(storyId, editingVolumeId, editVolumeTitle.trim());
+            setStoryData(prev => ({
+                ...prev,
+                volumes: prev.volumes?.map(v => v.id === editingVolumeId ? { ...v, title: editVolumeTitle.trim() } : v)
+            }));
+            showToast('Đã đổi tên tập thành công!', 'success');
+            cancelEditingVolume();
+        } catch (err) {
+            showToast('Đổi tên tập thất bại.', 'error');
+            console.error(err);
+        }
+    };
+    // ------------------------------------------------
 
     const handleMove = useCallback(async (direction: 'up' | 'down', type: 'volume' | 'chapter', ids: { volumeId?: string; chapterId?: string }) => {
         if (!storyId || !storyData.volumes) return;
@@ -273,7 +300,7 @@ const StoryEditPage: React.FC = () => {
             const freshData = await getStoryById(storyId);
             if (freshData) setStoryData(freshData);
         }
-    }, [storyId, storyData.volumes, reorderVolumesInStory, reorderChaptersInVolume, getStoryById]);
+    }, [storyId, storyData.volumes, reorderVolumesInStory, reorderChaptersInVolume, getStoryById, showToast]);
 
     const filteredVolumes = useMemo(() => {
         if (!storyData.volumes) return [];
@@ -305,7 +332,7 @@ const StoryEditPage: React.FC = () => {
     }
 
     return (
-        <div className="max-w-7xl mx-auto space-y-8 animate-fade-in p-4 sm:p-6 lg:p-8 pb-32 sm:pb-8"> {/* pb-32 để tránh footer mobile che mất nội dung */}
+        <div className="max-w-7xl mx-auto space-y-8 animate-fade-in p-2 sm:p-6 lg:p-8 pb-32 sm:pb-8"> 
             
             {/* Header Desktop - Nút lưu ẩn trên Mobile */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-sukem-card p-6 rounded-2xl border border-sukem-border shadow-sm">
@@ -353,10 +380,9 @@ const StoryEditPage: React.FC = () => {
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-8">
-                    {/* Ảnh bìa - Responsive optimized */}
+                    {/* Ảnh bìa */}
                     <div className="md:col-span-4 lg:col-span-3 space-y-2">
                         <label className={labelStyles}>Ảnh bìa *</label>
-                        {/* Wrapper giới hạn chiều rộng trên mobile để không bị quá to */}
                         <div className="max-w-[200px] md:max-w-none mx-auto md:mx-0">
                             <div className="aspect-[2/3] relative border-2 border-sukem-border border-dashed rounded-2xl flex items-center justify-center text-center p-3 bg-sukem-bg group transition-all duration-300 hover:border-sukem-primary hover:shadow-lg overflow-hidden">
                                 {imageUploading && (
@@ -405,11 +431,11 @@ const StoryEditPage: React.FC = () => {
                             <div className="flex flex-col justify-end space-y-3 pt-2 sm:pt-0">
                                 <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-sukem-bg transition-colors border border-transparent hover:border-sukem-border">
                                     <input type="checkbox" id="isHot" name="isHot" checked={!!storyData.isHot} onChange={handleStoryChange} className="h-4 w-4 text-red-500 border-sukem-border rounded focus:ring-red-500 bg-white" />
-                                    <span className="text-sm font-bold text-sukem-text select-none text-red-500">Đánh dấu "Hot"</span>
+                                    <span className="text-sm font-bold text-sukem-text select-none">Đánh dấu "Hot"</span>
                                 </label>
                                 <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-sukem-bg transition-colors border border-transparent hover:border-sukem-border">
                                     <input type="checkbox" id="isInBanner" name="isInBanner" checked={!!storyData.isInBanner} onChange={handleStoryChange} className="h-4 w-4 text-sukem-accent border-sukem-border rounded focus:ring-sukem-accent bg-white" />
-                                    <span className="text-sm font-bold text-sukem-text select-none text-sukem-accent">Hiển thị trên Banner</span>
+                                    <span className="text-sm font-bold text-sukem-text select-none">Hiển thị trên Banner</span>
                                 </label>
                             </div>
                         </div>
@@ -452,7 +478,7 @@ const StoryEditPage: React.FC = () => {
                     <div className="space-y-4">
                         {filteredVolumes && filteredVolumes.length > 0 ? filteredVolumes.map((vol, volIndex) => (
                             <div key={vol.id} className="border border-sukem-border rounded-xl shadow-sm overflow-hidden bg-white">
-                                {/* Header Tập - Responsive Layout */}
+                                {/* Header Tập - Modified for Inline Editing */}
                                 <div className="flex flex-wrap items-center justify-between gap-y-3 gap-x-2 p-3 sm:p-4 bg-sukem-bg border-b border-sukem-border">
                                     <div className="flex items-center gap-2 flex-1 min-w-0">
                                         <div className="flex flex-col bg-sukem-card p-0.5 rounded border border-sukem-border flex-shrink-0">
@@ -460,16 +486,47 @@ const StoryEditPage: React.FC = () => {
                                             <div className="h-px bg-sukem-border my-0.5"></div>
                                             <MoveButton direction="down" disabled={volIndex === (storyData.volumes?.length ?? 1) - 1} onClick={() => handleMove('down', 'volume', { volumeId: vol.id })} ariaLabel="Xuống" />
                                         </div>
-                                        <span className="font-bold text-base text-sukem-text truncate">{vol.title}</span>
+                                        
+                                        {/* INLINE EDITING UI */}
+                                        {editingVolumeId === vol.id ? (
+                                            <div className="flex items-center gap-2 flex-1 max-w-md animate-fade-in">
+                                                <input
+                                                    type="text"
+                                                    value={editVolumeTitle}
+                                                    onChange={(e) => setEditVolumeTitle(e.target.value)}
+                                                    className="w-full px-3 py-1.5 text-sm border border-sukem-primary rounded-lg focus:outline-none focus:ring-2 focus:ring-sukem-primary/30 bg-white text-sukem-text"
+                                                    autoFocus
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') saveVolumeTitle();
+                                                        if (e.key === 'Escape') cancelEditingVolume();
+                                                    }}
+                                                />
+                                                <button onClick={saveVolumeTitle} className="p-1.5 bg-green-100 text-green-600 rounded-lg hover:bg-green-200" title="Lưu">
+                                                    <CheckIcon className="h-4 w-4" />
+                                                </button>
+                                                <button onClick={cancelEditingVolume} className="p-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200" title="Hủy">
+                                                    <XMarkIcon className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <span className="font-bold text-base text-sukem-text truncate">{vol.title}</span>
+                                        )}
                                     </div>
                                     
                                     <div className="flex items-center gap-1.5 flex-shrink-0">
                                         <Link to={`/admin/story/${storyId}/volume/${vol.id}/chapter/new`} className="inline-flex items-center gap-1 px-2 sm:px-3 py-1.5 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 text-xs transition-all shadow-sm">
                                             <PlusIcon className="h-4 w-4" /> <span className="hidden sm:inline">Chương</span>
                                         </Link>
-                                        <button onClick={() => handleVolumeTitleChange(vol.id)} className="p-1.5 sm:p-2 rounded-lg text-sukem-text-muted hover:bg-sukem-card hover:text-sukem-text transition-all border border-transparent hover:border-sukem-border">
+                                        
+                                        {/* Nút sửa kích hoạt Inline Edit */}
+                                        <button 
+                                            onClick={() => startEditingVolume(vol.id, vol.title)} 
+                                            disabled={editingVolumeId === vol.id}
+                                            className={`p-1.5 sm:p-2 rounded-lg transition-all border border-transparent ${editingVolumeId === vol.id ? 'opacity-30 cursor-not-allowed' : 'text-sukem-text-muted hover:bg-sukem-card hover:text-sukem-text hover:border-sukem-border'}`}
+                                        >
                                             <PencilIcon className="h-4 w-4" />
                                         </button>
+                                        
                                         <button onClick={() => handleVolumeDelete(vol.id, vol.title)} className="p-1.5 sm:p-2 rounded-lg text-sukem-text-muted hover:bg-red-50 hover:text-red-500 transition-all border border-transparent hover:border-red-100">
                                             <TrashIcon className="h-4 w-4" />
                                         </button>
@@ -518,7 +575,7 @@ const StoryEditPage: React.FC = () => {
                 </div>
             )}
 
-            {/* Modal xác nhận */}
+            {/* Modal xác nhận xóa */}
             <ConfirmationModal
                 isOpen={confirmDelete.isOpen}
                 onClose={closeConfirmation}

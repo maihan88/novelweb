@@ -9,20 +9,26 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Cấu hình lưu trữ trên Cloudinary
+// Cấu hình lưu trữ trên Cloudinary (Đã tối ưu hóa độ nét)
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
     folder: 'sukem-novel', // Tên thư mục trên Cloudinary
-    allowed_formats: ['jpg', 'png', 'jpeg', 'gif'],
-    transformation: [{ width: 500, height: 750, crop: 'limit' }]
+    allowed_formats: ['jpg', 'png', 'jpeg', 'gif', 'webp'], // Thêm 'webp' để tối ưu dung lượng
+    transformation: [
+      { 
+        width: 1200, 
+        crop: 'limit', 
+        quality: 'auto' 
+      }
+    ]
   },
 });
 
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
+    fileSize: 10 * 1024 * 1024 // Giới hạn 10MB
   },
   fileFilter: function (req, file, cb) {
     if (file.mimetype.startsWith('image/')) {
@@ -42,11 +48,10 @@ exports.uploadImage = async (req, res) => {
       return res.status(400).json({ message: 'Không có file nào được tải lên' });
     }
 
-    // Trả về đường dẫn URL của file trên Cloudinary
     res.json({
       success: true,
       file: {
-        url: req.file.path, // multer-storage-cloudinary sẽ trả về URL trong `req.file.path`
+        url: req.file.path,
         filename: req.file.filename
       }
     });

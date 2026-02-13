@@ -29,8 +29,8 @@ const StoryCard: React.FC<StoryCardProps> = ({ story }) => {
     <Link 
       to={`/story/${story.id}`} 
       className="group relative flex flex-col h-full bg-sukem-card rounded-xl overflow-hidden border border-sukem-border 
-                 transition-all duration-300 ease-in-out 
-                 hover:-translate-y-1.5 hover:shadow-xl hover:shadow-sukem-primary/20 hover:border-sukem-primary/50"
+                  transition-all duration-300 ease-in-out 
+                  hover:-translate-y-1.5 hover:shadow-xl hover:shadow-sukem-primary/20 hover:border-sukem-primary/50"
     >
       {/* --- PHẦN 1: ẢNH BÌA & BADGES --- */}
       <div className="relative aspect-[2/3] overflow-hidden">
@@ -80,7 +80,7 @@ const StoryCard: React.FC<StoryCardProps> = ({ story }) => {
         {/* Tiêu đề */}
         <h3 
           className="font-bold text-sukem-text text-base leading-snug line-clamp-2 mb-2
-                     group-hover:text-sukem-primary transition-colors duration-200 min-h-[2.5rem]"
+                      group-hover:text-sukem-primary transition-colors duration-200 min-h-[2.5rem]"
           title={story.title}
         >
           {story.title}
@@ -90,17 +90,20 @@ const StoryCard: React.FC<StoryCardProps> = ({ story }) => {
 
         {/* --- PHẦN 3: THÔNG TIN PHỤ (Chương & Thời gian) --- */}
         <div className="pt-2 border-t border-sukem-border/50">
-          <div className="flex justify-between items-center text-xs">
+          <div 
+            className="flex items-center gap-2 text-xs w-full overflow-x-auto md:justify-between md:overflow-visible [&::-webkit-scrollbar]:hidden"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }} // Ẩn scrollbar trên Firefox/IE
+          >
              {/* Tên chương */}
-             <div className="flex items-center gap-1 text-sukem-text group-hover:text-sukem-accent transition-colors truncate pr-2">
-                <span className="truncate font-medium">
+             <div className="flex items-center gap-1 text-sukem-text group-hover:text-sukem-accent transition-colors whitespace-nowrap flex-shrink-0 md:flex-shrink md:truncate md:pr-2">
+                <span className="font-medium">
                   {latestChapter ? latestChapter.title : 'Đang cập nhật'}
                 </span>
              </div>
              
              {/* Thời gian update */}
              {latestChapter && (
-                <div className="flex items-center gap-1 text-[10px] text-sukem-text-muted bg-sukem-bg/50 px-1.5 py-0.5 rounded border border-sukem-border/50 whitespace-nowrap">
+                <div className="flex-shrink-0 flex items-center gap-1 text-[10px] text-sukem-text-muted bg-sukem-bg/50 px-1.5 py-0.5 rounded border border-sukem-border/50 whitespace-nowrap">
                    <span>{formatDate(story.lastUpdatedAt)}</span>
                 </div>
              )}
