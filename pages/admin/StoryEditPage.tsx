@@ -10,6 +10,7 @@ import {
 import { uploadImage } from '../../services/uploadService';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import ConfirmationModal from '../../components/ConfirmationModal';
+import { useToast } from '../../contexts/ToastContext';
 
 interface ConfirmDeleteState {
     isOpen: boolean;
@@ -53,6 +54,7 @@ const StoryEditPage: React.FC = () => {
     const [isNewStory, setIsNewStory] = useState(false);
     const [newVolumeTitle, setNewVolumeTitle] = useState('');
     const [loading, setLoading] = useState(true);
+    const { showToast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState('');
     const [imageUploading, setImageUploading] = useState(false);
@@ -141,17 +143,18 @@ const StoryEditPage: React.FC = () => {
             alias: storyData.alias || [],
             status: storyData.status || 'Đang dịch',
             isHot: !!storyData.isHot,
-            isInBanner: !!storyData.isInBanner
+            isInBanner: !!storyData.isInBanner,
+            totalViews: 0
         };
         setIsSaving(true);
         try {
             if (isNewStory) {
                 const newStory = await addStory(submitData);
-                alert(`Đã thêm truyện "${newStory.title}" thành công!`);
+                showToast(`Đã thêm truyện "${newStory.title}" thành công!`, 'success');
                 navigate(`/admin/story/edit/${newStory.id}`, { replace: true });
             } else if (storyId) {
                 const updatedStory = await updateStory(storyId, submitData);
-                alert(`Đã cập nhật truyện "${updatedStory.title}" thành công!`);
+                showToast(`Đã cập nhật truyện "${updatedStory.title}" thành công!`, 'success');
                 setStoryData(updatedStory);
                 setTagsInput(updatedStory.tags?.join(', ') || '');
                 setAliasInput(updatedStory.alias?.join(', ') || '');
@@ -168,7 +171,6 @@ const StoryEditPage: React.FC = () => {
         }
     };
 
-    // ... (Keep openConfirmation, closeConfirmation, handleConfirmDelete logic as is)
     const openConfirmation = (type: 'volume' | 'chapter', id: string, title: string, volId?: string) => {
         setConfirmDelete({ isOpen: true, itemType: type, itemId: id, itemTitle: title, volumeId: volId });
     };
@@ -180,6 +182,7 @@ const StoryEditPage: React.FC = () => {
         try {
             if (confirmDelete.itemType === 'volume') {
                 await deleteVolume(storyId, confirmDelete.itemId);
+                showToast(`Đã xóa ${confirmDelete.itemType === 'volume' ? 'tập' : 'chương'} thành công`, 'success');
                 setStoryData(prev => ({ ...prev, volumes: prev.volumes?.filter(v => v.id !== confirmDelete.itemId) }));
             } else if (confirmDelete.itemType === 'chapter' && confirmDelete.volumeId) {
                 await deleteChapterFromVolume(storyId, confirmDelete.volumeId, confirmDelete.itemId);
@@ -194,7 +197,7 @@ const StoryEditPage: React.FC = () => {
                 }));
             }
         } catch (err) {
-            alert(`Xóa ${confirmDelete.itemType === 'volume' ? 'tập' : 'chương'} thất bại.`);
+            showToast(`Xóa ${confirmDelete.itemType === 'volume' ? 'tập' : 'chương'} thất bại.`, 'error');
         }
         closeConfirmation();
     };
@@ -210,7 +213,8 @@ const StoryEditPage: React.FC = () => {
                 const newVol = await addVolume(storyId, newVolumeTitle.trim());
                 setNewVolumeTitle('');
                 setStoryData(prev => ({ ...prev, volumes: [...(prev.volumes || []), { ...newVol, chapters: [] }] }));
-            } catch (err) { alert('Thêm tập thất bại.'); }
+                showToast('Đã thêm tập mới', 'success');
+            } catch (err) { showToast('Thêm tập thất bại.', 'error'); }
         }
     }, [storyId, newVolumeTitle, addVolume]);
 
@@ -227,8 +231,10 @@ const StoryEditPage: React.FC = () => {
                 setStoryData(prev => ({
                     ...prev,
                     volumes: prev.volumes?.map(v => v.id === volumeId ? { ...v, title: newTitle.trim() } : v)
+
                 }));
-            } catch (err) { alert('Đổi tên tập thất bại.'); }
+                showToast('Đã đổi tên tập thành công!', 'success');
+            } catch (err) { showToast('Đổi tên tập thất bại.', 'error'); }
         }
     }, [storyId, storyData.volumes, updateVolume]);
 
@@ -263,7 +269,7 @@ const StoryEditPage: React.FC = () => {
                 }
             }
         } catch (err) {
-            alert('Thay đổi thứ tự thất bại.');
+            showToast('Thay đổi thứ tự thất bại.', 'error');
             const freshData = await getStoryById(storyId);
             if (freshData) setStoryData(freshData);
         }

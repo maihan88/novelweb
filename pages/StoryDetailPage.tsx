@@ -185,7 +185,7 @@ const StoryDetailPage: React.FC = () => {
                                     <span className="hidden sm:inline text-sukem-border">|</span>
                                     <span className="flex items-center gap-1"><ListBulletIcon className="w-4 h-4 text-green-500"/> {allChaptersFlat.length} chương</span>
                                     <span className="hidden sm:inline text-sukem-border">|</span>
-                                    <span className="flex items-center gap-1"><EyeIcon className="w-4 h-4 text-blue-500"/> {story.views.toLocaleString()} lượt xem</span>
+                                    <span className="flex items-center gap-1"><EyeIcon className="w-4 h-4 text-blue-500"/> {story.totalViews.toLocaleString()} lượt xem</span>
                                     <span className="hidden sm:inline text-sukem-border">|</span>
                                     <span className="flex items-center gap-1" title="Cập nhật lần cuối">
                                         <ClockIcon className="w-4 h-4 text-orange-500"/> 

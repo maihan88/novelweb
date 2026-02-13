@@ -99,23 +99,26 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ interval = 7000 }) => {
   return (
     <div className="relative h-[65vh] md:h-[60vh] max-h-[500px] min-h-[400px] w-full overflow-hidden rounded-2xl group shadow-lg border border-sukem-border bg-sukem-card">
       {stories.map((story, index) => {
-         // Logic animation cũ của bạn
+
+         const isUp = index % 2 === 0;
+
+         const animationClass = isUp ? 'animate-pan-up' : 'animate-pan-down';
+         const endPositionClass = isUp ? 'bg-[50%_20%]' : 'bg-[50%_80%]';
+
          const isActive = index === currentIndex;
          const isPrevious = index === previousIndex;
 
-         // Xử lý class animation: Thêm keyframe trong index.css nếu chưa có, hoặc dùng class có sẵn
-         // Ở đây tôi giữ nguyên logic class của bạn, giả sử 'animate-pan-up' đã được định nghĩa
          let dynamicClasses = 'opacity-0'; 
          if (isActive) {
-             dynamicClasses = `opacity-100 animate-pan-up`; // Mặc định pan-up cho đơn giản hoặc logic cũ
+             dynamicClasses = `opacity-100 ${animationClass}`;
          } else if (isPrevious) {
-             dynamicClasses = `opacity-0`;
+             dynamicClasses = `opacity-0 ${endPositionClass}`;
          }
 
          return (
             <div
                 key={story.id}
-                className={`absolute inset-0 w-full h-full bg-cover transition-opacity duration-[1500ms] ease-in-out z-0 ${dynamicClasses}`}
+                className={`absolute inset-0 w-full h-full bg-cover transition-opacity duration-[1500ms] ease-in-out ${dynamicClasses}`}
                 style={{ backgroundImage: `url(${story.coverImage})` }}
             />
          );

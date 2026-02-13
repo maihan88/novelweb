@@ -17,8 +17,9 @@ import {
 import { ArrowUturnLeftIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import CustomEditor from '../../components/CustomEditor';
+import { useToast } from '../../contexts/ToastContext'; // Import mới
 
-// --- HÀM GỢI Ý TIÊU ĐỀ (Giữ nguyên logic) ---
+// --- HÀM GỢI Ý TIÊU ĐỀ (Giữ nguyên) ---
 const getNextChapterTitle = (currentTitle: string): string => {
     const match = currentTitle.match(/^(.*?)([:\s-])?(\d+)$/);
     if (match) {
@@ -36,25 +37,7 @@ const getNextChapterTitle = (currentTitle: string): string => {
     return currentTitle + ' (Tiếp theo)';
 };
 
-// --- COMPONENT THÔNG BÁO ---
-const SaveNotification: React.FC<{ message: string; onDismiss: () => void }> = ({ message, onDismiss }) => {
-    useEffect(() => {
-        const timer = setTimeout(onDismiss, 3000);
-        return () => clearTimeout(timer);
-    }, [onDismiss]);
-
-    return (
-        <div className="fixed bottom-24 right-5 z-50 bg-green-600 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-fade-in border border-green-500/50 backdrop-blur-sm">
-            <CheckCircleIcon className="h-5 w-5" />
-            <span className="text-sm font-bold">{message}</span>
-            <button onClick={onDismiss} className="ml-2 p-1 hover:bg-green-700 rounded-full transition-colors">
-                <XMarkIcon className="h-4 w-4" />
-            </button>
-        </div>
-    );
-};
-
-// --- COMPONENT BUTTON TOOLTIP ---
+// --- COMPONENT BUTTON TOOLTIP (Giữ nguyên) ---
 const TooltipButton: React.FC<{
     onClick: () => void;
     disabled?: boolean;
@@ -82,6 +65,7 @@ const ChapterEditPage: React.FC = () => {
   const { storyId, volumeId, chapterId } = useParams<{ storyId: string; volumeId: string; chapterId?: string }>();
   const navigate = useNavigate();
   const { getStoryById, addChapterToVolume, updateChapterInVolume } = useStories();
+  const { showToast } = useToast(); // Hook
 
   const [story, setStory] = useState<Story | null>(null);
   const [volumeTitle, setVolumeTitle] = useState('');
@@ -95,7 +79,6 @@ const ChapterEditPage: React.FC = () => {
   const isNew = !chapterId; 
   const [editorKey, setEditorKey] = useState(Date.now());
   const [error, setError] = useState('');
-  const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
 
   const [prevChapterId, setPrevChapterId] = useState<string | null>(null);
   const [nextChapterId, setNextChapterId] = useState<string | null>(null);
@@ -147,11 +130,12 @@ const ChapterEditPage: React.FC = () => {
         }
     } catch (error: any) {
         setError(error.message || 'Lỗi tải dữ liệu.');
+        showToast('Lỗi tải dữ liệu.', 'error');
     } finally {
         setIsLoading(false);
         setEditorKey(Date.now()); 
     }
-  }, [storyId, volumeId, chapterId, getStoryById, navigate]);
+  }, [storyId, volumeId, chapterId, getStoryById, navigate, showToast]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -163,13 +147,13 @@ const ChapterEditPage: React.FC = () => {
    const handleSave = useCallback(async (action: 'new' | 'editNext' | 'close') => {
         if (!storyId || !volumeId || !title.trim()) {
             setError('Vui lòng điền tiêu đề chương.');
+            showToast('Vui lòng điền tiêu đề chương', 'error');
             window.scrollTo({ top: 0, behavior: 'smooth' });
             return;
         }
 
         setIsSaving(true);
         setError('');
-        setSaveSuccessMessage(null);
         
         let savedChapterId = chapterId;
 
@@ -177,11 +161,11 @@ const ChapterEditPage: React.FC = () => {
             if (isNew) {
                 const newChapter = await addChapterToVolume(storyId, volumeId, { title, content, isRaw });
                 savedChapterId = newChapter.id;
-                setSaveSuccessMessage(`Đã thêm chương "${title}"!`);
+                showToast(`Đã thêm chương "${title}"!`, 'success'); // Toast
             } else if (savedChapterId) {
                 const chapterToUpdate: Omit<Chapter, 'createdAt' | 'views' | '_id'> = { id: savedChapterId, title, content, isRaw };
                 await updateChapterInVolume(storyId, volumeId, chapterToUpdate);
-                 setSaveSuccessMessage(`Đã cập nhật chương "${title}"!`);
+                showToast(`Đã cập nhật chương "${title}"!`, 'success'); // Toast
             } else {
                  throw new Error("Không xác định được ID chương.");
             }
@@ -208,10 +192,10 @@ const ChapterEditPage: React.FC = () => {
                     const nextChap = allChapters[currentIndex + 1];
                     navigate(`/admin/story/${storyId}/volume/${nextChap.volId}/chapter/edit/${nextChap.id}`);
                 } else {
-                     setSaveSuccessMessage(`Đã lưu. Đây là chương cuối cùng.`);
-                     if (isNew && savedChapterId) {
-                         navigate(`/admin/story/${storyId}/volume/${volumeId}/chapter/edit/${savedChapterId}`, { replace: true });
-                     }
+                      showToast(`Đã lưu. Đây là chương cuối cùng.`, 'success');
+                      if (isNew && savedChapterId) {
+                          navigate(`/admin/story/${storyId}/volume/${volumeId}/chapter/edit/${savedChapterId}`, { replace: true });
+                      }
                 }
             } 
             else if (action === 'close') {
@@ -222,14 +206,15 @@ const ChapterEditPage: React.FC = () => {
             }
 
         } catch (err: any) {
-            setError('Lưu thất bại: ' + (err.message || 'Lỗi không xác định'));
+            const msg = err.message || 'Lỗi không xác định';
+            setError('Lưu thất bại: ' + msg);
+            showToast('Lưu thất bại', 'error'); // Toast Error
             console.error(err);
-            setSaveSuccessMessage(null);
             window.scrollTo({ top: 0, behavior: 'smooth' });
         } finally {
             setIsSaving(false);
         }
-    }, [storyId, volumeId, chapterId, title, content, isRaw, isNew, getStoryById, addChapterToVolume, updateChapterInVolume, navigate, loadData]);
+    }, [storyId, volumeId, chapterId, title, content, isRaw, isNew, getStoryById, addChapterToVolume, updateChapterInVolume, navigate, loadData, showToast]);
 
   if (isLoading && !story) {
     return <div className="flex justify-center items-center h-screen -mt-16"><LoadingSpinner size="lg" /></div>;
@@ -333,11 +318,6 @@ const ChapterEditPage: React.FC = () => {
           </div>
         </div>
       </div>
-
-       {/* Thông báo thành công */}
-       {saveSuccessMessage && (
-           <SaveNotification message={saveSuccessMessage} onDismiss={() => setSaveSuccessMessage(null)} />
-       )}
 
       {/* Floating Dock */}
       <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-40 max-w-[95vw]">

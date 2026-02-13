@@ -3,6 +3,8 @@ import { useStories } from '../contexts/StoryContext';
 import { useUserPreferences } from '../contexts/UserPreferencesContext';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { formatDate } from '../utils/formatDate';
+
 import { 
     HeartIcon, 
     BookOpenIcon, 
@@ -17,19 +19,6 @@ import StoryCard from '../components/StoryCard';
 // --- CONFIG ---
 const INITIAL_READING_LIMIT = 4;
 const INITIAL_FAVORITE_LIMIT = 6;
-
-// --- UTILS ---
-const formatDate = (isoString?: string) => {
-    if (!isoString) return '';
-    try {
-        const date = new Date(isoString);
-        return date.toLocaleDateString('vi-VN', {
-            day: '2-digit', month: '2-digit', year: 'numeric'
-        });
-    } catch (e) {
-        return '';
-    }
-};
 
 const ProfilePage: React.FC = () => {
   const { stories } = useStories();
@@ -117,7 +106,7 @@ const ProfilePage: React.FC = () => {
   const ReadingStoryCard: React.FC<typeof processedReadingStories[0]> = (story) => (
       <div className="group relative bg-sukem-card rounded-xl p-2.5 sm:p-3 shadow-sm border border-sukem-border flex gap-3 overflow-hidden transition-colors duration-300">
         {/* Cover Image: Responsive sizes */}
-        <Link to={`/story/${story.id}`} className="relative flex-shrink-0 w-[70px] h-[105px] sm:w-24 sm:h-36 rounded-lg overflow-hidden shadow-inner">
+        <Link to={`/story/${story.id}`} className="relative flex-shrink-0 w-[77px] h-[116px] sm:w-[106px] sm:h-[159px] rounded-lg overflow-hidden shadow-inner">
             <img 
                 src={story.coverImage} 
                 alt={story.title} 
@@ -168,7 +157,7 @@ const ProfilePage: React.FC = () => {
 
             {/* Footer: Date & Button */}
             <div className="flex items-end justify-between mt-2">
-                <span className="text-[10px] text-sukem-text-muted flex items-center gap-1 shrink-0">
+                <span className="text-[12px] text-sukem-text-muted flex items-center gap-1 shrink-0">
                     <ClockIcon className="h-3 w-3" />
                     {formatDate(story.lastReadDate)}
                 </span>

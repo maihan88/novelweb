@@ -27,7 +27,7 @@ export interface Story {
   tags: string[];
   status: 'Đang dịch' | 'Hoàn thành';
   volumes: Volume[];
-  views: number;
+  totalViews: number;
   rating: number;
   ratingsCount: number;
   isHot?: boolean;
@@ -67,7 +67,6 @@ export interface StoryFilterParams {
 
 export type ReaderFont = 'font-reader-times' | 'font-reader-lora' | 'font-reader-antiqua';
 export type ReaderTheme = 'light' | 'sepia' | 'dark' | 'midnight' | 'paper' | 'matrix';
-// --- THÊM TYPE CHO CĂN LỀ ---
 export type ReaderTextAlign = 'text-left' | 'text-justify' | 'text-right' | 'text-center';
 
 export interface ReaderPreferences {

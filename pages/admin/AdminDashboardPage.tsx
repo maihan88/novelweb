@@ -10,10 +10,12 @@ import {
     CircleStackIcon, 
     MagnifyingGlassIcon, 
     XMarkIcon,
-    // UsersIcon // <--- Bỏ import icon này
+    // UsersIcon // <--- Giữ nguyên việc comment dòng này như code gốc
 } from '@heroicons/react/24/solid';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import BannerManager from '../../components/BannerManager';
+import ConfirmationModal from '../../components/ConfirmationModal'; // Import mới
+import { useToast } from '../../contexts/ToastContext'; // Import mới
 
 const StatCard: React.FC<{ title: string; value: string | number; icon: React.ElementType; colorClasses: string; iconBg: string }> =
     ({ title, value, icon: Icon, colorClasses, iconBg }) => (
@@ -30,10 +32,16 @@ const StatCard: React.FC<{ title: string; value: string | number; icon: React.El
 
 const AdminDashboardPage: React.FC = () => {
   const navigate = useNavigate();
+  const { showToast } = useToast(); // Hook
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+
+  // State mới cho Modal Xóa
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; storyId: string | null; storyTitle: string }>({
+    isOpen: false, storyId: null, storyTitle: '',
+  });
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -60,17 +68,25 @@ const AdminDashboardPage: React.FC = () => {
     );
   }, [data, searchTerm]);
 
-  const handleDelete = async (storyId: string, storyTitle: string) => {
-    if (window.confirm(`Bạn có chắc chắn muốn xóa truyện "${storyTitle}" không? Hành động này không thể hoàn tác.`)) {
-      try {
-        await storyService.deleteStory(storyId);
-        const updatedData = await storyService.getDashboardStats();
-        setData(updatedData);
-      } catch (err) {
-        alert('Đã xảy ra lỗi khi xóa truyện.');
-        console.error(err);
-      }
+  // Logic xóa cũ dùng window.confirm -> Thay bằng mở Modal
+  const onRequestDelete = (storyId: string, storyTitle: string) => {
+    setDeleteModal({ isOpen: true, storyId, storyTitle });
+  };
+
+  // Logic thực hiện xóa khi User bấm xác nhận trên Modal
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.storyId) return;
+    try {
+      await storyService.deleteStory(deleteModal.storyId);
+      const updatedData = await storyService.getDashboardStats();
+      setData(updatedData);
+      showToast(`Đã xóa truyện "${deleteModal.storyTitle}" thành công.`, 'success'); // Toast Success
+    } catch (err) {
+      showToast('Đã xảy ra lỗi khi xóa truyện.', 'error'); // Toast Error
+      console.error(err);
     }
+    // Đóng modal sau khi xử lý xong (dù thành công hay thất bại)
+    setDeleteModal(prev => ({ ...prev, isOpen: false }));
   };
 
   if (loading) return <div className="p-10 flex justify-center"><LoadingSpinner /></div>;
@@ -94,7 +110,7 @@ const AdminDashboardPage: React.FC = () => {
         </Link>
       </div>
 
-      {/* Stats Section - SỬA GRID LAYOUT THÀNH 3 CỘT */}
+      {/* Stats Section */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard
             title="Tổng số truyện"
@@ -195,8 +211,9 @@ const AdminDashboardPage: React.FC = () => {
                                   >
                                     <PencilIcon className="h-5 w-5"/>
                                   </button>
+                                  {/* Thay đổi ở đây: Gọi onRequestDelete thay vì handleDelete trực tiếp */}
                                   <button
-                                    onClick={() => handleDelete(story._id, story.title)}
+                                    onClick={() => onRequestDelete(story._id, story.title)}
                                     className="p-2 rounded-lg text-sukem-text-muted hover:bg-red-50 hover:text-red-500 transition-all duration-200"
                                     title="Xóa"
                                   >
@@ -223,8 +240,23 @@ const AdminDashboardPage: React.FC = () => {
           <div className="lg:col-span-1">
              <BannerManager />
           </div>
-
       </div>
+
+      {/* Thêm Modal Confirmation vào cuối cây render */}
+      <ConfirmationModal
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={handleConfirmDelete}
+        title="Xóa truyện"
+        message={
+          <span>
+            Bạn có chắc chắn muốn xóa truyện <strong>{deleteModal.storyTitle}</strong> không?
+            <br />Hành động này không thể hoàn tác.
+          </span>
+        }
+        confirmText="Xóa ngay"
+        isDestructive={true}
+      />
     </div>
   );
 };

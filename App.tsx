@@ -23,6 +23,7 @@ import DonatePage from './pages/DonatePage';
 import SearchPage from './pages/SearchPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
+import { ToastProvider } from './contexts/ToastContext';
 
 const AppContent: React.FC = () => {
   const location = useLocation();
@@ -105,9 +106,11 @@ const App: React.FC = () => {
         <UserPreferencesProvider>
           <StoryProvider>
             <CommentProvider>
-              <HashRouter>
-                <AppContent />
-              </HashRouter>
+              <ToastProvider>
+                <HashRouter>
+                  <AppContent />
+                </HashRouter>
+              </ToastProvider>
             </CommentProvider>
           </StoryProvider>
         </UserPreferencesProvider>

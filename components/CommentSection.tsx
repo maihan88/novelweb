@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Comment } from '../types';
 import { useComments } from '../contexts/CommentContext.tsx';
 import { useAuth } from '../contexts/AuthContext.tsx';
+import { useToast } from '../contexts/ToastContext'; // Import mới
 import CommentItem, { CommentForm } from './CommentItem.tsx';
 import LoadingSpinner from './LoadingSpinner.tsx';
 import ConfirmationModal from './ConfirmationModal.tsx';
@@ -16,6 +17,8 @@ const CommentSection: React.FC<CommentSectionProps> = ({ storyId, chapterId }) =
   const [comments, setComments] = useState<Comment[]>([]);
   const { getCommentsForChapter, addCommentToChapter, deleteCommentFromChapter, loading, error } = useComments();
   const { currentUser } = useAuth();
+  const { showToast } = useToast(); // Hook
+
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
 
@@ -32,9 +35,10 @@ const CommentSection: React.FC<CommentSectionProps> = ({ storyId, chapterId }) =
     try {
         await addCommentToChapter({ storyId, chapterId, text, parentId });
         fetchComments();
+        // Có thể thêm toast success nếu muốn, nhưng thường comment hiện ngay nên thôi
     } catch (err) {
         console.error("Lỗi thêm comment:", err);
-        alert("Thêm bình luận thất bại.");
+        showToast("Thêm bình luận thất bại.", 'error'); // Thay alert
     }
   };
 
@@ -48,9 +52,10 @@ const CommentSection: React.FC<CommentSectionProps> = ({ storyId, chapterId }) =
       try {
           await deleteCommentFromChapter(commentToDelete);
           fetchComments();
+          showToast('Đã xóa bình luận', 'success'); // Thêm toast success
       } catch (err) {
           console.error("Lỗi xóa comment:", err);
-          alert("Xóa bình luận thất bại.");
+          showToast("Xóa bình luận thất bại.", 'error'); // Thay alert
       }
     }
   };
