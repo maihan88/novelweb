@@ -287,7 +287,6 @@ exports.updateStory = async (req, res) => {
         if(isInBanner !== undefined) story.isInBanner = isInBanner;
         if(bannerPriority !== undefined) story.bannerPriority = bannerPriority;
 
-        story.lastUpdatedAt = new Date();
         const updatedStory = await story.save();
         res.json(updatedStory);
     } catch (error) {
@@ -341,7 +340,6 @@ exports.updateVolume = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
-// -------------------------------------
 
 exports.addChapter = async (req, res) => {
     try {
