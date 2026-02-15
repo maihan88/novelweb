@@ -160,6 +160,46 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
         if (command === 'foreColor' && commandValue) setCurrentColor(commandValue);
     };
 
+    const removeBackgroundOnly = () => {
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0) return;
+
+        const range = selection.getRangeAt(0);
+        const editor = editorRef.current;
+        if (!editor) return;
+
+        const cleanElementStyle = (el: HTMLElement) => {
+
+            el.style.removeProperty('background-color');
+            
+            el.removeAttribute('bgcolor');
+            
+            if (!el.getAttribute('style')) {
+                el.removeAttribute('style');
+            }
+        };
+
+        let ancestor = range.commonAncestorContainer;
+        if (ancestor.nodeType === Node.TEXT_NODE && ancestor.parentElement) {
+            ancestor = ancestor.parentElement;
+        }
+        const containerEl = ancestor as HTMLElement;
+
+        if (!editor.contains(containerEl)) return;
+
+        cleanElementStyle(containerEl);
+
+        const allElements = containerEl.getElementsByTagName('*');
+        for (let i = 0; i < allElements.length; i++) {
+            const el = allElements[i] as HTMLElement;
+            if (selection.containsNode(el, true)) {
+                cleanElementStyle(el);
+            }
+        }
+
+        handleInput();
+    };
+
     const processContentInsertion = (htmlData: string | null, textData: string | null) => {
         try {
             let finalHtml = '';
@@ -245,7 +285,6 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
     const handleColorChange = (color: string) => { execCmd('foreColor', color); setCurrentColor(color); setShowColorPicker(false); };
     const handleEyeDropperClick = async () => { const color = await openEyeDropper(); if (color) handleColorChange(color); };
 
-    // Update ToolbarButton: Thêm 'flex items-center justify-center' để nội dung luôn nằm ngang
     const ToolbarButton: React.FC<{ children: React.ReactNode, onClick?: () => void, ariaLabel: string, isActive?: boolean, title?: string, className?: string }> = ({ children, onClick, ariaLabel, isActive, title, className }) => (
         <button type="button" onClick={onClick} onMouseDown={(e) => e.preventDefault()}
             className={`p-2 rounded hover:bg-sukem-bg transition-colors flex items-center justify-center ${isActive ? 'bg-sukem-bg text-sukem-primary font-bold shadow-sm border border-sukem-border' : 'text-sukem-text-muted'} ${className || ''}`}
@@ -313,7 +352,6 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
                                 <PhotoIcon className="w-5 h-5" />
                             </ToolbarButton>
                             
-                            {/* NÚT HD: Đã thêm gap-0.5 để chữ và icon nằm ngang và sát nhau */}
                             <ToolbarButton 
                                 onClick={() => setIsHighQuality(!isHighQuality)} 
                                 ariaLabel="Chế độ HD" 
@@ -322,7 +360,6 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
                                 className={`gap-0.5 ${isHighQuality ? "text-amber-500" : ""}`}
                             >
                                 <SparklesIcon className="w-4 h-4" />
-                                {/* text-[10px] và leading-none giúp chữ nhỏ gọn, không làm phình nút */}
                                 <span className="text-[10px] font-bold leading-none">{isHighQuality ? 'HD' : 'SD'}</span>
                             </ToolbarButton>
                         </div>
@@ -338,7 +375,9 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
                             <ToolbarButton onClick={insertSeparatorStars} ariaLabel="Sao phân cách" title="Chèn 3 ngôi sao"><StarIcon className="w-5 h-5" /></ToolbarButton>
                         </div>
                         <div className="w-px h-5 bg-sukem-border mx-1"></div>
-                        <ToolbarButton onClick={() => execCmd('removeFormat')} ariaLabel="Xóa định dạng" title="Xóa định dạng"><EyeSlashIcon className="w-5 h-5" /></ToolbarButton>
+                        
+                        <ToolbarButton onClick={removeBackgroundOnly} ariaLabel="Xóa nền" title="Xóa màu nền"><EyeSlashIcon className="w-5 h-5" /></ToolbarButton>
+                        
                         <ToolbarButton onClick={() => setShowFind(prev => !prev)} isActive={showFind} ariaLabel="Tìm kiếm" title="Tìm và thay thế"><MagnifyingGlassIcon className="w-5 h-5" /></ToolbarButton>
                     </div>
 
