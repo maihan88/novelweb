@@ -75,15 +75,15 @@ export interface ReaderPreferences {
   lineHeight: number;
   margin: number;
   theme: ReaderTheme;
-  textAlign: ReaderTextAlign; // --- CẬP NHẬT FIELD NÀY ---
+  textAlign: ReaderTextAlign;
 }
 
 export interface Bookmark {
   chapterId: string;
   progress: number;
-  lastRead: string; // ISO Date string
-  chapterTitle?: string; // Optional vì dữ liệu cũ có thể chưa có
-  volumeTitle?: string;  // Optional
+  lastRead: string;
+  chapterTitle?: string;
+  volumeTitle?: string;
 }
 
 export interface User {

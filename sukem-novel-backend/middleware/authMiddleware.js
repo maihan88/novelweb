@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/userModel');
 
-// Middleware bắt buộc đăng nhập (Giữ nguyên logic cũ của bạn)
+// Middleware bắt buộc đăng nhập
 const protect = async (req, res, next) => {
     let token;
 
@@ -26,7 +26,7 @@ const protect = async (req, res, next) => {
     }
 };
 
-// Middleware TÙY CHỌN (Mới): Dùng cho xem truyện
+// Middleware tùy chọn: Dùng cho xem truyện
 // Khách (không token) -> req.user = null -> Vẫn cho qua
 // Admin/User (có token) -> req.user = user data -> Cho qua
 const optionalAuth = async (req, res, next) => {
@@ -37,7 +37,7 @@ const optionalAuth = async (req, res, next) => {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
             req.user = await User.findById(decoded.userId).select('-password');
         } catch (error) {
-            // Token lỗi hoặc hết hạn thì cứ coi như khách vãng lai
+
         }
     }
     next();

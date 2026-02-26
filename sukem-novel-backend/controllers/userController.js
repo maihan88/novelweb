@@ -1,4 +1,3 @@
-// maihan88/novelweb/novelweb-30378715fdd33fd98f7c1318544ef93eab22c598/sukem-novel-backend/controllers/userController.js
 const User = require('../models/userModel');
 const jwt = require('jsonwebtoken');
 
@@ -46,13 +45,11 @@ exports.registerUser = async (req, res) => {
 exports.loginUser = async (req, res) => {
     try {
         const { username, password } = req.body;
-        // Lấy tất cả thông tin người dùng, bao gồm cả preferences
         const user = await User.findOne({ username });
 
         if (user && (await user.comparePassword(password))) {
             const token = generateToken(user._id, user.username, user.role);
 
-            // Trả về đầy đủ thông tin để Frontend sync ngay khi login
             res.json({
                 _id: user._id,
                 username: user.username,
@@ -178,7 +175,6 @@ exports.updateReadingProgress = async (req, res) => {
             if (!finalVolumeTitle) finalVolumeTitle = existingBookmark.volumeTitle;
         }
 
-        // Lưu vào database
         user.bookmarks.set(storyId, {
             chapterId,
             progress: safeProgress, 

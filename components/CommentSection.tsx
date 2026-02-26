@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Comment } from '../types';
 import { useComments } from '../contexts/CommentContext.tsx';
 import { useAuth } from '../contexts/AuthContext.tsx';
-import { useToast } from '../contexts/ToastContext'; // Import mới
+import { useToast } from '../contexts/ToastContext';
 import CommentItem, { CommentForm } from './CommentItem.tsx';
 import LoadingSpinner from './LoadingSpinner.tsx';
 import ConfirmationModal from './ConfirmationModal.tsx';
@@ -17,7 +17,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ storyId, chapterId }) =
   const [comments, setComments] = useState<Comment[]>([]);
   const { getCommentsForChapter, addCommentToChapter, deleteCommentFromChapter, loading, error } = useComments();
   const { currentUser } = useAuth();
-  const { showToast } = useToast(); // Hook
+  const { showToast } = useToast();
 
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
@@ -35,10 +35,9 @@ const CommentSection: React.FC<CommentSectionProps> = ({ storyId, chapterId }) =
     try {
         await addCommentToChapter({ storyId, chapterId, text, parentId });
         fetchComments();
-        // Có thể thêm toast success nếu muốn, nhưng thường comment hiện ngay nên thôi
     } catch (err) {
         console.error("Lỗi thêm comment:", err);
-        showToast("Thêm bình luận thất bại.", 'error'); // Thay alert
+        showToast("Thêm bình luận thất bại.", 'error');
     }
   };
 
@@ -52,10 +51,10 @@ const CommentSection: React.FC<CommentSectionProps> = ({ storyId, chapterId }) =
       try {
           await deleteCommentFromChapter(commentToDelete);
           fetchComments();
-          showToast('Đã xóa bình luận', 'success'); // Thêm toast success
+          showToast('Đã xóa bình luận', 'success');
       } catch (err) {
           console.error("Lỗi xóa comment:", err);
-          showToast("Xóa bình luận thất bại.", 'error'); // Thay alert
+          showToast("Xóa bình luận thất bại.", 'error');
       }
     }
   };
@@ -64,7 +63,6 @@ const CommentSection: React.FC<CommentSectionProps> = ({ storyId, chapterId }) =
     <div className="mt-12 text-sukem-text">
       <h2 className="text-2xl font-bold font-serif mb-4 text-sukem-text border-b border-sukem-border pb-2">Bình luận</h2>
       
-      {/* Form thêm bình luận hoặc thông báo đăng nhập */}
       {currentUser ? (
         <CommentForm onSubmit={(text) => handleAddComment(text)} />
       ) : (
@@ -76,7 +74,6 @@ const CommentSection: React.FC<CommentSectionProps> = ({ storyId, chapterId }) =
       {loading && <div className="py-8"><LoadingSpinner /></div>}
       {error && !loading && <p className="text-red-500 text-center py-8">{error}</p>}
 
-      {/* Danh sách bình luận */}
       <div className="mt-8 space-y-6">
         {!loading && comments.map(comment => (
           <CommentItem

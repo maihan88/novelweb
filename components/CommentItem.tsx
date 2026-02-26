@@ -4,7 +4,6 @@ import { Comment } from '../types';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { TrashIcon, ArrowUturnLeftIcon } from '@heroicons/react/24/solid';
 
-// --- COMPONENT COMMENT FORM ---
 export const CommentForm: React.FC<{
   onSubmit: (text: string) => Promise<void>;
   buttonText?: string;
@@ -35,7 +34,6 @@ export const CommentForm: React.FC<{
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        // Input: bg-sukem-bg
         className="text-sm w-full p-2 border rounded-lg bg-sukem-bg border-sukem-border focus:ring-2 focus:ring-sukem-primary text-sukem-text placeholder-sukem-text-muted transition-colors outline-none"
         placeholder="Viết bình luận của bạn..."
         rows={3}
@@ -54,8 +52,6 @@ export const CommentForm: React.FC<{
     </form>
   );
 };
-
-// --- INTERFACE PROPS CHO COMMENT ITEM ---
 interface CommentItemProps {
   comment: Comment;
   onReply: (parentId: string, text: string) => Promise<void>;
@@ -85,22 +81,17 @@ const CommentItem: React.FC<CommentItemProps> = ({ comment, onReply, onDelete })
 
   return (
     <div className="flex flex-col animate-fade-in">
-        {/* Phần comment chính */}
         <div className="flex gap-3">
-            {/* Avatar Placeholder: Dùng màu secondary */}
             <div className="w-10 h-10 rounded-full bg-sukem-secondary/20 flex-shrink-0 flex items-center justify-center text-sukem-secondary font-bold text-lg border border-sukem-secondary/30">
                 {comment.username ? comment.username.charAt(0).toUpperCase() : '?'}
             </div>
             
-            {/* Nội dung comment */}
             <div className="flex-grow">
-                {/* Bubble: bg-sukem-bg */}
                 <div className="bg-sukem-bg rounded-2xl rounded-tl-none p-3 border border-sukem-border shadow-sm">
                     <p className="font-semibold text-sm text-sukem-text">{comment.username}</p>
                     <p className="mt-1 text-sm text-sukem-text whitespace-pre-wrap leading-relaxed">{comment.text}</p>
                 </div>
                 
-                {/* Actions */}
                 <div className="flex items-center gap-3 text-xs text-sukem-text-muted mt-1.5 pl-1">
                     <span>{formatTimestamp(comment.timestamp)}</span>
                     
@@ -119,7 +110,6 @@ const CommentItem: React.FC<CommentItemProps> = ({ comment, onReply, onDelete })
             </div>
         </div>
 
-        {/* Form trả lời */}
         {isReplying && (
             <div className="ml-12 mt-3 border-l-2 border-sukem-border pl-4 py-2">
                 <CommentForm
@@ -130,7 +120,6 @@ const CommentItem: React.FC<CommentItemProps> = ({ comment, onReply, onDelete })
             </div>
         )}
 
-        {/* Phần hiển thị các comment trả lời (đệ quy) */}
         {comment.replies && comment.replies.length > 0 && (
             <div className="ml-8 mt-4 pl-4 border-l-2 border-sukem-border space-y-4">
                 {comment.replies.map(reply => (

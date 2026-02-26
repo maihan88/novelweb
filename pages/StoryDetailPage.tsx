@@ -18,7 +18,7 @@ import { formatDate } from '../utils/formatDate';
 
 const cn = (...inputs: (string | undefined | null | false)[]) => twMerge(clsx(inputs));
 
-const ITEMS_PER_PAGE = 50;
+const ITEMS_PER_PAGE = 30;
 
 interface ChapterWithVolume extends Chapter {
     volumeTitle: string;
@@ -167,7 +167,6 @@ const StoryDetailPage: React.FC = () => {
                             <div className="flex-1 min-w-0 flex flex-col h-full self-stretch">
                                 <div className="flex flex-wrap items-center gap-2 mb-2 justify-center sm:justify-start">
                                     <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full border", statusClasses)}>{story.status}</span>
-                                    {story.isHot && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500 text-white">HOT</span>}
                                 </div>
 
                                 <h1 className="text-2xl md:text-3xl font-bold font-serif text-sukem-text leading-tight text-center sm:text-left mb-1">{story.title}</h1>
@@ -223,8 +222,7 @@ const StoryDetailPage: React.FC = () => {
 
                                 {/* Buttons */}
                                 <div className="flex flex-wrap gap-3 mt-4 md:flex-nowrap md:gap-2">
-                                    {/* 1. NÚT ĐỌC (Tiếp hoặc Ngay) */}
-                                    {/* Mobile: w-full để chiếm hết dòng đầu tiên. Desktop: flex-1 để tự co giãn như cũ */}
+                                    {/* 1. NÚT ĐỌC */}
                                     {currentBookmark ? (
                                         <Link 
                                             to={`/story/${story.id}/chapter/${currentBookmark.chapterId}`} 
@@ -245,8 +243,6 @@ const StoryDetailPage: React.FC = () => {
                                     )}
 
                                     {/* 2. NÚT ĐỌC LẠI */}
-                                    {/* Thứ tự DOM giữ nguyên ngay sau nút Đọc. */}
-                                    {/* Mobile: flex-1 để chiếm phần còn lại của dòng 2. Desktop: flex-none (hoặc mặc định) để hiển thị như cũ */}
                                     {currentBookmark && (
                                         <button 
                                             onClick={handleReadFromBeginning} 
@@ -257,7 +253,6 @@ const StoryDetailPage: React.FC = () => {
                                     )}
 
                                     {/* 3. NÚT YÊU THÍCH */}
-                                    {/* Mobile: Chỉ hiện icon, không co giãn. Desktop: Giữ nguyên */}
                                     {currentUser && (
                                         <button 
                                             onClick={() => toggleFavorite(story.id)} 

@@ -30,7 +30,6 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     onClose();
   };
 
-  // Nút confirm: Nếu destructive thì dùng màu đỏ, ngược lại dùng sukem-primary
   const defaultConfirmClass = isDestructive
     ? 'bg-red-600 hover:bg-red-700 focus-visible:ring-red-500'
     : 'bg-sukem-primary hover:opacity-90 focus-visible:ring-sukem-primary';

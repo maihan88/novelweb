@@ -4,7 +4,6 @@ const Story = require('./models/storyModel');
 
 dotenv.config();
 
-// Mock data from frontend
 const MOCK_STORIES = [
   {
     id: 'thap-co-chi-chu',
@@ -95,19 +94,15 @@ const MOCK_STORIES = [
 
 const importData = async () => {
     try {
-        // Connect to MongoDB
         await mongoose.connect(process.env.MONGO_URI, {
             useNewUrlParser: true,
             useUnifiedTopology: true,
         });
 
-        // Clear existing data
         await Story.deleteMany();
         console.log('Cleared existing data');
 
-        // Insert mock data
         const storiesToInsert = MOCK_STORIES.map(story => {
-            // Remove _id if it exists and let Mongoose generate new ones
             const { _id, ...rest } = story;
             return rest;
         });
@@ -115,7 +110,6 @@ const importData = async () => {
         await Story.insertMany(storiesToInsert);
         console.log('✅ Data imported successfully!');
         
-        // Disconnect from database
         await mongoose.disconnect();
         process.exit(0);
     } catch (error) {

@@ -1,4 +1,4 @@
-const mongoose = require('mongoose'); // <-- Đảm bảo bạn đã import mongoose
+const mongoose = require('mongoose');
 const Comment = require('../models/commentModel');
 
 // @desc    Lấy tất cả bình luận cho một chương và phân cấp chúng
@@ -48,7 +48,6 @@ exports.addComment = async (req, res) => {
             return res.status(400).json({ message: 'Nội dung không được để trống' });
         }
 
-        // Kiểm tra parentId nếu có
         if (parentId && !mongoose.Types.ObjectId.isValid(parentId)) {
             return res.status(400).json({ message: 'ID bình luận cha không hợp lệ' });
         }

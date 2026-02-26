@@ -6,7 +6,6 @@ export const getComments = async (storyId: string, chapterId: string): Promise<C
   return response.data;
 };
 
-// Kiểu dữ liệu mới cho việc tạo bình luận, parentId là tùy chọn
 type AddCommentData = {
     storyId: string;
     chapterId: string;

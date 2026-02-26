@@ -1,4 +1,3 @@
-// maihan88/novelweb/novelweb-367f3a44cd5ec3aa64d1df30fd841fd8db53199c/sukem-novel-backend/models/storyModel.js
 const mongoose = require('mongoose');
 
 const slugify = (text) => {
@@ -20,7 +19,7 @@ const volumeSchema = new mongoose.Schema({
 }, { _id: false });
 
 const storySchema = new mongoose.Schema({
-    id: { type: String, unique: true }, // Bỏ index: true vì unique đã bao gồm index
+    id: { type: String, unique: true },
     title: { type: String, required: true },
     alias: { type: [String], default: [] },
     author: { type: String, required: true },
@@ -44,7 +43,6 @@ const storySchema = new mongoose.Schema({
     id: false
 });
 
-// Index tổng hợp cho hiệu năng query
 storySchema.index({ isInBanner: 1, bannerPriority: 1 });
 storySchema.index({ isHot: 1, lastUpdatedAt: -1 });
 storySchema.index({ lastUpdatedAt: -1 });

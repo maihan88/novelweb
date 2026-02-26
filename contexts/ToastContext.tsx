@@ -31,7 +31,6 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const id = Date.now();
     setToasts((prev) => [...prev, { id, message, type }]);
 
-    // Tự động đóng sau 5 giây (5000ms)
     setTimeout(() => {
       setToasts((prev) => prev.filter((toast) => toast.id !== id));
     }, 5000);
@@ -44,7 +43,6 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      {/* Container hiển thị Toast */}
       <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-2 w-full max-w-sm pointer-events-none">
         {toasts.map((toast) => (
           <Transition

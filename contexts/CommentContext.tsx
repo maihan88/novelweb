@@ -2,7 +2,6 @@ import React, { createContext, useContext, ReactNode, useCallback, useState } fr
 import { Comment } from '../types';
 import * as commentService from '../services/commentService.ts';
 
-// Định nghĩa kiểu dữ liệu cho việc tạo bình luận mới, khớp với commentService
 type AddCommentData = Parameters<typeof commentService.addComment>[0];
 
 interface CommentContextType {

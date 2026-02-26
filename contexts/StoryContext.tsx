@@ -23,14 +23,14 @@ interface StoryContextType {
   addChapterToVolume: (storyId: string, volumeId: string, chapterData: Omit<Chapter, 'id' | '_id' | 'createdAt' | 'views'>) => Promise<Chapter>;
   updateChapterInVolume: (storyId: string, volumeId: string, updatedChapterData: Omit<Chapter, 'createdAt'| 'views' | '_id'>) => Promise<Chapter>;
   deleteChapterFromVolume: (storyId: string, volumeId: string, chapterId: string) => Promise<void>;
-  reorderChaptersInVolume: (storyId: string, volumeId: string, orderedChapterIds: string[]) => Promise<void>; // <--- Thêm mới
+  reorderChaptersInVolume: (storyId: string, volumeId: string, orderedChapterIds: string[]) => Promise<void>;
 }
 
 const StoryContext = createContext<StoryContextType | undefined>(undefined);
 
 export const StoryProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [stories, setStories] = useState<Story[]>([]); // Khởi tạo với mảng rỗng
-  const [loading, setLoading] = useState<boolean>(true); // Bắt đầu với loading = true
+  const [stories, setStories] = useState<Story[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchStories = useCallback(async () => {
@@ -53,7 +53,6 @@ export const StoryProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const getStoryById = useCallback(async (id: string): Promise<Story | undefined> => {
     try {
         const story = await storyService.getStoryById(id);
-        // Cập nhật lại danh sách truyện nếu truyện đó chưa có trong state
         setStories(prev => {
             const exists = prev.some(s => s.id === id);
             if (exists) {
@@ -71,7 +70,6 @@ export const StoryProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   
 const addRatingToStory = useCallback(async (storyId: string, rating: number) => {
     try {
-        // Gọi API backend
         const updatedStory = await storyService.rateStory(storyId, rating);
         
         setStories(prevStories => prevStories.map(story => 
@@ -79,7 +77,7 @@ const addRatingToStory = useCallback(async (storyId: string, rating: number) => 
         ));
     } catch (err) {
         console.error("Lỗi khi gửi đánh giá:", err);
-        throw err; // Ném lỗi để component UI (StoryDetailPage) có thể bắt và hiển thị thông báo
+        throw err;
     }
   }, []);
   
@@ -115,10 +113,10 @@ const addRatingToStory = useCallback(async (storyId: string, rating: number) => 
       }
   }, []);
 
-  // Các hàm quản lý Volume và Chapter không cần thay đổi
+  // Các hàm quản lý Volume và Chapter
   const addVolume = useCallback(async (storyId: string, volumeTitle: string) => {
     const newVolume = await storyService.addVolume(storyId, { title: volumeTitle });
-    await fetchStories(); // Tải lại để đảm bảo dữ liệu đồng bộ
+    await fetchStories();
     return newVolume;
   }, [fetchStories]);
 
@@ -134,7 +132,6 @@ const addRatingToStory = useCallback(async (storyId: string, rating: number) => 
   }, [fetchStories]);
 
     const reorderVolumesInStory = useCallback(async (storyId: string, orderedVolumeIds: string[]) => {
-      // Cập nhật state ngay lập tức để UI mượt
       setStories(prev => prev.map(s => {
           if (s.id === storyId) {
               const reorderedVolumes = orderedVolumeIds.map(id => s.volumes.find(v => v.id === id)).filter((v): v is Volume => !!v);
@@ -142,12 +139,11 @@ const addRatingToStory = useCallback(async (storyId: string, rating: number) => 
           }
           return s;
       }));
-      // Gọi API để lưu thay đổi
       try {
           await storyService.reorderVolumes(storyId, orderedVolumeIds);
       } catch (err) {
           console.error("Lỗi sắp xếp tập, khôi phục lại trạng thái cũ.", err);
-          fetchStories(); // Tải lại để đảm bảo đồng bộ nếu có lỗi
+          fetchStories();
       }
   }, [fetchStories]);
 
@@ -169,7 +165,6 @@ const addRatingToStory = useCallback(async (storyId: string, rating: number) => 
   }, [fetchStories]);
 
     const reorderChaptersInVolume = useCallback(async (storyId: string, volumeId: string, orderedChapterIds: string[]) => {
-      // Cập nhật state
       setStories(prev => prev.map(s => {
           if (s.id === storyId) {
               return {
@@ -185,7 +180,6 @@ const addRatingToStory = useCallback(async (storyId: string, rating: number) => 
           }
           return s;
       }));
-      // Gọi API
       try {
           await storyService.reorderChapters(storyId, volumeId, orderedChapterIds);
       } catch (err) {

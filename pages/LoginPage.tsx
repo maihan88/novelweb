@@ -27,8 +27,7 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-sukem-bg p-4 animate-fade-in relative overflow-hidden transition-colors duration-300">
-      {/* Background Blobs (Màu Primary/Accent) */}
+    <div className="min-h-screen flex items-center justify-center bg-sukem-bg p-4 animate-fade-in relative overflow-hidden transition-colors duration-300 ">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-sukem-primary/20 rounded-full blur-3xl opacity-30 animate-blob"></div>
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-sukem-accent/20 rounded-full blur-3xl opacity-30 animate-blob" style={{ animationDelay: '2s' }}></div>
@@ -43,11 +42,11 @@ const LoginPage: React.FC = () => {
             {/* Banner Side */}
             <div className="w-full md:w-1/2 p-12 flex flex-col items-center justify-center text-center bg-gradient-to-br from-sukem-primary via-rose-400 to-sukem-accent text-white relative">
                <div className="relative z-10">
-                  <div className="mb-6 transform transition-transform duration-300 hover:scale-110">
+                  <div className="mb-6">
                     <BookOpenIcon className="h-24 w-24 text-white drop-shadow-md mx-auto" />
                   </div>
-                  <h1 className="text-4xl font-bold font-serif mb-3">Sukem Novel</h1>
-                  <p className="text-white/90 text-sm leading-relaxed max-w-xs mx-auto">Nơi những câu chuyện ngọt ngào bắt đầu.</p>
+                  <h1 className="text-4xl font-bold font-serif mb-3">SukemNovel</h1>
+                  <p className="text-white/90 text-sm leading-relaxed max-w-xs mx-auto">Nơi bạn đắm chìm vào hành trình của các nhân vật thông qua những câu chuyện tuyệt vời.</p>
                </div>
             </div>
 

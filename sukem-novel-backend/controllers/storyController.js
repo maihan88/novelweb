@@ -70,13 +70,11 @@ exports.getAllStories = async (req, res) => {
         const keyword = req.query.keyword;
         const isHot = req.query.isHot === 'true';
         
-        // Nhận tham số khoảng chương (VD: "0-50", "1000-max")
         const chapterRange = req.query.chapterRange;
         
         let minChapter = 0;
         let maxChapter = 999999;
 
-        // Phân tích chapterRange thành min/max
         if (chapterRange) {
             const parts = chapterRange.split('-');
             if (parts.length === 2) {
@@ -250,7 +248,6 @@ exports.getChapterContent = async (req, res) => {
 };
 
 // --- ADMIN FUNCTIONS ---
-
 exports.createStory = async (req, res) => {
     try {
         const { title, author, description, coverImage, tags, status, isHot, isInBanner, alias } = req.body;
@@ -276,16 +273,15 @@ exports.updateStory = async (req, res) => {
         const story = await Story.findOne(query);
         if (!story) return res.status(404).json({ message: 'Story not found' });
 
-        const { title, author, description, coverImage, status, isHot, isInBanner, bannerPriority } = req.body;
+        const { title, author, description, coverImage, status, alias, tags } = req.body;
         
         if(title) story.title = title;
         if(author) story.author = author;
         if(description) story.description = description;
         if(coverImage) story.coverImage = coverImage;
         if(status) story.status = status;
-        if(isHot !== undefined) story.isHot = isHot;
-        if(isInBanner !== undefined) story.isInBanner = isInBanner;
-        if(bannerPriority !== undefined) story.bannerPriority = bannerPriority;
+        if(alias) story.alias = alias;
+        if(tags) story.tags = tags;
 
         const updatedStory = await story.save();
         res.json(updatedStory);
@@ -309,7 +305,7 @@ exports.addVolume = async (req, res) => {
     }
 };
 
-// --- HÀM MỚI THÊM: Cập nhật Volume ---
+// Cập nhật Volume ---
 exports.updateVolume = async (req, res) => {
     try {
         const { title } = req.body;
@@ -320,17 +316,14 @@ exports.updateVolume = async (req, res) => {
             return res.status(404).json({ message: 'Story not found' });
         }
 
-        // Tìm volume trong mảng volumes
         const volume = story.volumes.find(v => v.id === req.params.volumeId);
         
         if (!volume) {
             return res.status(404).json({ message: 'Volume not found' });
         }
 
-        // Cập nhật dữ liệu
         if (title) volume.title = title;
 
-        // Lưu thay đổi
         story.lastUpdatedAt = new Date();
         await story.save();
 
@@ -494,4 +487,45 @@ exports.reorderVolumes = async (req, res) => {
         await story.save();
         res.json(story.volumes);
     } catch(e) { res.status(500).json({message: "Error"}); }
+};
+
+// @desc    Lấy danh sách truyện nổi bật 
+// @route   GET /api/stories/featured/list
+exports.getFeaturedStories = async (req, res) => {
+    try {
+        const stories = await Story.aggregate([
+            { $match: { isHot: true } },
+            { $sort: { bannerPriority: 1, lastUpdatedAt: -1 } },
+            { $limit: 10 },
+            { $lookup: { from: 'chapters', localField: '_id', foreignField: 'storyId', as: 'chapterList' } },
+            { $addFields: { 
+                chapterCount: { $size: { $filter: { input: "$chapterList", as: "ch", cond: { $ne: ["$$ch.isRaw", true] } } } }
+            }},
+            { $project: { chapterList: 0 } }
+        ]);
+        res.json(stories);
+    } catch (error) {
+        console.error("Featured Error:", error);
+        res.status(500).json({ message: "Server Error" });
+    }
+};
+
+// @desc    Cập nhật trạng thái Nổi Bật của truyện
+// @route   PUT /api/stories/:id/featured
+exports.updateStoryFeaturedConfig = async (req, res) => {
+    try {
+        const { isHot } = req.body;
+        const query = getStoryQuery(req.params.id);
+        const story = await Story.findOne(query);
+
+        if(story) {
+            story.isHot = isHot;
+            await story.save();
+            res.json(story);
+        } else {
+            res.status(404).json({ message: "Story not found" });
+        }
+    } catch (error) {
+        res.status(500).json({ message: "Server Error" });
+    }
 };

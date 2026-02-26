@@ -6,7 +6,7 @@ import {
     PlusIcon, TrashIcon, PencilIcon, ArrowPathIcon,
     ArrowUpIcon, ArrowDownIcon, PhotoIcon, ArrowUturnLeftIcon,
     ExclamationTriangleIcon, MagnifyingGlassIcon, CheckIcon, DocumentTextIcon,
-    XMarkIcon // Import thêm XMarkIcon
+    XMarkIcon
 } from '@heroicons/react/24/solid';
 import { uploadImage } from '../../services/uploadService';
 import LoadingSpinner from '../../components/LoadingSpinner';
@@ -62,10 +62,8 @@ const StoryEditPage: React.FC = () => {
     const [adminChapterSearchTerm, setAdminChapterSearchTerm] = useState('');
     const [confirmDelete, setConfirmDelete] = useState<ConfirmDeleteState>({ isOpen: false, itemType: null, itemId: '', itemTitle: '' });
 
-    // --- State cho Inline Editing (Sửa tên tập) ---
     const [editingVolumeId, setEditingVolumeId] = useState<string | null>(null);
     const [editVolumeTitle, setEditVolumeTitle] = useState('');
-    // ----------------------------------------------
 
     useEffect(() => {
         setLoading(true);
@@ -93,7 +91,7 @@ const StoryEditPage: React.FC = () => {
             setIsNewStory(true);
             setStoryData({
                 title: '', author: '', alias: [], description: '', coverImage: '',
-                tags: [], status: 'Đang dịch', isHot: false, isInBanner: false, volumes: []
+                tags: [], status: 'Đang dịch', volumes: []
             });
             setTagsInput('');
             setAliasInput('');
@@ -135,12 +133,14 @@ const StoryEditPage: React.FC = () => {
     const handleStorySubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+        
         if (!storyData.title?.trim() || !storyData.author?.trim() || !storyData.coverImage?.trim()) {
             setError("Tên truyện, Tác giả và Ảnh bìa là bắt buộc.");
             window.scrollTo(0, 0);
             return;
         }
-        const submitData = {
+
+        const submitData: any = {
             title: storyData.title.trim(),
             author: storyData.author.trim(),
             description: storyData.description || '',
@@ -148,10 +148,14 @@ const StoryEditPage: React.FC = () => {
             tags: storyData.tags || [],
             alias: storyData.alias || [],
             status: storyData.status || 'Đang dịch',
-            isHot: !!storyData.isHot,
-            isInBanner: !!storyData.isInBanner,
-            totalViews: 0
         };
+
+        if (isNewStory) {
+            submitData.isHot = false;
+            submitData.isInBanner = false;
+            submitData.totalViews = 0;
+        }
+
         setIsSaving(true);
         try {
             if (isNewStory) {
@@ -180,9 +184,11 @@ const StoryEditPage: React.FC = () => {
     const openConfirmation = (type: 'volume' | 'chapter', id: string, title: string, volId?: string) => {
         setConfirmDelete({ isOpen: true, itemType: type, itemId: id, itemTitle: title, volumeId: volId });
     };
+
     const closeConfirmation = () => {
         setConfirmDelete({ isOpen: false, itemType: null, itemId: '', itemTitle: '' });
     };
+
     const handleConfirmDelete = async () => {
         if (!confirmDelete.itemType || !storyId) return;
         try {
@@ -228,19 +234,16 @@ const StoryEditPage: React.FC = () => {
         openConfirmation('volume', volumeId, volumeTitle);
     }, []);
 
-    // --- LOGIC MỚI: Bắt đầu sửa tên tập (Inline) ---
     const startEditingVolume = (volumeId: string, currentTitle: string) => {
         setEditingVolumeId(volumeId);
         setEditVolumeTitle(currentTitle);
     };
 
-    // --- LOGIC MỚI: Hủy sửa ---
     const cancelEditingVolume = () => {
         setEditingVolumeId(null);
         setEditVolumeTitle('');
     };
 
-    // --- LOGIC MỚI: Lưu tên tập (Thay thế prompt) ---
     const saveVolumeTitle = async () => {
         if (!storyId || !editingVolumeId || !editVolumeTitle.trim()) return;
         
@@ -263,7 +266,6 @@ const StoryEditPage: React.FC = () => {
             console.error(err);
         }
     };
-    // ------------------------------------------------
 
     const handleMove = useCallback(async (direction: 'up' | 'down', type: 'volume' | 'chapter', ids: { volumeId?: string; chapterId?: string }) => {
         if (!storyId || !storyData.volumes) return;
@@ -420,7 +422,8 @@ const StoryEditPage: React.FC = () => {
                             <div><label htmlFor="alias" className={labelStyles}>Tên khác <span className="text-xs font-normal text-sukem-text-muted">(cách nhau bởi dấu phẩy)</span></label><input id="alias" name="alias" value={aliasInput} onChange={(e) => handleStringToArrayChange(e, 'alias')} className={inputStyles} placeholder="Tên gọi khác..." /></div>
                             <div><label htmlFor="tags" className={labelStyles}>Tags <span className="text-xs font-normal text-sukem-text-muted">(cách nhau bởi dấu phẩy)</span></label><input id="tags" name="tags" value={tagsInput} onChange={(e) => handleStringToArrayChange(e, 'tags')} className={inputStyles} placeholder="Tiên hiệp, Huyền huyễn..." /></div>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-2">
+                        
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 pt-2">
                             <div>
                                 <label htmlFor="status" className={labelStyles}>Trạng thái</label>
                                 <select id="status" name="status" value={storyData.status} onChange={handleStoryChange} className={inputStyles}>
@@ -428,17 +431,8 @@ const StoryEditPage: React.FC = () => {
                                     <option value="Hoàn thành">Hoàn thành</option>
                                 </select>
                             </div>
-                            <div className="flex flex-col justify-end space-y-3 pt-2 sm:pt-0">
-                                <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-sukem-bg transition-colors border border-transparent hover:border-sukem-border">
-                                    <input type="checkbox" id="isHot" name="isHot" checked={!!storyData.isHot} onChange={handleStoryChange} className="h-4 w-4 text-red-500 border-sukem-border rounded focus:ring-red-500 bg-white" />
-                                    <span className="text-sm font-bold text-sukem-text select-none">Đánh dấu "Hot"</span>
-                                </label>
-                                <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-sukem-bg transition-colors border border-transparent hover:border-sukem-border">
-                                    <input type="checkbox" id="isInBanner" name="isInBanner" checked={!!storyData.isInBanner} onChange={handleStoryChange} className="h-4 w-4 text-sukem-accent border-sukem-border rounded focus:ring-sukem-accent bg-white" />
-                                    <span className="text-sm font-bold text-sukem-text select-none">Hiển thị trên Banner</span>
-                                </label>
-                            </div>
                         </div>
+                        
                         <div><label htmlFor="description" className={labelStyles}>Mô tả</label><textarea id="description" name="description" value={storyData.description || ''} onChange={handleStoryChange} rows={6} className={inputStyles + " min-h-[100px]"} placeholder="Nhập tóm tắt nội dung truyện..."></textarea></div>
                     </div>
                 </div>
@@ -593,6 +587,7 @@ const StoryEditPage: React.FC = () => {
                 isDestructive={true}
             />
 
+            {/* Nút lưu cho Mobile */}
             <div className="fixed bottom-0 left-0 right-0 p-4 bg-sukem-card border-t border-sukem-border z-50 sm:hidden shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
                 <button
                     form="storyForm"

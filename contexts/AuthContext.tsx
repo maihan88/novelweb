@@ -1,17 +1,9 @@
-// file: contexts/AuthContext.tsx
-
 import React, { createContext, useContext, ReactNode, useEffect } from 'react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { User, Bookmark } from '../types';
-import api from '../services/api'; 
+import { userService, AuthResponse } from '../services/userService';
 
-// Định nghĩa lại interface User có chứa preferences
-interface AuthenticatedUser extends User {
-  token: string;
-  favorites: string[];
-  bookmarks: Record<string, Bookmark>;
-  ratedStories: Record<string, number>;
-}
+export interface AuthenticatedUser extends AuthResponse {}
 
 interface AuthContextType {
   currentUser: AuthenticatedUser | null;
@@ -24,25 +16,17 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Lấy user từ localStorage (có thể dữ liệu cũ)
   const [currentUser, setCurrentUser] = useLocalStorage<AuthenticatedUser | null>('currentUser', null);
 
-  // --- LOGIC ĐỒNG BỘ: Chạy 1 lần khi load web ---
   useEffect(() => {
     const syncUser = async () => {
       if (currentUser?.token) {
         try {
-          const response = await api.get('/users/profile');
-          const freshUser = response.data;
-
+          const freshUser = await userService.getProfile();
           setCurrentUser((prev) => {
              if (!prev) return null;
-             return {
-                 ...prev,
-                 ...freshUser,
-             };
+             return { ...prev, ...freshUser } as AuthenticatedUser;
           });
-
         } catch (error) {
           console.error("Lỗi đồng bộ phiên đăng nhập:", error);
           logout();
@@ -51,14 +35,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
     
     syncUser();
-  }, []);
+  }, [currentUser?.token]);
 
   const login = async (username: string, pass: string): Promise<{ success: boolean, message: string }> => {
     try {
-      const response = await api.post('/users/login', { username, password: pass });
-      if (response.data && response.data.token) {
-        // Lưu user vào state & localStorage
-        setCurrentUser(response.data);
+      const userData = await userService.login(username, pass);
+      if (userData && userData.token) {
+        setCurrentUser(userData);
         return { success: true, message: 'Đăng nhập thành công!' };
       }
       return { success: false, message: 'Dữ liệu trả về không hợp lệ.' };
@@ -70,7 +53,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const register = async (username: string, pass: string): Promise<{ success: boolean, message: string }> => {
     try {
-      const response = await api.post('/users/register', { username, password: pass });
+      const response = await userService.register(username, pass);
       if (response.status === 201) {
         return { success: true, message: 'Đăng ký thành công! Vui lòng đăng nhập.' };
       }
@@ -83,7 +66,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = () => {
     setCurrentUser(null);
-    // Có thể cần clear thêm localStorage thủ công nếu hook không tự handle hết
     localStorage.removeItem('currentUser'); 
   };
 

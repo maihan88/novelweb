@@ -62,10 +62,10 @@ const RegisterPage: React.FC = () => {
                {/* Banner Side */}
               <div className="w-full md:w-1/2 p-12 flex flex-col items-center justify-center text-center bg-gradient-to-br from-sukem-primary via-rose-400 to-sukem-accent text-white relative">
                 <div className="relative z-10">
-                  <div className="mb-6 transform transition-transform duration-300 hover:scale-110">
+                  <div className="mb-6">
                     <UserPlusIcon className="h-24 w-24 text-white drop-shadow-md mx-auto" />
                   </div>
-                  <h1 className="text-4xl font-bold font-serif mb-3">Gia nhập cộng đồng</h1>
+                  <h1 className="text-4xl font-bold font-serif mb-3">Chào mừng độc giả</h1>
                   <p className="text-white/90 text-sm leading-relaxed max-w-xs mx-auto">
                       Tạo tài khoản để lưu truyện yêu thích, theo dõi tiến độ đọc và tham gia bình luận.
                   </p>
@@ -78,14 +78,12 @@ const RegisterPage: React.FC = () => {
                   Tạo tài khoản
                 </h2>
                 <form className="space-y-5" onSubmit={handleSubmit}>
-                   {/* Thông báo lỗi */}
                   {error && (
                     <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-start gap-3 text-sm text-red-600">
                         <ExclamationTriangleIcon className="h-5 w-5 flex-shrink-0 mt-0.5"/>
                         <span className="flex-1">{error}</span>
                     </div>
                   )}
-                   {/* Thông báo thành công */}
                   {success && (
                       <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl flex items-start gap-3 text-sm text-green-600">
                          <CheckCircleIcon className="h-5 w-5 flex-shrink-0 mt-0.5"/>

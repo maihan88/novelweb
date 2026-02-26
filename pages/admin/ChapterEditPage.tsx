@@ -17,9 +17,8 @@ import {
 import { ArrowUturnLeftIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import CustomEditor from '../../components/CustomEditor';
-import { useToast } from '../../contexts/ToastContext'; // Import mới
+import { useToast } from '../../contexts/ToastContext';
 
-// --- HÀM GỢI Ý TIÊU ĐỀ (Giữ nguyên) ---
 const getNextChapterTitle = (currentTitle: string): string => {
     const match = currentTitle.match(/^(.*?)([:\s-])?(\d+)$/);
     if (match) {
@@ -37,7 +36,6 @@ const getNextChapterTitle = (currentTitle: string): string => {
     return currentTitle + ' (Tiếp theo)';
 };
 
-// --- COMPONENT BUTTON TOOLTIP (Giữ nguyên) ---
 const TooltipButton: React.FC<{
     onClick: () => void;
     disabled?: boolean;
@@ -161,11 +159,11 @@ const ChapterEditPage: React.FC = () => {
             if (isNew) {
                 const newChapter = await addChapterToVolume(storyId, volumeId, { title, content, isRaw });
                 savedChapterId = newChapter.id;
-                showToast(`Đã thêm chương "${title}"!`, 'success'); // Toast
+                showToast(`Đã thêm chương "${title}"!`, 'success');
             } else if (savedChapterId) {
                 const chapterToUpdate: Omit<Chapter, 'createdAt' | 'views' | '_id'> = { id: savedChapterId, title, content, isRaw };
                 await updateChapterInVolume(storyId, volumeId, chapterToUpdate);
-                showToast(`Đã cập nhật chương "${title}"!`, 'success'); // Toast
+                showToast(`Đã cập nhật chương "${title}"!`, 'success');
             } else {
                  throw new Error("Không xác định được ID chương.");
             }
@@ -208,7 +206,7 @@ const ChapterEditPage: React.FC = () => {
         } catch (err: any) {
             const msg = err.message || 'Lỗi không xác định';
             setError('Lưu thất bại: ' + msg);
-            showToast('Lưu thất bại', 'error'); // Toast Error
+            showToast('Lưu thất bại', 'error');
             console.error(err);
             window.scrollTo({ top: 0, behavior: 'smooth' });
         } finally {
@@ -252,7 +250,6 @@ const ChapterEditPage: React.FC = () => {
         </div>
       </div>
 
-       {/* Thông báo lỗi */}
         {error && (
              <div className="p-4 bg-red-50 border-l-4 border-red-500 rounded-r-xl flex items-center gap-3 text-sm text-red-700 shadow-sm">
                 <ExclamationTriangleIcon className="h-6 w-6 flex-shrink-0"/>

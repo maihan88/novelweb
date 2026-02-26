@@ -7,7 +7,7 @@ const {
     updateStory,
     deleteStory,
     addVolume,
-    updateVolume, // <--- Đã thêm
+    updateVolume,
     addChapter,
     updateChapter,
     deleteChapter,
@@ -16,7 +16,9 @@ const {
     getChapterContent, 
     incrementChapterView,
     reorderVolumes,
-    getDashboardStats
+    getDashboardStats,
+    getFeaturedStories,
+    updateStoryFeaturedConfig
 } = require('../controllers/storyController');
 const { protect, admin, optionalAuth } = require('../middleware/authMiddleware');
 
@@ -42,11 +44,14 @@ router.put('/:id/banner', protect, admin, updateStoryBannerConfig);
 // Volumes
 router.post('/:id/volumes', protect, admin, addVolume);
 router.put('/:id/volumes/reorder', protect, admin, reorderVolumes);
-router.put('/:id/volumes/:volumeId', protect, admin, updateVolume); // <--- Đã thêm route này
+router.put('/:id/volumes/:volumeId', protect, admin, updateVolume);
 
 // Chapters
 router.post('/:id/volumes/:volumeId/chapters', protect, admin, addChapter);
 router.put('/:id/volumes/:volumeId/chapters/:chapterId', protect, admin, updateChapter); 
 router.delete('/:id/volumes/:volumeId/chapters/:chapterId', protect, admin, deleteChapter);
+
+router.get('/featured/list', getFeaturedStories);
+router.put('/:id/featured', protect, admin, updateStoryFeaturedConfig);
 
 module.exports = router;

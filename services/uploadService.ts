@@ -1,6 +1,5 @@
 import api from './api.ts';
 
-// Định nghĩa các loại upload
 type UploadType = 'cover' | 'editor' | 'avatar';
 
 /**

@@ -4,7 +4,7 @@ import { Story, Chapter, ReaderPreferences, ReaderTheme } from '../types';
 import { useStories } from '../contexts/StoryContext';
 import { useUserPreferences } from '../contexts/UserPreferencesContext';
 import * as storyService from '../services/storyService';
-import { syncReadingProgress } from '../services/userService';
+import { userService } from '../services/userService';
 import ReaderControls from '../components/ReaderControls';
 import CommentSection from '../components/CommentSection';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -13,7 +13,7 @@ import { ArrowLeftIcon, ArrowRightIcon, HomeIcon, SunIcon, MoonIcon, ListBulletI
 import { useAuth } from '../contexts/AuthContext';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 
-// --- ReadingProgressBar (Giữ nguyên) ---
+// --- ReadingProgressBar ---
 const ReadingProgressBar: React.FC<{ progress: number }> = React.memo(({ progress }) => {
     return (
         <div className="fixed top-0 left-0 w-full h-1 bg-transparent z-[60] pointer-events-none">
@@ -26,7 +26,7 @@ const ReadingProgressBar: React.FC<{ progress: number }> = React.memo(({ progres
 });
 ReadingProgressBar.displayName = 'ReadingProgressBar';
 
-// --- FloatingNavBar (Giữ nguyên) ---
+// --- FloatingNavBar ---
 const FloatingNavBar: React.FC<{ story: Story; currentChapterId: string; prevChapter?: Chapter | null; nextChapter?: Chapter | null; isVisible: boolean; }> = ({ story, currentChapterId, prevChapter, nextChapter, isVisible }) => {
     const navigate = useNavigate();
     const { theme, toggleTheme } = useTheme();
@@ -67,7 +67,7 @@ const FloatingNavBar: React.FC<{ story: Story; currentChapterId: string; prevCha
     );
 };
 
-// --- THEME SETTINGS (Giữ nguyên) ---
+// --- THEME SETTINGS ---
 const themeSpecificStyles: Record<ReaderTheme, { container: string; title: string; breadcrumb: string; breadcrumbActive: string; content: string; border: string; button: string; buttonHover: string; selectBg: string; selectBorder: string; }> = {
     light: { container: 'bg-[#FFF8E7]', title: 'text-[#4A2C2A]', breadcrumb: 'text-[#6E5C58] hover:text-[#FF6F91]', breadcrumbActive: 'text-[#FF6F91]', content: 'text-[#4A2C2A]', border: 'border-[#E8D5B5]', button: 'border-[#E8D5B5] text-[#4A2C2A] bg-[#FDEBD0]', buttonHover: 'hover:bg-[#FF6F91] hover:text-white hover:border-[#FF6F91]', selectBg: 'bg-[#FDEBD0]', selectBorder: 'border-[#E8D5B5]' },
     sepia: { container: 'bg-[#fbf0d9]', title: 'text-[#433422]', breadcrumb: 'text-[#8c6d46] hover:text-[#5f4b32]', breadcrumbActive: 'text-[#5f4b32]', content: 'text-[#5f4b32]', border: 'border-[#dcd3c1]', button: 'border-[#c8b79a] text-[#5f4b32] bg-[#fbf0d9]', buttonHover: 'hover:bg-[#f5e9d3] hover:border-[#a08d70]', selectBg: 'bg-[#fbf0d9]', selectBorder: 'border-[#dcd3c1]' },
@@ -108,11 +108,10 @@ const ReaderPage: React.FC = () => {
     const [isFloatingNavVisible, setIsFloatingNavVisible] = useState(false);
     const lastTap = useRef(0);
     
-    // --- FIX: Refs for syncing with Titles ---
     const updateBookmarkRef = useRef(updateBookmark);
     const currentUserRef = useRef(currentUser);
     const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const currentTitlesRef = useRef<{ chapter: string; volume: string }>({ chapter: '', volume: '' }); // Lưu Title vào Ref
+    const currentTitlesRef = useRef<{ chapter: string; volume: string }>({ chapter: '', volume: '' });
 
     useEffect(() => { updateBookmarkRef.current = updateBookmark; });
     useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
@@ -146,14 +145,12 @@ const ReaderPage: React.FC = () => {
         loadContent();
     }, [storyId, chapterId]);
 
-    // --- FIX: Cập nhật currentTitlesRef khi có dữ liệu chương mới ---
     useEffect(() => {
         if (story && currentChapterWithContent && currentChapterWithContent.id === chapterId) {
             let vTitle = '';
             const vol = story.volumes.find(v => v.chapters.some(c => c.id === chapterId));
             if (vol) vTitle = vol.title;
             
-            // Cập nhật ref để dùng cho cleanup/scroll
             currentTitlesRef.current = {
                 chapter: currentChapterWithContent.title,
                 volume: vTitle
@@ -216,15 +213,13 @@ const ReaderPage: React.FC = () => {
             
             syncTimeoutRef.current = setTimeout(async () => {
                 const finalProgress = Math.round(newProgress >= 99 ? 100 : newProgress);
-                const { chapter: cTitle, volume: vTitle } = currentTitlesRef.current; // Lấy từ Ref
+                const { chapter: cTitle, volume: vTitle } = currentTitlesRef.current;
 
-                // 1. Cập nhật Local State
                 updateBookmarkRef.current(storyId, chapterId, finalProgress, cTitle, vTitle);
 
-                // 2. Sync Server
                 if (currentUserRef.current) {
                     try {
-                        await syncReadingProgress(storyId, chapterId, finalProgress, cTitle, vTitle);
+                        await userService.syncReadingProgress(storyId, chapterId, finalProgress, cTitle, vTitle);
                     } catch (err) {
                         console.error('Lỗi sync:', err);
                     }
@@ -264,18 +259,16 @@ const ReaderPage: React.FC = () => {
             
             if (storyId && chapterId) {
                  const finalProgress = Math.round(progressRef.current >= 99 ? 100 : progressRef.current);
-                 // --- FIX QUAN TRỌNG: Dùng currentTitlesRef.current để lấy title cho cleanup ---
                  const { chapter: cTitle, volume: vTitle } = currentTitlesRef.current;
                  
                  updateBookmarkRef.current(storyId, chapterId, finalProgress, cTitle, vTitle);
                  if(currentUserRef.current) {
-                     syncReadingProgress(storyId, chapterId, finalProgress, cTitle, vTitle).catch(console.error);
+                     userService.syncReadingProgress(storyId, chapterId, finalProgress, cTitle, vTitle).catch(console.error);
                  }
             }
         };
     }, [story, storyId, chapterId, isAdmin, incrementChapterView, currentChapterWithContent]);
 
-    // ... phần render giữ nguyên ...
     const handleTapZoneClick = (event: React.MouseEvent<HTMLDivElement>) => {
         if (window.getSelection()?.toString() || (event.target as HTMLElement).closest('a, button, select, [data-control-button]')) return;
         const now = Date.now();

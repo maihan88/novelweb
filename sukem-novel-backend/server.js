@@ -1,4 +1,3 @@
-// maihan88/novelweb/novelweb-367f3a44cd5ec3aa64d1df30fd841fd8db53199c/sukem-novel-backend/server.js
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');

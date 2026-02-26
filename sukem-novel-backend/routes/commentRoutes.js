@@ -7,7 +7,6 @@ router.route('/')
     .get(getCommentsForChapter)
     .post(protect, addComment);
 
-// Route để xóa một bình luận cụ thể bằng ID
 router.route('/:id')
     .delete(protect, admin, deleteComment);
 

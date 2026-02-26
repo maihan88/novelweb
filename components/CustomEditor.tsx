@@ -22,7 +22,6 @@ import {
 } from '@heroicons/react/24/outline';
 import { uploadImage } from '../services/uploadService';
 
-// --- TYPE DEFINITIONS ---
 interface EyeDropperInstance {
     open: (options?: { signal?: AbortSignal }) => Promise<{ sRGBHex: string }>;
 }
@@ -36,7 +35,7 @@ interface CustomEditorProps {
     onChange: (value: string) => void;
 }
 
-// --- HELPER: cleanHTML (Giữ nguyên logic) ---
+// --- HELPER: cleanHTML ---
 const cleanHTML = (htmlContent: string): string => {
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlContent, 'text/html');
@@ -120,7 +119,6 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
     const [showColorPicker, setShowColorPicker] = useState(false);
     const [currentColor, setCurrentColor] = useState('#000000');
     
-    // State mới: Chế độ Upload HD
     const [isHighQuality, setIsHighQuality] = useState(false);
 
     const useEyeDropper = () => {
@@ -346,7 +344,6 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
                         <ToolbarButton onClick={() => execCmd('justifyRight')} ariaLabel="Căn phải"><Bars3BottomRightIcon className="w-5 h-5" /></ToolbarButton>
                         <div className="w-px h-5 bg-sukem-border mx-1"></div>
                         
-                        {/* --- KHU VỰC UPLOAD ẢNH & HD TOGGLE --- */}
                         <div className="flex items-center bg-sukem-bg/50 border border-sukem-border rounded px-1 gap-0.5">
                             <ToolbarButton onClick={handleImageUpload} ariaLabel="Tải ảnh" title={isHighQuality ? "Tải ảnh (Chất lượng cao HD)" : "Tải ảnh (Tiết kiệm dung lượng)"}>
                                 <PhotoIcon className="w-5 h-5" />
@@ -363,7 +360,6 @@ const CustomEditor: React.FC<CustomEditorProps> = ({ value, onChange }) => {
                                 <span className="text-[10px] font-bold leading-none">{isHighQuality ? 'HD' : 'SD'}</span>
                             </ToolbarButton>
                         </div>
-                        {/* --- HẾT KHU VỰC UPLOAD --- */}
 
                         <div className="flex items-center bg-sukem-bg/50 border border-sukem-border rounded px-1 gap-0.5 ml-1">
                             <ToolbarButton onClick={() => insertFrame('normal')} ariaLabel="Khung thường" title="Chèn khung thường"><StopIcon className="w-5 h-5" /></ToolbarButton>

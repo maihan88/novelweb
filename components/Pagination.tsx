@@ -26,13 +26,8 @@ const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages, onPage
         return pages;
     };
 
-    // Class cơ bản cho nút
     const baseBtnClass = "w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300 shadow-sm border";
-    
-    // Class cho trạng thái bình thường (chưa active)
     const normalBtnClass = "bg-sukem-card border-sukem-border text-sukem-text hover:bg-sukem-primary hover:text-white hover:border-transparent";
-    
-    // Class cho trạng thái active
     const activeBtnClass = "bg-sukem-primary border-sukem-primary text-white transform scale-110 shadow-md shadow-sukem-primary/30";
 
     return (

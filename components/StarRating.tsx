@@ -4,8 +4,8 @@ import { StarIcon } from '@heroicons/react/24/solid';
 interface StarRatingProps {
   rating: number;
   count: number;
-  userRating?: number; // User's own rating for this story
-  onRate?: (rating: number) => void; // Callback when user rates
+  userRating?: number;
+  onRate?: (rating: number) => void;
 }
 
 const StarRating: React.FC<StarRatingProps> = ({ rating, count, userRating, onRate }) => {
@@ -35,8 +35,7 @@ const StarRating: React.FC<StarRatingProps> = ({ rating, count, userRating, onRa
           if (starValue <= displayRating) {
             starClass = "text-yellow-400";
           } else if (userRating === undefined && hoverRating === null && starValue === fullStars + 1 && hasHalfStar) {
-            // This logic for half-star display should only apply when not hovering or rated by user
-            starClass = "text-yellow-400"; // Simplification: show full star for half-star
+            starClass = "text-yellow-400";
           }
           
           return (

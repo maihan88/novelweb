@@ -1,25 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Story } from '../types';
 import * as storyService from '../services/storyService';
 import LoadingSpinner from './LoadingSpinner';
 import ConfirmationModal from './ConfirmationModal';
+import { useToast } from '../contexts/ToastContext';
 import { 
-    TrashIcon, MagnifyingGlassIcon, PhotoIcon, CheckCircleIcon, PlusIcon
+    TrashIcon, MagnifyingGlassIcon, PhotoIcon, CheckCircleIcon, PlusIcon, RectangleStackIcon 
 } from '@heroicons/react/24/solid';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-// DND Kit Imports
 import {
   DndContext, 
   closestCenter,
   KeyboardSensor,
-  PointerSensor,
   useSensor,
   useSensors,
   DragEndEvent,
+  DragStartEvent,
   TouchSensor,
-  MouseSensor
+  MouseSensor,
+  useDroppable,
+  DragOverlay
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -31,8 +33,6 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 
 const cn = (...inputs: (string | undefined | null | false)[]) => twMerge(clsx(inputs));
-
-// --- Sortable Item Component ---
 interface SortableItemProps {
     story: Story;
     index: number;
@@ -40,20 +40,15 @@ interface SortableItemProps {
 }
 
 const SortableItem = ({ story, index, onRemove }: SortableItemProps) => {
-    const {
-        attributes,
-        listeners,
-        setNodeRef,
-        transform,
-        transition,
-        isDragging
-    } = useSortable({ id: story.id });
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ 
+        id: story.id,
+        data: { story } 
+    });
 
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
-        zIndex: isDragging ? 10 : 1,
-        opacity: isDragging ? 0.5 : 1,
+        opacity: isDragging ? 0.3 : 1,
     };
 
     return (
@@ -75,7 +70,7 @@ const SortableItem = ({ story, index, onRemove }: SortableItemProps) => {
                 {index + 1}
             </div>
 
-            <img src={story.coverImage} alt="" className="w-10 h-14 object-cover rounded-md bg-sukem-card shadow-sm" />
+            <img src={story.coverImage} alt="" className="w-10 h-14 object-cover rounded-md bg-sukem-card shadow-sm pointer-events-none" />
             
             <div className="min-w-0 flex-1">
                 <p className="font-bold text-sm text-sukem-text truncate">{story.title}</p>
@@ -85,7 +80,7 @@ const SortableItem = ({ story, index, onRemove }: SortableItemProps) => {
             <button 
                 onPointerDown={(e) => e.stopPropagation()} 
                 onClick={(e) => { e.stopPropagation(); onRemove(story.id); }}
-                className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100"
+                className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors opacity-100 lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100"
                 title="Gỡ khỏi banner"
             >
                 <TrashIcon className="w-4 h-4" />
@@ -94,22 +89,50 @@ const SortableItem = ({ story, index, onRemove }: SortableItemProps) => {
     );
 };
 
+interface AvailableItemProps {
+    story: Story;
+    onAdd: () => void;
+}
 
+const AvailableItem = ({ story, onAdd }: AvailableItemProps) => {
+    return (
+        <div
+            className="flex items-center gap-3 p-3 rounded-xl border shadow-sm select-none transition-colors group bg-sukem-bg border-sukem-border hover:border-sukem-primary/50"
+        >
+            <img src={story.coverImage} alt="" className="w-10 h-14 object-cover rounded-md bg-sukem-card shadow-sm pointer-events-none" />
+            
+            <div className="min-w-0 flex-1">
+                <p className="font-bold text-sm text-sukem-text truncate group-hover:text-sukem-primary transition-colors">{story.title}</p>
+                <p className="text-xs text-sukem-text-muted truncate">{story.author}</p>
+            </div>
+            
+            <button
+                onClick={onAdd}
+                className="p-2 bg-sukem-primary/10 text-sukem-primary rounded-lg hover:bg-sukem-primary hover:text-white transition-colors opacity-100 lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100"
+                title="Thêm vào banner"
+            >
+                <PlusIcon className="w-4 h-4" />
+            </button>
+        </div>
+    );
+};
+
+// --- Main Component ---
 const BannerManager: React.FC = () => {
   const [bannerStories, setBannerStories] = useState<Story[]>([]);
   const [originalBannerStories, setOriginalBannerStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   
-  // Modals State
+  const { showToast } = useToast();
+  
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false); // Modal cho nút Lưu
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
-  // Search States
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState<Story[]>([]);
   const [allStoriesCache, setAllStoriesCache] = useState<Story[]>([]); 
+  const [activeDragData, setActiveDragData] = useState<{ story: Story } | null>(null);
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
@@ -117,42 +140,41 @@ const BannerManager: React.FC = () => {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const fetchBannerStories = async () => {
+  const { setNodeRef: setBannerRef } = useDroppable({ id: 'banner-container' });
+  const { setNodeRef: setAvailableRef } = useDroppable({ id: 'available-container' });
+
+  const fetchInitialData = async () => {
     try {
       setLoading(true);
-      const data = await storyService.getBannerStories();
-      const sortedData = data.sort((a, b) => (a.bannerPriority || 0) - (b.bannerPriority || 0));
-      setBannerStories(sortedData);
-      setOriginalBannerStories(JSON.parse(JSON.stringify(sortedData)));
+      const [bannerData, allData] = await Promise.all([
+          storyService.getBannerStories(),
+          storyService.getAllStories()
+      ]);
+      const sortedBanner = bannerData.sort((a, b) => (a.bannerPriority || 0) - (b.bannerPriority || 0));
+      setBannerStories(sortedBanner);
+      setOriginalBannerStories(JSON.parse(JSON.stringify(sortedBanner)));
+      setAllStoriesCache(allData);
     } catch (error) {
-      console.error('Lỗi lấy banner:', error);
+      console.error('Lỗi lấy dữ liệu banner:', error);
+      showToast('Không thể tải dữ liệu banner. Vui lòng thử lại sau.', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchBannerStories();
-    storyService.getAllStories().then(data => setAllStoriesCache(data)).catch(console.error);
-  }, []);
+  useEffect(() => { fetchInitialData(); }, []);
 
-  const handleSearch = () => {
-    if (!searchTerm.trim()) { setSearchResults([]); return; }
-    const filtered = allStoriesCache.filter(s => 
-        s.title.toLowerCase().includes(searchTerm.toLowerCase()) && 
-        !bannerStories.find(b => b.id === s.id)
-    );
-    setSearchResults(filtered.slice(0, 5));
-  };
+  const displayedAvailable = useMemo(() => {
+      return allStoriesCache
+          .filter(s => !bannerStories.find(b => b.id === s.id))
+          .filter(s => s.title.toLowerCase().includes(searchTerm.toLowerCase()));
+  }, [allStoriesCache, bannerStories, searchTerm]);
 
   const addToBanner = (story: Story) => {
       if (bannerStories.find(s => s.id === story.id)) return;
       setBannerStories([...bannerStories, { ...story, isInBanner: true }]);
-      setSearchResults(prev => prev.filter(s => s.id !== story.id)); 
-      setSearchTerm(''); 
   };
 
-  // Actions
   const requestRemove = (storyId: string) => {
     setItemToDelete(storyId);
     setIsDeleteModalOpen(true);
@@ -162,16 +184,14 @@ const BannerManager: React.FC = () => {
     if (itemToDelete) {
         setBannerStories(prev => prev.filter(s => s.id !== itemToDelete));
     }
-    setIsDeleteModalOpen(false); // Đóng modal
+    setIsDeleteModalOpen(false);
     setItemToDelete(null);
   };
 
-  const requestSave = () => {
-      if (hasChanges) setIsSaveModalOpen(true);
-  };
+  const requestSave = () => { if (hasChanges) setIsSaveModalOpen(true); };
 
   const confirmSave = async () => {
-      setIsSaveModalOpen(false); // Đóng modal trước khi chạy
+      setIsSaveModalOpen(false);
       setIsSaving(true);
       try {
           const updatePromises = bannerStories.map((story, index) => 
@@ -183,24 +203,42 @@ const BannerManager: React.FC = () => {
           );
 
           await Promise.all([...updatePromises, ...removePromises]);
-          alert('✅ Đã lưu cấu hình banner thành công!');
-          fetchBannerStories();
+
+          showToast('Đã lưu cấu hình banner thành công!', 'success');
+          
+          fetchInitialData(); 
       } catch (error) {
           console.error(error);
-          alert('❌ Có lỗi xảy ra khi lưu.');
+          showToast('Có lỗi xảy ra khi lưu. Vui lòng thử lại.', 'error');
       } finally {
           setIsSaving(false);
       }
   };
 
+  const handleDragStart = (e: DragStartEvent) => {
+      const story = e.active.data.current?.story as Story;
+      if (story) setActiveDragData({ story });
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
+    setActiveDragData(null);
     const { active, over } = event;
-    if (active.id !== over?.id) {
-      setBannerStories((items) => {
-        const oldIndex = items.findIndex((item) => item.id === active.id);
-        const newIndex = items.findIndex((item) => item.id === over?.id);
-        return arrayMove(items, oldIndex, newIndex);
-      });
+    if (!over) return;
+
+    const overId = over.id as string;
+
+    const isOverAvailableArea = overId === 'available-container';
+    
+    if (isOverAvailableArea) {
+        setBannerStories(prev => prev.filter(s => s.id !== active.id));
+    } else {
+        if (active.id !== over.id) {
+            setBannerStories((items) => {
+                const oldIndex = items.findIndex((item) => item.id === active.id);
+                const newIndex = items.findIndex((item) => item.id === over.id);
+                return arrayMove(items, oldIndex, newIndex);
+            });
+        }
     }
   };
 
@@ -209,26 +247,37 @@ const BannerManager: React.FC = () => {
   if (loading) return <div className="p-8 flex justify-center"><LoadingSpinner /></div>;
 
   return (
-    <>
-        <div className="bg-sukem-card rounded-2xl shadow-lg border border-sukem-border h-full flex flex-col overflow-hidden max-h-[80vh]">
-            <div className="p-5 border-b border-sukem-border bg-gradient-to-r from-sukem-bg to-sukem-card flex justify-between items-center flex-shrink-0">
-                <div>
-                    <h2 className="text-lg font-bold text-sukem-text flex items-center gap-2">
-                        <PhotoIcon className="w-6 h-6 text-sukem-primary"/>
-                        Quản lý Banner
-                    </h2>
-                    <p className="text-xs text-sukem-text-muted mt-1">Kéo thả để sắp xếp.</p>
-                </div>
-            </div>
+    <DndContext 
+        sensors={sensors} 
+        collisionDetection={closestCenter} 
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+    >
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[80vh] min-h-[600px]">
             
-            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-sukem-bg/50">
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            {/* CỘT TRÁI: DANH SÁCH BANNER */}
+            <div className="bg-sukem-card rounded-2xl shadow-lg border border-sukem-border flex flex-col overflow-hidden h-full">
+                <div className="p-4 border-b border-sukem-border bg-gradient-to-r from-sukem-bg to-sukem-card flex justify-between items-center flex-shrink-0">
+                    <div>
+                        <h2 className="text-lg font-bold text-sukem-text flex items-center gap-2">
+                            <PhotoIcon className="w-6 h-6 text-sukem-primary"/>
+                            Banner Hiện Tại
+                        </h2>
+                        <p className="text-xs text-sukem-text-muted mt-1">Kéo thả để sắp xếp hoặc ném sang phải để gỡ.</p>
+                    </div>
+                    <div className="px-3 py-1 bg-sukem-primary/10 text-sukem-primary font-bold rounded-full text-sm">
+                        {bannerStories.length} truyện
+                    </div>
+                </div>
+                
+                <div ref={setBannerRef} className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-sukem-bg/30 relative">
                     <SortableContext items={bannerStories.map(s => s.id)} strategy={verticalListSortingStrategy}>
-                        <div className="space-y-3 pb-20"> 
+                        <div className="space-y-3 pb-4 min-h-full"> 
                             {bannerStories.length === 0 ? (
-                                <div className="text-center py-12 border-2 border-dashed border-sukem-border rounded-xl">
-                                    <p className="text-sukem-text-muted font-medium">Danh sách trống</p>
-                                    <p className="text-xs text-sukem-text-muted mt-1">Hãy thêm truyện vào banner</p>
+                                <div className="text-center py-16 border-2 border-dashed border-sukem-border rounded-xl h-full flex flex-col items-center justify-center text-sukem-text-muted">
+                                    <RectangleStackIcon className="w-12 h-12 mb-3 opacity-50" />
+                                    <p className="font-bold text-lg">Banner trống</p>
+                                    <p className="text-sm mt-1">Click vào biểu tượng + ở Kho Truyện để thêm.</p>
                                 </div>
                             ) : (
                                 bannerStories.map((story, index) => (
@@ -237,43 +286,9 @@ const BannerManager: React.FC = () => {
                             )}
                         </div>
                     </SortableContext>
-                </DndContext>
-            </div>
-
-            <div className="p-4 border-t border-sukem-border bg-sukem-card relative z-20 flex-shrink-0 flex flex-col gap-4">
-                <div className="relative">
-                    <input
-                        type="text"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        onKeyUp={(e) => e.key === 'Enter' && handleSearch()}
-                        placeholder="Tìm truyện thêm vào banner..."
-                        className="w-full pl-10 pr-10 py-3 text-sm border border-sukem-border rounded-xl bg-sukem-bg text-sukem-text focus:ring-2 focus:ring-sukem-primary focus:border-transparent outline-none shadow-sm"
-                    />
-                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-sukem-text-muted" />
-                    {searchTerm && (
-                        <button onClick={handleSearch} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-sukem-primary text-white rounded-lg hover:bg-sukem-accent">
-                            <PlusIcon className="w-4 h-4" />
-                        </button>
-                    )}
-                    
-                    {searchResults.length > 0 && (
-                        <div className="absolute bottom-full left-0 right-0 mb-2 max-h-60 overflow-y-auto custom-scrollbar border border-sukem-border rounded-xl bg-sukem-card shadow-xl z-50 p-2 space-y-1">
-                            {searchResults.map(story => (
-                                <button key={story.id} onClick={() => addToBanner(story)} className="w-full flex items-center gap-3 p-2 hover:bg-sukem-bg rounded-lg transition-colors text-left group">
-                                    <img src={story.coverImage} alt="" className="w-10 h-14 object-cover rounded shadow-sm" />
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-bold text-sukem-text truncate group-hover:text-sukem-primary">{story.title}</p>
-                                        <p className="text-xs text-sukem-text-muted">{story.author}</p>
-                                    </div>
-                                    <PlusIcon className="w-5 h-5 text-sukem-primary opacity-0 group-hover:opacity-100 transition-opacity" />
-                                </button>
-                            ))}
-                        </div>
-                    )}
                 </div>
 
-                <div className={cn("transition-all duration-300 overflow-hidden", hasChanges ? "max-h-16 opacity-100" : "max-h-0 opacity-0")}>
+                <div className={cn("transition-all duration-300 overflow-hidden bg-sukem-card z-20", hasChanges ? "max-h-24 opacity-100 border-t border-sukem-border p-4" : "max-h-0 opacity-0 p-0 border-transparent")}>
                     <button 
                         onClick={requestSave}
                         disabled={isSaving}
@@ -284,31 +299,73 @@ const BannerManager: React.FC = () => {
                     </button>
                 </div>
             </div>
+
+            {/* CỘT PHẢI: KHO TRUYỆN CÓ SẴN */}
+            <div className="bg-sukem-card rounded-2xl shadow-lg border border-sukem-border flex flex-col overflow-hidden h-full">
+                <div className="p-4 border-b border-sukem-border bg-sukem-bg/50 flex flex-col gap-3 flex-shrink-0">
+                    <h2 className="text-lg font-bold text-sukem-text flex items-center gap-2">
+                        <MagnifyingGlassIcon className="w-5 h-5 text-sukem-primary"/>
+                        Kho Truyện
+                    </h2>
+                    <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Tìm kiếm truyện để thêm vào banner..."
+                        className="w-full px-4 py-2.5 text-sm border border-sukem-border rounded-xl bg-sukem-card text-sukem-text focus:ring-2 focus:ring-sukem-primary focus:border-transparent outline-none shadow-sm transition-shadow"
+                    />
+                </div>
+                
+                <div ref={setAvailableRef} className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-sukem-bg/30 relative">
+                    <div className="space-y-3 pb-4 min-h-full">
+                        {displayedAvailable.length === 0 ? (
+                            <div className="text-center py-16 text-sukem-text-muted italic flex flex-col items-center justify-center h-full">
+                                {searchTerm ? 'Không tìm thấy truyện nào khớp với từ khóa.' : 'Đã thêm tất cả truyện vào banner.'}
+                            </div>
+                        ) : (
+                            displayedAvailable.map(story => (
+                                <AvailableItem key={story.id} story={story} onAdd={() => addToBanner(story)} />
+                            ))
+                        )}
+                    </div>
+                </div>
+            </div>
+
         </div>
 
-        {/* Modal Xóa */}
+        <DragOverlay dropAnimation={{ duration: 250, easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)' }}>
+            {activeDragData ? (
+                <div className="flex items-center gap-3 p-3 rounded-xl border shadow-2xl bg-sukem-card border-sukem-primary ring-2 ring-sukem-primary/30 opacity-95 rotate-2 cursor-grabbing w-[300px]">
+                    <img src={activeDragData.story.coverImage} alt="" className="w-10 h-14 object-cover rounded-md shadow-sm pointer-events-none" />
+                    <div className="min-w-0 flex-1">
+                        <p className="font-bold text-sm text-sukem-text truncate">{activeDragData.story.title}</p>
+                        <p className="text-xs text-sukem-text-muted truncate">{activeDragData.story.author}</p>
+                    </div>
+                </div>
+            ) : null}
+        </DragOverlay>
+
         <ConfirmationModal
             isOpen={isDeleteModalOpen}
             onClose={() => setIsDeleteModalOpen(false)}
             onConfirm={confirmRemove}
             title="Gỡ khỏi Banner"
-            message="Gỡ truyện này khỏi danh sách? (Cần bấm Lưu để áp dụng)"
+            message="Bạn có chắc chắn muốn gỡ truyện này khỏi banner? (Vẫn cần bấm Lưu để áp dụng)"
             confirmText="Gỡ bỏ"
             cancelText="Hủy"
             isDestructive={true}
         />
 
-         {/* Modal Lưu */}
          <ConfirmationModal
             isOpen={isSaveModalOpen}
             onClose={() => setIsSaveModalOpen(false)}
             onConfirm={confirmSave}
             title="Lưu thay đổi"
-            message="Bạn có chắc chắn muốn lưu thứ tự banner hiện tại không?"
+            message="Bạn có chắc chắn muốn lưu thứ tự và danh sách banner hiện tại không?"
             confirmText="Đồng ý lưu"
             cancelText="Đóng"
         />
-    </>
+    </DndContext>
   );
 };
 

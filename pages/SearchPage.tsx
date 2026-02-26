@@ -5,7 +5,6 @@ import { MagnifyingGlassIcon, FunnelIcon } from '@heroicons/react/24/outline';
 import { storyService } from '../services/storyService.ts';
 import { Story } from '../types.ts';
 
-// Helper để hiển thị text label cho khoảng chương
 const getRangeLabel = (rangeKey: string) => {
     switch(rangeKey) {
         case '0-50': return '< 50 chương';
@@ -26,7 +25,7 @@ const SearchPage: React.FC = () => {
 
   const query = searchParams.get('q') || '';
   const status = searchParams.get('status') || '';
-  const chapterRange = searchParams.get('chapterRange') || ''; // Đọc range
+  const chapterRange = searchParams.get('chapterRange') || '';
   const page = parseInt(searchParams.get('page') || '1');
 
   useEffect(() => {
@@ -36,7 +35,7 @@ const SearchPage: React.FC = () => {
             const data = await storyService.getStoriesList({
                 keyword: query,
                 status: status !== 'all' ? status : undefined,
-                chapterRange: chapterRange !== 'all' ? chapterRange : undefined, // Gửi range
+                chapterRange: chapterRange !== 'all' ? chapterRange : undefined,
                 page: page,
                 limit: 12
             });
@@ -53,10 +52,9 @@ const SearchPage: React.FC = () => {
     fetchResults();
   }, [query, status, chapterRange, page]);
 
-  // UI Filter badges
   const activeFilters = [
       status && status !== 'all' ? (status === 'ongoing' ? 'Trạng thái: Đang ra' : (status === 'completed' ? 'Trạng thái: Hoàn thành' : null)) : null,
-      getRangeLabel(chapterRange) // Hiển thị label đẹp
+      getRangeLabel(chapterRange) 
   ].filter(Boolean);
 
   return (

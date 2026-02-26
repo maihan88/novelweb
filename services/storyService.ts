@@ -1,7 +1,7 @@
 import api from './api';
 import { Story, Chapter, Volume, StoriesResponse, StoryFilterParams } from '../types';
 
-// Interface cho Dashboard (Dùng cho AdminDashboardPage)
+// Interface cho Dashboard 
 export interface DashboardData {
     stats: {
         totalStories: number;
@@ -13,13 +13,11 @@ export interface DashboardData {
 }
 
 // --- Story Operations ---
-
 export const getAllStories = async (): Promise<Story[]> => {
     const response = await api.get('/stories?limit=1000');
     return response.data.stories;
 };
 
-// Hàm mới cho Dashboard (Đừng quên hàm này!)
 export const getDashboardStats = async (): Promise<DashboardData> => {
     const response = await api.get('/stories/admin/stats');
     return response.data;
@@ -40,7 +38,6 @@ export const getStoriesList = async (params: StoryFilterParams): Promise<Stories
     if (keyword) queryParams.append('keyword', keyword);
     if (isHot) queryParams.append('isHot', 'true');
     
-    // Gửi tham số range
     if (chapterRange && chapterRange !== 'all') {
         queryParams.append('chapterRange', chapterRange);
     }
@@ -89,7 +86,6 @@ export const rateStory = async (storyId: string, rating: number): Promise<Story>
 };
 
 // --- Volume Operations ---
-
 export const addVolume = async (storyId: string, volumeData: { title: string }): Promise<Volume> => {
     const response = await api.post(`/stories/${storyId}/volumes`, volumeData);
     return response.data;
@@ -110,7 +106,6 @@ export const reorderVolumes = async (storyId: string, orderedVolumeIds: string[]
 };
 
 // --- Chapter Operations ---
-
 export const addChapter = async (storyId: string, volumeId: string, chapterData: Partial<Chapter>): Promise<Chapter> => {
     const response = await api.post(`/stories/${storyId}/volumes/${volumeId}/chapters`, chapterData);
     return response.data;
@@ -134,7 +129,16 @@ export const incrementChapterView = async (storyId: string, chapterId: string): 
     await api.post(`/stories/${storyId}/chapters/${chapterId}/view`);
 };
 
-// --- QUAN TRỌNG: Export Object gom nhóm (Để hỗ trợ AdminDashboard & HeroBanner) ---
+export const getFeaturedStoriesList = async (): Promise<Story[]> => {
+    const response = await api.get('/stories/featured/list');
+    return response.data;
+};
+
+export const updateStoryFeaturedConfig = async (id: string, data: { isHot: boolean }): Promise<Story> => {
+    const response = await api.put(`/stories/${id}/featured`, data);
+    return response.data;
+};
+
 export const storyService = {
     getAllStories,
     getDashboardStats,
@@ -155,5 +159,7 @@ export const storyService = {
     updateChapter,
     deleteChapter,
     reorderChapters,
-    incrementChapterView
+    incrementChapterView,
+    getFeaturedStoriesList,
+    updateStoryFeaturedConfig
 };

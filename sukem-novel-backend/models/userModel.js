@@ -1,10 +1,9 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
-// Schema con cho Bookmark (để đảm bảo validate dữ liệu)
 const bookmarkSchema = new mongoose.Schema({
     chapterId: { type: String, required: true },
-    progress: { type: Number, default: 0 }, // Lưu % (0-100)
+    progress: { type: Number, default: 0 },
     lastRead: { type: Date, default: Date.now },
     chapterTitle: { type: String, default: '' },
     volumeTitle: { type: String, default: '' }
@@ -16,14 +15,13 @@ const userSchema = new mongoose.Schema({
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
     createdAt: { type: Date, default: Date.now },
     
-    // --- User Preferences ---
     favorites: {
         type: [String],
         default: []
     },
     bookmarks: {
         type: Map,
-        of: bookmarkSchema, // Map<storyId, Bookmark>
+        of: bookmarkSchema,
         default: {}
     },
     ratedStories: {
@@ -33,7 +31,6 @@ const userSchema = new mongoose.Schema({
     }
 });
 
-// Hash password before saving
 userSchema.pre('save', async function (next) {
     if (!this.isModified('password')) return next();
     const salt = await bcrypt.genSalt(10);

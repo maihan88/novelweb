@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useMemo, useEffect, ReactNode, useContext } from 'react';
 
 export type Theme = 'light' | 'dark';

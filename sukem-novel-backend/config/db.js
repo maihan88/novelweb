@@ -1,4 +1,3 @@
-// maihan88/novelweb/novelweb-367f3a44cd5ec3aa64d1df30fd841fd8db53199c/sukem-novel-backend/config/db.js
 const mongoose = require('mongoose');
 
 const connectDB = async () => {
@@ -11,7 +10,6 @@ const connectDB = async () => {
         }
 
         const conn = await mongoose.connect(uri, {
-            // Mongoose 6+ mặc định đã có các option này, nhưng giữ lại nếu dùng bản cũ
             useNewUrlParser: true,
             useUnifiedTopology: true,
         });
