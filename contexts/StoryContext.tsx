@@ -16,7 +16,7 @@ interface StoryContextType {
   addVolume: (storyId: string, volumeTitle: string) => Promise<Volume>;
   updateVolume: (storyId: string, volumeId: string, newTitle: string) => Promise<Volume>;
   deleteVolume: (storyId: string, volumeId: string) => Promise<void>;
-  reorderVolumesInStory: (storyId: string, orderedVolumeIds: string[]) => Promise<void>; // <--- Thêm mới
+  reorderVolumesInStory: (storyId: string, orderedVolumeIds: string[]) => Promise<void>; 
 
   // Chapter Management
   incrementChapterView: (storyId: string, chapterId: string) => Promise<void>;
@@ -169,9 +169,11 @@ const addRatingToStory = useCallback(async (storyId: string, rating: number) => 
           if (s.id === storyId) {
               return {
                   ...s,
-                  volumes: s.volumes.map(v => {
+                  volumes: (s.volumes || []).map(v => {
                       if (v.id === volumeId) {
-                          const reorderedChapters = orderedChapterIds.map(id => v.chapters.find(c => c.id === id)).filter((c): c is Chapter => !!c);
+                          const reorderedChapters = orderedChapterIds
+                              .map(id => (v.chapters || []).find(c => c.id === id))
+                              .filter((c): c is Chapter => !!c);
                           return { ...v, chapters: reorderedChapters };
                       }
                       return v;

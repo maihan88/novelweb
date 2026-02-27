@@ -211,8 +211,8 @@ exports.getStoryById = async (req, res) => {
         }
 
         const chapters = await Chapter.find({ storyId: story._id })
-            .select('id title volumeId views isRaw createdAt updatedAt')
-            .sort({ createdAt: 1 })
+            .select('id title volumeId views isRaw createdAt updatedAt chapterNumber')
+            .sort({ chapterNumber: 1, createdAt: 1 })
             .lean();
 
         if (story.volumes && story.volumes.length > 0) {
@@ -527,5 +527,31 @@ exports.updateStoryFeaturedConfig = async (req, res) => {
         }
     } catch (error) {
         res.status(500).json({ message: "Server Error" });
+    }
+};
+
+// @desc    Sắp xếp lại các chương trong một tập
+// @route   PUT /api/stories/:id/volumes/:volumeId/chapters/reorder
+exports.reorderChapters = async (req, res) => {
+    try {
+        const { orderedChapterIds } = req.body;
+        const { volumeId } = req.params;
+
+        if (!orderedChapterIds || !Array.isArray(orderedChapterIds)) {
+            return res.status(400).json({ message: "Dữ liệu không hợp lệ" });
+        }
+
+        const promises = orderedChapterIds.map((chapterId, index) => {
+            return Chapter.findOneAndUpdate(
+                { id: chapterId, volumeId: volumeId },
+                { $set: { chapterNumber: index } }
+            );
+        });
+
+        await Promise.all(promises);
+        res.json({ message: 'Đã cập nhật thứ tự chương' });
+    } catch (e) {
+        console.error("Reorder Chapters Error:", e);
+        res.status(500).json({ message: "Lỗi server khi sắp xếp chương" });
     }
 };

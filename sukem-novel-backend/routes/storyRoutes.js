@@ -18,7 +18,8 @@ const {
     reorderVolumes,
     getDashboardStats,
     getFeaturedStories,
-    updateStoryFeaturedConfig
+    updateStoryFeaturedConfig,
+    reorderChapters
 } = require('../controllers/storyController');
 const { protect, admin, optionalAuth } = require('../middleware/authMiddleware');
 
@@ -48,6 +49,9 @@ router.put('/:id/volumes/:volumeId', protect, admin, updateVolume);
 
 // Chapters
 router.post('/:id/volumes/:volumeId/chapters', protect, admin, addChapter);
+
+router.put('/:id/volumes/:volumeId/chapters/reorder', protect, admin, reorderChapters);
+
 router.put('/:id/volumes/:volumeId/chapters/:chapterId', protect, admin, updateChapter); 
 router.delete('/:id/volumes/:volumeId/chapters/:chapterId', protect, admin, deleteChapter);
 
