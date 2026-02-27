@@ -339,34 +339,66 @@ exports.addChapter = async (req, res) => {
         const { title, content, isRaw } = req.body;
         const query = getStoryQuery(req.params.id);
         const story = await Story.findOne(query);
+
         if (!story) return res.status(404).json({ message: 'Story not found' });
         
         const volumeExists = story.volumes.find(v => v.id === req.params.volumeId);
         if (!volumeExists) return res.status(404).json({ message: 'Volume not found' });
 
+        const lastChapter = await Chapter.findOne({ 
+            storyId: story._id, 
+            volumeId: req.params.volumeId 
+        }).sort({ chapterNumber: -1 });
+        let nextChapterNumber = 0;
+        if (lastChapter && lastChapter.chapterNumber !== undefined) {
+            nextChapterNumber = lastChapter.chapterNumber + 1;
+        } else {
+            const chapterCount = await Chapter.countDocuments({
+                storyId: story._id,
+                volumeId: req.params.volumeId
+            });
+            nextChapterNumber = chapterCount;
+        }
+
         const newChapter = new Chapter({
             storyId: story._id,
             volumeId: req.params.volumeId,
             id: `ch-${Date.now()}`,
-            title, content, isRaw: !!isRaw, views: 0,
-            createdAt: new Date(), updatedAt: new Date()
+            title, 
+            content, 
+            isRaw: !!isRaw, 
+            views: 0,
+            chapterNumber: nextChapterNumber,
+            createdAt: new Date(), 
+            updatedAt: new Date()
         });
 
         await newChapter.save();
+
         if (!newChapter.isRaw) {
             await Story.findByIdAndUpdate(story._id, { lastUpdatedAt: new Date() });
         }
+
         res.json(newChapter);
     } catch (error) {
-        console.error(error);
+        console.error("Add Chapter Error:", error);
         res.status(500).json({ message: error.message });
     }
 };
 
 exports.updateChapter = async (req, res) => {
     try {
-        const chapter = await Chapter.findOne({ id: req.params.chapterId });
-        if (!chapter) return res.status(404).json({ message: 'Chapter not found' });
+        const query = getStoryQuery(req.params.id);
+        const story = await Story.findOne(query);
+        if (!story) return res.status(404).json({ message: 'Story not found' });
+
+        const chapter = await Chapter.findOne({ 
+            id: req.params.chapterId,
+            storyId: story._id,
+            volumeId: req.params.volumeId
+        });
+
+        if (!chapter) return res.status(404).json({ message: 'Chapter not found in this volume' });
 
         const { title, content, isRaw } = req.body;
         if (title) chapter.title = title;
@@ -375,25 +407,37 @@ exports.updateChapter = async (req, res) => {
         
         chapter.updatedAt = new Date(); 
         await chapter.save();
+
         if (!chapter.isRaw) {
             await Story.findByIdAndUpdate(chapter.storyId, { lastUpdatedAt: new Date() });
         }
         res.json(chapter);
     } catch (error) {
+        console.error("Update Chapter Error:", error);
         res.status(500).json({ message: error.message });
     }
 };
 
 exports.deleteChapter = async (req, res) => {
     try {
-        const chapter = await Chapter.findOne({ id: req.params.chapterId });
-        if (!chapter) return res.status(404).json({ message: 'Chapter not found' });
+        const query = getStoryQuery(req.params.id);
+        const story = await Story.findOne(query);
+        if (!story) return res.status(404).json({ message: 'Story not found' });
 
-        const storyId = chapter.storyId;
-        await Chapter.deleteOne({ id: req.params.chapterId });
-        await Story.findByIdAndUpdate(storyId, { lastUpdatedAt: new Date() });
-        res.json({ message: 'Chapter removed' });
+        const chapter = await Chapter.findOne({ 
+            id: req.params.chapterId,
+            storyId: story._id,
+            volumeId: req.params.volumeId 
+        });
+
+        if (!chapter) return res.status(404).json({ message: 'Chapter not found in this volume' });
+
+        await Chapter.deleteOne({ _id: chapter._id });
+        await Story.findByIdAndUpdate(story._id, { lastUpdatedAt: new Date() });
+        
+        res.json({ message: 'Chapter removed successfully' });
     } catch (error) {
+        console.error("Delete Chapter Error:", error);
         res.status(500).json({ message: error.message });
     }
 };
