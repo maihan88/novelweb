@@ -235,12 +235,6 @@ exports.getChapterContent = async (req, res) => {
         const chapter = await Chapter.findOne({ id: req.params.chapterId });
         if (!chapter) return res.status(404).json({ message: 'Chapter not found' });
 
-        const isAdmin = req.user && req.user.role === 'admin';
-        if (!isAdmin) {
-            chapter.views += 1;
-            await chapter.save();
-            Story.findByIdAndUpdate(chapter.storyId, { $inc: { totalViews: 1 } }).exec();
-        }
         res.json(chapter);
     } catch (error) {
          res.status(500).json({ message: "Server Error" });
