@@ -196,11 +196,6 @@ const ReaderPage: React.FC = () => {
     useEffect(() => {
         if (!story || !storyId || !chapterId) return;
         
-        if (!viewIncrementedRef.current && !isAdmin && currentChapterWithContent) {
-            incrementChapterView(storyId, chapterId);
-            viewIncrementedRef.current = true;
-        }
-
         const preventAction = (e: Event) => e.preventDefault();
         const contentEl = readerContentRef.current;
         if (contentEl) {
@@ -230,18 +225,34 @@ const ReaderPage: React.FC = () => {
         const handleScroll = () => {
             const contentElement = readerContentRef.current;
             if (!contentElement) return;
+
             const contentTop = contentElement.offsetTop;
             const contentHeight = contentElement.scrollHeight;
             const viewportHeight = window.innerHeight;
             const currentScrollTop = window.pageYOffset;
+
             let percentage = 0;
-            if (contentHeight <= viewportHeight) { percentage = 100; } 
-            else {
-                 const scrollStartInContent = Math.max(0, currentScrollTop - contentTop);
-                 const maxScrollInContent = contentHeight - viewportHeight;
-                 percentage = maxScrollInContent > 0 ? Math.min(100, (scrollStartInContent / maxScrollInContent) * 100) : 100;
+
+            if (contentHeight <= viewportHeight) {
+                percentage = 100;
+            } else {
+                const scrollStartInContent = Math.max(0, currentScrollTop - contentTop);
+                const maxScrollInContent = contentHeight - viewportHeight;
+                percentage = maxScrollInContent > 0
+                    ? Math.min(100, (scrollStartInContent / maxScrollInContent) * 100)
+                    : 100;
             }
-            
+
+            if (
+                percentage >= 50 &&
+                !viewIncrementedRef.current &&
+                !isAdmin
+            ) {
+                console.log(">>> INCREMENT VIEW at", percentage);
+                incrementChapterView(storyId, chapterId);
+                viewIncrementedRef.current = true;
+            }
+
             if (Math.abs(percentage - progressRef.current) > 1) {
                 progressRef.current = percentage;
                 setScrollPercent(percentage);
