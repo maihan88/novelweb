@@ -36,6 +36,9 @@ const FeaturedStorySlider: React.FC<Props> = ({ stories }) => {
   const startAutoPlay = useCallback(() => {
     if (autoPlayTimerRef.current) clearInterval(autoPlayTimerRef.current);
     
+    // Disable auto play on mobile
+    if (window.innerWidth < 768) return;
+
     autoPlayTimerRef.current = setInterval(() => {
       if (!isHoveredRef.current && scrollRef.current) {
         const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
@@ -82,8 +85,9 @@ const FeaturedStorySlider: React.FC<Props> = ({ stories }) => {
         newScrollLeft = Math.ceil(scrollLeft + clientWidth) >= scrollWidth - 1 ? 0 : scrollLeft + clientWidth;
       }
 
-      scrollRef.current.scrollTo({ left: newScrollLeft, behavior: 'smooth' });
-      setTimeout(checkScroll, 350); 
+      const behavior = window.innerWidth < 768 ? 'auto' : 'smooth';
+      scrollRef.current.scrollTo({ left: newScrollLeft, behavior });
+      setTimeout(checkScroll, behavior === 'smooth' ? 350 : 50); 
     }
   };
 
@@ -92,8 +96,9 @@ const FeaturedStorySlider: React.FC<Props> = ({ stories }) => {
     
     if (scrollRef.current) {
       const { clientWidth } = scrollRef.current;
-      scrollRef.current.scrollTo({ left: pageIndex * clientWidth, behavior: 'smooth' });
-      setTimeout(checkScroll, 350);
+      const behavior = window.innerWidth < 768 ? 'auto' : 'smooth';
+      scrollRef.current.scrollTo({ left: pageIndex * clientWidth, behavior });
+      setTimeout(checkScroll, behavior === 'smooth' ? 350 : 50);
     }
   };
 
@@ -123,29 +128,29 @@ const FeaturedStorySlider: React.FC<Props> = ({ stories }) => {
             {stories.map((story) => (
               <div 
                 key={story.id} 
-                className="flex-shrink-0 w-full md:w-[calc(50%-0.5rem)] snap-start bg-sukem-card rounded-2xl border border-sukem-border shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row overflow-hidden min-h-[14rem]"
+                className="group relative flex-shrink-0 w-full md:w-[calc(50%-0.5rem)] snap-start bg-sukem-card rounded-2xl border border-sukem-border overflow-hidden md:shadow-sm md:hover:shadow-md flex h-[24rem] md:h-auto md:flex-row md:transition-all"
               >
                 {/* Ảnh bìa */}
-                <div className="w-full sm:w-1/3 h-48 sm:h-auto flex-shrink-0 overflow-hidden relative select-none">
+                <div className="absolute inset-0 md:relative md:w-1/3 md:h-auto flex-shrink-0 overflow-hidden select-none">
                     <img 
                       src={story.coverImage} 
                       alt={story.title} 
                       className="w-full h-full object-cover select-none"
                     />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent sm:hidden pointer-events-none"></div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent md:hidden pointer-events-none"></div>
                 </div>
 
                 {/* Thông tin */}
-                <div className="p-4 flex flex-col flex-1 min-w-0">
+                <div className="relative z-10 p-4 flex flex-col flex-1 min-w-0 h-full justify-end md:justify-start">
                   <div>
                     <Link to={`/story/${story.id}`}>
-                      <h3 className="text-xl font-bold text-sukem-text font-serif hover:text-sukem-primary transition-colors line-clamp-2 select-none">
+                      <h3 className="text-xl font-bold text-white md:text-sukem-text font-serif md:hover:text-sukem-primary md:transition-colors line-clamp-2 select-none">
                         {story.title}
                       </h3>
                     </Link>
 
                     {/* Tác giả & Số chương */}
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-sukem-text-muted select-none">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-gray-200 md:text-sukem-text-muted select-none">
                       <div className="flex items-center gap-1">
                         <UserIcon className="h-3.5 w-3.5" />
                         <span className="font-medium line-clamp-1">{story.author || 'Đang cập nhật'}</span>
@@ -158,10 +163,10 @@ const FeaturedStorySlider: React.FC<Props> = ({ stories }) => {
 
                     {/* Tags */}
                     <div className="flex items-start gap-2 mt-3 flex-wrap select-none cursor-default">
-                      <TagIcon className="h-4 w-4 text-sukem-text-muted mt-0.5 flex-shrink-0" />
+                      <TagIcon className="h-4 w-4 text-gray-300 md:text-sukem-text-muted mt-0.5 flex-shrink-0" />
                       <div className="flex flex-wrap gap-1.5 flex-1">
                         {story.tags && story.tags.map(tag => (
-                          <span key={tag} className="text-[10px] font-bold px-2 py-0.5 bg-sukem-bg text-sukem-text-muted border border-sukem-border/50 rounded-md whitespace-nowrap">
+                          <span key={tag} className="text-[10px] font-bold px-2 py-0.5 bg-black/40 md:bg-sukem-bg text-gray-200 md:text-sukem-text-muted border border-white/20 md:border-sukem-border/50 rounded-md whitespace-nowrap">
                             {tag}
                           </span>
                         ))}
@@ -171,7 +176,7 @@ const FeaturedStorySlider: React.FC<Props> = ({ stories }) => {
 
                   {/* Mô tả ngắn */}
                   <div 
-                    className="text-sm text-sukem-text mt-4 line-clamp-5 leading-relaxed text-justify opacity-80 select-none cursor-default " 
+                    className="text-sm text-gray-300 md:text-sukem-text mt-4 line-clamp-4 md:line-clamp-5 leading-relaxed text-justify md:opacity-80 select-none cursor-default" 
                     dangerouslySetInnerHTML={{ __html: story.description }} 
                   />
                 </div>

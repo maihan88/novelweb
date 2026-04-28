@@ -79,12 +79,12 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ interval = 7000 }) => {
   };
 
   // CẬP NHẬT: Tăng h-[...] trên lg cho loading skeleton
-  if (loading) return <div className="h-[450px] lg:h-[600px] xl:h-[700px] w-full bg-sukem-card animate-pulse rounded-2xl border border-sukem-border"></div>;
+  if (loading) return <div className="h-[450px] lg:h-[600px] xl:h-[700px] w-[calc(100%-2rem)] mx-auto sm:w-full bg-sukem-card animate-pulse rounded-2xl border border-sukem-border"></div>;
 
   if (stories.length === 0) {
     return (
       // CẬP NHẬT: Tăng lg:h-[75vh], max-h-[750px] cho desktop
-      <div className="relative flex flex-col items-center justify-center h-[65vh] md:h-[60vh] lg:h-[75vh] max-h-[500px] md:max-h-[600px] lg:max-h-[750px] min-h-[400px] w-full rounded-2xl overflow-hidden bg-sukem-card border border-sukem-border shadow-sm group">
+      <div className="relative flex flex-col items-center justify-center h-[65vh] md:h-[60vh] lg:h-[75vh] max-h-[500px] md:max-h-[600px] lg:max-h-[750px] min-h-[400px] w-[calc(100%-2rem)] mx-auto sm:w-full rounded-2xl overflow-hidden bg-sukem-card border border-sukem-border shadow-sm group">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-sukem-primary/10 via-sukem-card to-sukem-bg transition-colors duration-500"></div>
         <div className="relative z-10 flex flex-col items-center px-6 text-center animate-fade-in">
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold font-serif text-sukem-text tracking-tight mb-4">
@@ -101,7 +101,7 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ interval = 7000 }) => {
 
   return (
     // CẬP NHẬT: Tăng lg:h-[75vh] md:h-[70vh], max-h-[750px] cho desktop
-    <div className="relative h-[65vh] md:h-[70vh] lg:h-[75vh] max-h-[500px] md:max-h-[600px] lg:max-h-[750px] min-h-[400px] w-full overflow-hidden rounded-2xl group shadow-lg border border-sukem-border bg-sukem-card">
+    <div className="relative h-[65vh] md:h-[70vh] lg:h-[75vh] max-h-[500px] md:max-h-[600px] lg:max-h-[750px] min-h-[400px] w-[calc(100%-2rem)] mx-auto sm:w-full overflow-hidden rounded-2xl group shadow-lg border border-sukem-border bg-sukem-card">
       {stories.map((story, index) => {
         const isUp = index % 2 === 0;
         const animationClass = isUp ? 'md:animate-pan-up bg-center' : 'md:animate-pan-down bg-center';

@@ -36,7 +36,7 @@ const AppContent: React.FC = () => {
       return baseClasses; 
     }
 
-    return `${baseClasses} container mx-auto max-w-7xl px-4 sm:px-6 md:px-6 py-8`;
+    return `${baseClasses} container mx-auto max-w-7xl sm:px-6 md:px-6 py-8`;
   }, [isReaderPage]);
   
   return (
