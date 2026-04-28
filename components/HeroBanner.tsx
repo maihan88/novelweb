@@ -104,8 +104,8 @@ const HeroBanner: React.FC<HeroBannerProps> = ({ interval = 7000 }) => {
     <div className="relative h-[65vh] md:h-[70vh] lg:h-[75vh] max-h-[500px] md:max-h-[600px] lg:max-h-[750px] min-h-[400px] w-full overflow-hidden rounded-2xl group shadow-lg border border-sukem-border bg-sukem-card">
       {stories.map((story, index) => {
         const isUp = index % 2 === 0;
-        const animationClass = isUp ? 'animate-pan-up' : 'animate-pan-down';
-        const endPositionClass = isUp ? 'bg-[50%_20%]' : 'bg-[50%_80%]';
+        const animationClass = isUp ? 'md:animate-pan-up bg-center' : 'md:animate-pan-down bg-center';
+        const endPositionClass = isUp ? 'md:bg-[50%_20%] bg-center' : 'md:bg-[50%_80%] bg-center';
 
         const isActive = index === currentIndex;
         const isPrevious = index === previousIndex;

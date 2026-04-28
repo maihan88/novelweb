@@ -16,7 +16,9 @@ const protect = async (req, res, next) => {
             }
             next();
         } catch (error) {
-            console.error(error);
+            if (error.name === 'TokenExpiredError') {
+                return res.status(401).json({ message: 'Token expired', code: 'TOKEN_EXPIRED' });
+            }
             return res.status(401).json({ message: 'Not authorized, token failed' });
         }
     }
@@ -37,7 +39,8 @@ const optionalAuth = async (req, res, next) => {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
             req.user = await User.findById(decoded.userId).select('-password');
         } catch (error) {
-
+            // Token expired or invalid — treat as guest, silently continue
+            req.user = null;
         }
     }
     next();

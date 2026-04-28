@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { Story, Chapter, ReaderPreferences, ReaderTheme } from '../types';
 import { useStories } from '../contexts/StoryContext';
 import { useUserPreferences } from '../contexts/UserPreferencesContext';
@@ -12,6 +12,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { ArrowLeftIcon, ArrowRightIcon, HomeIcon, SunIcon, MoonIcon, ListBulletIcon } from '@heroicons/react/24/solid';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useAudioReader, preprocessHtmlForAudio, AudioHighlightColor } from '../hooks/useAudioReader';
 
 // --- ReadingProgressBar ---
 const ReadingProgressBar: React.FC<{ progress: number }> = React.memo(({ progress }) => {
@@ -88,6 +89,7 @@ const marginSettings: Record<number, { padding: string; maxWidth: string }> = {
 const ReaderPage: React.FC = () => {
     const { storyId, chapterId } = useParams<{ storyId: string, chapterId: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
     const { getStoryById, incrementChapterView } = useStories();
     const { bookmarks, updateBookmark } = useUserPreferences();
     const { currentUser } = useAuth();
@@ -117,6 +119,77 @@ const ReaderPage: React.FC = () => {
     useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
 
     const isAdmin = useMemo(() => currentUser?.role === 'admin', [currentUser]);
+
+    // --- Navigation: prev/next chapter ---
+    const { prevChapter, nextChapter } = useMemo(() => {
+        if (!story || !chapterId) return { prevChapter: null, nextChapter: null };
+        const allChapters = story.volumes.flatMap(v => v.chapters);
+        const index = allChapters.findIndex(c => c.id === chapterId);
+        if (index === -1) return { prevChapter: null, nextChapter: null };
+        return { prevChapter: index > 0 ? allChapters[index - 1] : null, nextChapter: index < allChapters.length - 1 ? allChapters[index + 1] : null };
+    }, [story, chapterId]);
+
+    const nextChapterRef = useRef(nextChapter);
+    useEffect(() => { nextChapterRef.current = nextChapter; }, [nextChapter]);
+
+    // --- Cleaned content ---
+    const cleanedContent = useMemo(() => {
+        if (!currentChapterWithContent?.content) return '';
+        return currentChapterWithContent.content.replace(/line-height:[^;"]*;/g, '');
+    }, [currentChapterWithContent?.content]);
+
+    // --- Is Raw chapter? ---
+    const isRawChapter = useMemo(() => Boolean(currentChapterWithContent?.isRaw), [currentChapterWithContent]);
+
+    // --- Audio: pre-process HTML to inject spans (done once per chapter, in memo) ---
+    // This runs in browser so we can use DOMParser
+    const audioHtml = useMemo(() => {
+        if (!currentChapterWithContent || isRawChapter) {
+            return { titleSentences: [], contentSentences: [], wrappedHtml: cleanedContent, totalSentences: 0 };
+        }
+        return preprocessHtmlForAudio(currentChapterWithContent.title, cleanedContent);
+    }, [currentChapterWithContent, isRawChapter, cleanedContent]);
+
+    // --- Audio voice state ---
+    const [audioVoiceURI, setAudioVoiceURI] = useState('');
+
+    const handleAudioChapterEnd = useCallback(() => {
+        const next = nextChapterRef.current;
+        if (next && storyId) {
+            navigate(`/story/${storyId}/chapter/${next.id}`, { state: { autoPlayNext: true } });
+        }
+    }, [navigate, storyId]);
+
+    // --- Audio reader hook ---
+    const audio = useAudioReader({
+        titleSentences: audioHtml.titleSentences,
+        contentSentences: audioHtml.contentSentences,
+        voiceURI: audioVoiceURI,
+        onChapterEnd: handleAudioChapterEnd,
+    });
+
+    // Stop audio when chapter changes
+    useEffect(() => {
+        audio.stop();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [chapterId]);
+
+    // Auto-play audio when transitioning to next chapter via audio ending
+    useEffect(() => {
+        const isAutoPlay = location.state?.autoPlayNext;
+
+        if (isAutoPlay && currentChapterWithContent && audioHtml.totalSentences > 0 && !isRawChapter) {
+            // Clear the state so it doesn't auto-play again on refresh
+            navigate(location.pathname, { replace: true, state: {} });
+
+            // Timeout ensures DOM is fully updated with the injected span tags
+            const timer = setTimeout(() => {
+                audio.start(0);
+            }, 800);
+
+            return () => clearTimeout(timer);
+        }
+    }, [location.state, location.pathname, currentChapterWithContent, audioHtml.totalSentences, isRawChapter, navigate, audio.start]);
 
     // 1. Fetch Story
     useEffect(() => {
@@ -150,11 +223,7 @@ const ReaderPage: React.FC = () => {
             let vTitle = '';
             const vol = story.volumes.find(v => v.chapters.some(c => c.id === chapterId));
             if (vol) vTitle = vol.title;
-
-            currentTitlesRef.current = {
-                chapter: currentChapterWithContent.title,
-                volume: vTitle
-            };
+            currentTitlesRef.current = { chapter: currentChapterWithContent.title, volume: vTitle };
         }
     }, [story, currentChapterWithContent, chapterId]);
 
@@ -177,7 +246,6 @@ const ReaderPage: React.FC = () => {
                             const maxScrollInContent = contentHeight - viewportHeight;
                             const targetScrollInContent = (maxScrollInContent * savedBookmark.progress) / 100;
                             const targetScrollPosition = contentTop + targetScrollInContent;
-
                             window.scrollTo({ top: targetScrollPosition, behavior: 'auto' });
                             progressRef.current = savedBookmark.progress;
                             setScrollPercent(savedBookmark.progress);
@@ -205,19 +273,13 @@ const ReaderPage: React.FC = () => {
 
         const debouncedSave = (newProgress: number) => {
             if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
-
             syncTimeoutRef.current = setTimeout(async () => {
                 const finalProgress = Math.round(newProgress >= 99 ? 100 : newProgress);
                 const { chapter: cTitle, volume: vTitle } = currentTitlesRef.current;
-
                 updateBookmarkRef.current(storyId, chapterId, finalProgress, cTitle, vTitle);
-
                 if (currentUserRef.current) {
-                    try {
-                        await userService.syncReadingProgress(storyId, chapterId, finalProgress, cTitle, vTitle);
-                    } catch (err) {
-                        console.error('Lỗi sync:', err);
-                    }
+                    try { await userService.syncReadingProgress(storyId, chapterId, finalProgress, cTitle, vTitle); }
+                    catch (err) { console.error('Lỗi sync:', err); }
                 }
             }, 1000);
         };
@@ -232,23 +294,15 @@ const ReaderPage: React.FC = () => {
             const currentScrollTop = window.pageYOffset;
 
             let percentage = 0;
-
             if (contentHeight <= viewportHeight) {
                 percentage = 100;
             } else {
                 const scrollStartInContent = Math.max(0, currentScrollTop - contentTop);
                 const maxScrollInContent = contentHeight - viewportHeight;
-                percentage = maxScrollInContent > 0
-                    ? Math.min(100, (scrollStartInContent / maxScrollInContent) * 100)
-                    : 100;
+                percentage = maxScrollInContent > 0 ? Math.min(100, (scrollStartInContent / maxScrollInContent) * 100) : 100;
             }
 
-            if (
-                percentage >= 50 &&
-                !viewIncrementedRef.current &&
-                !isAdmin
-            ) {
-                console.log(">>> INCREMENT VIEW at", percentage);
+            if (percentage >= 50 && !viewIncrementedRef.current && !isAdmin) {
                 incrementChapterView(storyId, chapterId);
                 viewIncrementedRef.current = true;
             }
@@ -265,13 +319,14 @@ const ReaderPage: React.FC = () => {
 
         return () => {
             window.removeEventListener('scroll', handleScroll);
-            if (contentEl) { contentEl.removeEventListener('contextmenu', preventAction); contentEl.removeEventListener('copy', preventAction); }
+            if (contentEl) {
+                contentEl.removeEventListener('contextmenu', preventAction);
+                contentEl.removeEventListener('copy', preventAction);
+            }
             if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
-
             if (storyId && chapterId) {
                 const finalProgress = Math.round(progressRef.current >= 99 ? 100 : progressRef.current);
                 const { chapter: cTitle, volume: vTitle } = currentTitlesRef.current;
-
                 updateBookmarkRef.current(storyId, chapterId, finalProgress, cTitle, vTitle);
                 if (currentUserRef.current) {
                     userService.syncReadingProgress(storyId, chapterId, finalProgress, cTitle, vTitle).catch(console.error);
@@ -286,19 +341,6 @@ const ReaderPage: React.FC = () => {
         if (now - lastTap.current < 400) setIsFloatingNavVisible(p => !p);
         lastTap.current = now;
     };
-
-    const { prevChapter, nextChapter } = useMemo(() => {
-        if (!story || !chapterId) return { prevChapter: null, nextChapter: null };
-        const allChapters = story.volumes.flatMap(v => v.chapters);
-        const index = allChapters.findIndex(c => c.id === chapterId);
-        if (index === -1) return { prevChapter: null, nextChapter: null };
-        return { prevChapter: index > 0 ? allChapters[index - 1] : null, nextChapter: index < allChapters.length - 1 ? allChapters[index + 1] : null };
-    }, [story, chapterId]);
-
-    const cleanedContent = useMemo(() => {
-        if (!currentChapterWithContent?.content) return '';
-        return currentChapterWithContent.content.replace(/line-height:[^;"]*;/g, '');
-    }, [currentChapterWithContent?.content]);
 
     const contentStyle = useMemo(() => ({ fontSize: `${preferences.fontSize}px`, lineHeight: preferences.lineHeight }), [preferences.fontSize, preferences.lineHeight]);
     const handleChapterSelect = (e: React.ChangeEvent<HTMLSelectElement>) => { if (e.target.value) navigate(`/story/${storyId}/chapter/${e.target.value}`); };
@@ -321,15 +363,20 @@ const ReaderPage: React.FC = () => {
                     <nav className="flex justify-center items-center gap-2 text-sm sm:text-base font-medium mb-3">
                         <Link to={`/story/${story.id}`} className={`transition-colors ${themeStyle.breadcrumb}`}>{story.title}</Link>
                     </nav>
-                    <h1 className={`text-3xl sm:text-4xl md:text-5xl font-bold font-serif leading-tight px-2 ${themeStyle.title}`}>
+                    <h1
+                        data-reader-title
+                        className={`text-3xl sm:text-4xl md:text-5xl font-bold font-serif leading-tight px-2 ${themeStyle.title}`}
+                    >
                         {currentChapterWithContent.title}
                     </h1>
                 </div>
 
-                <div ref={readerContentRef}
+                {/* Content: use audioHtml.wrappedHtml when audio is active/preprocessed, otherwise cleanedContent */}
+                <div
+                    ref={readerContentRef}
                     className={`max-w-none transition-all duration-300 ${preferences.fontFamily} ${preferences.textAlign} chapter-content prevent-copy ${themeStyle.content}`}
                     style={contentStyle}
-                    dangerouslySetInnerHTML={{ __html: cleanedContent }}
+                    dangerouslySetInnerHTML={{ __html: isRawChapter ? cleanedContent : audioHtml.wrappedHtml }}
                 />
 
                 <div className={`mt-16 pt-10 border-t ${themeStyle.border}`}>
@@ -361,7 +408,27 @@ const ReaderPage: React.FC = () => {
                 </div>
                 {storyId && chapterId && <CommentSection storyId={storyId} chapterId={chapterId} />}
             </div>
-            <ReaderControls preferences={preferences} setPreferences={setPreferences} />
+
+            <ReaderControls
+                preferences={preferences}
+                setPreferences={setPreferences}
+                audioIsPlaying={audio.isPlaying}
+                audioIsPaused={audio.isPaused}
+                audioRate={audio.rate}
+                audioPitch={audio.pitch}
+                audioHighlightColor={audio.highlightColor}
+                audioVoiceURI={audioVoiceURI}
+                onAudioPlay={() => {
+                    if (!isRawChapter) audio.start(0);
+                }}
+                onAudioPause={audio.pause}
+                onAudioResume={audio.resume}
+                onAudioStop={audio.stop}
+                onAudioRateChange={audio.setRate}
+                onAudioPitchChange={audio.setPitch}
+                onAudioHighlightColorChange={audio.setHighlightColor}
+                onAudioVoiceChange={setAudioVoiceURI}
+            />
         </div>
     );
 };

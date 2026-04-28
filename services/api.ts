@@ -22,4 +22,19 @@ api.interceptors.request.use(config => {
   return Promise.reject(error);
 });
 
+// Auto-logout when token expires
+api.interceptors.response.use(
+  response => response,
+  error => {
+    if (
+      error.response?.status === 401 &&
+      error.response?.data?.code === 'TOKEN_EXPIRED'
+    ) {
+      localStorage.removeItem('currentUser');
+      window.location.reload();
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;

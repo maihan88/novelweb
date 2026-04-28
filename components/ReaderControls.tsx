@@ -3,6 +3,7 @@ import { ReaderPreferences, ReaderFont, ReaderTheme, ReaderTextAlign } from '../
 import {
     XMarkIcon,
     SwatchIcon,
+    SpeakerWaveIcon,
 } from '@heroicons/react/24/solid';
 import {
     AdjustmentsHorizontalIcon,
@@ -15,18 +16,54 @@ import {
     Bars3BottomRightIcon,
     Bars2Icon
 } from '@heroicons/react/24/outline';
+import { AudioPlayer } from './AudioPlayer';
+import { AudioHighlightColor } from '../hooks/useAudioReader';
 
 interface ReaderControlsProps {
     preferences: ReaderPreferences;
     setPreferences: React.Dispatch<React.SetStateAction<ReaderPreferences>>;
+    // Audio props
+    audioIsPlaying: boolean;
+    audioIsPaused: boolean;
+    audioRate: number;
+    audioPitch: number;
+    audioHighlightColor: AudioHighlightColor;
+    audioVoiceURI: string;
+    onAudioPlay: () => void;
+    onAudioPause: () => void;
+    onAudioResume: () => void;
+    onAudioStop: () => void;
+    onAudioRateChange: (r: number) => void;
+    onAudioPitchChange: (p: number) => void;
+    onAudioHighlightColorChange: (c: AudioHighlightColor) => void;
+    onAudioVoiceChange: (uri: string) => void;
 }
 
 const marginSteps = [0, 5, 10, 15, 20];
 
-const ReaderControls: React.FC<ReaderControlsProps> = ({ preferences, setPreferences }) => {
+const ReaderControls: React.FC<ReaderControlsProps> = ({
+    preferences,
+    setPreferences,
+    audioIsPlaying,
+    audioIsPaused,
+    audioRate,
+    audioPitch,
+    audioHighlightColor,
+    audioVoiceURI,
+    onAudioPlay,
+    onAudioPause,
+    onAudioResume,
+    onAudioStop,
+    onAudioRateChange,
+    onAudioPitchChange,
+    onAudioHighlightColorChange,
+    onAudioVoiceChange,
+}) => {
     const [isControlsOpen, setIsControlsOpen] = useState(false);
+    const [mobileTab, setMobileTab] = useState<'display' | 'audio'>('display');
     const [showDesktopTheme, setShowDesktopTheme] = useState(false);
     const [showDesktopLayout, setShowDesktopLayout] = useState(false);
+    const [showDesktopAudio, setShowDesktopAudio] = useState(false);
 
     const handleFontSizeChange = (amount: number) => {
         setPreferences(p => ({ ...p, fontSize: Math.max(12, Math.min(32, p.fontSize + amount)) }));
@@ -79,31 +116,32 @@ const ReaderControls: React.FC<ReaderControlsProps> = ({ preferences, setPrefere
             if (desktopRef.current && !desktopRef.current.contains(event.target as Node)) {
                 setShowDesktopTheme(false);
                 setShowDesktopLayout(false);
+                setShowDesktopAudio(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const MobileControlPanel = () => (
-        <div className="flex flex-col gap-y-5 text-sukem-text">
+    const MobileDisplayPanel = () => (
+        <div className="flex flex-col gap-y-4 text-sukem-text">
             <div className="flex items-center justify-between">
-                <span className="font-medium text-sm">Cỡ chữ</span>
+                <span className="font-medium text-xs">Cỡ chữ</span>
                 <div className="flex items-center gap-1 p-1 bg-sukem-bg rounded-full border border-sukem-border">
-                    <button data-control-button onClick={() => handleFontSizeChange(-1)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-sukem-card transition-colors">A-</button>
-                    <span className="text-sm w-10 text-center font-semibold">{preferences.fontSize}px</span>
-                    <button data-control-button onClick={() => handleFontSizeChange(1)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-sukem-card transition-colors">A+</button>
+                    <button data-control-button onClick={() => handleFontSizeChange(-1)} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-sukem-card transition-colors text-sm">A-</button>
+                    <span className="text-xs w-9 text-center font-semibold">{preferences.fontSize}px</span>
+                    <button data-control-button onClick={() => handleFontSizeChange(1)} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-sukem-card transition-colors text-sm">A+</button>
                 </div>
             </div>
             <div className="flex items-center justify-between">
-                <span className="font-medium text-sm">Phông chữ</span>
+                <span className="font-medium text-xs">Phông chữ</span>
                 <div className="flex items-center gap-1 p-1 bg-sukem-bg rounded-full border border-sukem-border">
                     {fontOptions.map(font => (
                         <button
                             key={font.key}
                             data-control-button
                             onClick={() => handleFontFamilyChange(font.key)}
-                            className={`px-3 py-1.5 rounded-full text-sm transition-colors ${preferences.fontFamily === font.key ? 'bg-sukem-primary text-white shadow' : 'hover:bg-sukem-card'}`}
+                            className={`px-2.5 py-1 rounded-full text-xs transition-colors ${preferences.fontFamily === font.key ? 'bg-sukem-primary text-white shadow' : 'hover:bg-sukem-card'}`}
                         >
                             <span style={font.style}>{font.name}</span>
                         </button>
@@ -111,52 +149,46 @@ const ReaderControls: React.FC<ReaderControlsProps> = ({ preferences, setPrefere
                 </div>
             </div>
             <div className="flex items-center justify-between">
-                <span className="font-medium text-sm">Căn chỉnh</span>
+                <span className="font-medium text-xs">Căn chỉnh</span>
                 <div className="flex items-center gap-1 p-1 bg-sukem-bg rounded-full border border-sukem-border">
                     {alignOptions.map(opt => (
                         <button
                             key={opt.key}
                             data-control-button
                             onClick={() => handleTextAlignChange(opt.key)}
-                            className={`p-2 rounded-full transition-colors ${preferences.textAlign === opt.key
-                                    ? 'bg-sukem-primary text-white shadow'
-                                    : 'hover:bg-sukem-card text-sukem-text-muted'
-                                }`}
+                            className={`p-1.5 rounded-full transition-colors ${preferences.textAlign === opt.key ? 'bg-sukem-primary text-white shadow' : 'hover:bg-sukem-card text-sukem-text-muted'}`}
                             title={opt.label}
                         >
-                            <opt.icon className="w-5 h-5" />
+                            <opt.icon className="w-4 h-4" />
                         </button>
                     ))}
                 </div>
             </div>
             <div className="flex items-center justify-between">
-                <span className="font-medium text-sm">Giãn dòng</span>
+                <span className="font-medium text-xs">Giãn dòng</span>
                 <div className="flex items-center gap-1 p-1 bg-sukem-bg rounded-full border border-sukem-border">
-                    <button data-control-button onClick={() => handleLineHeightChange(-0.1)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-sukem-card transition-colors">-</button>
-                    <span className="text-sm w-10 text-center font-semibold">{preferences.lineHeight.toFixed(1)}</span>
-                    <button data-control-button onClick={() => handleLineHeightChange(0.1)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-sukem-card transition-colors">+</button>
+                    <button data-control-button onClick={() => handleLineHeightChange(-0.1)} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-sukem-card transition-colors">-</button>
+                    <span className="text-xs w-9 text-center font-semibold">{preferences.lineHeight.toFixed(1)}</span>
+                    <button data-control-button onClick={() => handleLineHeightChange(0.1)} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-sukem-card transition-colors">+</button>
                 </div>
             </div>
             <div className="flex items-center justify-between">
-                <span className="font-medium text-sm">Canh lề trang</span>
+                <span className="font-medium text-xs">Canh lề trang</span>
                 <div className="flex items-center gap-1 p-1 bg-sukem-bg rounded-full border border-sukem-border">
-                    <button data-control-button onClick={() => handleMarginChange(-1)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-sukem-card transition-colors">-</button>
-                    <span className="text-sm w-10 text-center font-semibold">{preferences.margin}%</span>
-                    <button data-control-button onClick={() => handleMarginChange(1)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-sukem-card transition-colors">+</button>
+                    <button data-control-button onClick={() => handleMarginChange(-1)} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-sukem-card transition-colors">-</button>
+                    <span className="text-xs w-9 text-center font-semibold">{preferences.margin}%</span>
+                    <button data-control-button onClick={() => handleMarginChange(1)} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-sukem-card transition-colors">+</button>
                 </div>
             </div>
-            <div className="space-y-2">
-                <span className="font-medium text-sm">Màu nền</span>
+            <div className="space-y-1.5">
+                <span className="font-medium text-xs">Màu nền</span>
                 <div className="grid grid-cols-6 gap-2 p-1 bg-sukem-bg rounded-xl border border-sukem-border">
                     {themeOptions.map(t => (
                         <button
                             key={t.key}
                             data-control-button
                             onClick={() => handleThemeChange(t.key)}
-                            className={`col-span-1 aspect-square rounded-full flex items-center justify-center border-2 transition-all ${t.bg} ${preferences.theme === t.key
-                                    ? `${t.border} ${t.ring} ring-2 ring-offset-1 dark:ring-offset-stone-800`
-                                    : 'border-transparent hover:border-slate-300'
-                                }`}
+                            className={`col-span-1 aspect-square rounded-full flex items-center justify-center border-2 transition-all ${t.bg} ${preferences.theme === t.key ? `${t.border} ${t.ring} ring-2 ring-offset-1 dark:ring-offset-stone-800` : 'border-transparent hover:border-slate-300'}`}
                             title={t.name}
                         >
                             {preferences.theme === t.key && <div className="w-2 h-2 rounded-full bg-current opacity-50" />}
@@ -203,8 +235,45 @@ const ReaderControls: React.FC<ReaderControlsProps> = ({ preferences, setPrefere
 
                 <div className="w-6 h-px bg-sukem-border"></div>
 
+                {/* Desktop Audio Button */}
                 <div className="relative">
-                    <button onClick={() => { setShowDesktopLayout(!showDesktopLayout); setShowDesktopTheme(false); }} className={sidebarBtnClass(showDesktopLayout)} title="Cài đặt hiển thị">
+                    <button
+                        onClick={() => { setShowDesktopAudio(!showDesktopAudio); setShowDesktopLayout(false); setShowDesktopTheme(false); }}
+                        className={`${sidebarBtnClass(showDesktopAudio || audioIsPlaying || audioIsPaused)} relative`}
+                        title="Đọc audio"
+                    >
+                        <SpeakerWaveIcon className="h-5 w-5" />
+                        {(audioIsPlaying || audioIsPaused) && (
+                            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-sukem-primary animate-pulse" />
+                        )}
+                    </button>
+                    {showDesktopAudio && (
+                        <div className={`${popoverClass} flex-col !items-stretch gap-3 min-w-[240px] text-sukem-text`}>
+                            <div className="flex items-center gap-2 text-xs font-semibold text-sukem-text-muted uppercase tracking-wider mb-1">
+                                <SpeakerWaveIcon className="h-3 w-3" /> Audio
+                            </div>
+                            <AudioPlayer
+                                isPlaying={audioIsPlaying}
+                                isPaused={audioIsPaused}
+                                rate={audioRate}
+                                pitch={audioPitch}
+                                highlightColor={audioHighlightColor}
+                                voiceURI={audioVoiceURI}
+                                onPlay={onAudioPlay}
+                                onPause={onAudioPause}
+                                onResume={onAudioResume}
+                                onStop={onAudioStop}
+                                onRateChange={onAudioRateChange}
+                                onPitchChange={onAudioPitchChange}
+                                onHighlightColorChange={onAudioHighlightColorChange}
+                                onVoiceChange={onAudioVoiceChange}
+                            />
+                        </div>
+                    )}
+                </div>
+
+                <div className="relative">
+                    <button onClick={() => { setShowDesktopLayout(!showDesktopLayout); setShowDesktopTheme(false); setShowDesktopAudio(false); }} className={sidebarBtnClass(showDesktopLayout)} title="Cài đặt hiển thị">
                         <QueueListIcon className="h-5 w-5" />
                     </button>
 
@@ -218,8 +287,8 @@ const ReaderControls: React.FC<ReaderControlsProps> = ({ preferences, setPrefere
                                     {fontOptions.map(font => (
                                         <button key={font.key} onClick={() => handleFontFamilyChange(font.key)}
                                             className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${preferences.fontFamily === font.key
-                                                    ? 'bg-sukem-bg border-sukem-primary text-sukem-primary'
-                                                    : 'border-sukem-border bg-sukem-bg text-sukem-text-muted hover:border-sukem-text-muted'
+                                                ? 'bg-sukem-bg border-sukem-primary text-sukem-primary'
+                                                : 'border-sukem-border bg-sukem-bg text-sukem-text-muted hover:border-sukem-text-muted'
                                                 }`}
                                         >
                                             <span style={font.style}>{font.name}</span>
@@ -239,8 +308,8 @@ const ReaderControls: React.FC<ReaderControlsProps> = ({ preferences, setPrefere
                                             key={opt.key}
                                             onClick={() => handleTextAlignChange(opt.key)}
                                             className={`flex-1 flex items-center justify-center p-1.5 rounded transition-colors ${preferences.textAlign === opt.key
-                                                    ? 'bg-sukem-card text-sukem-primary shadow-sm'
-                                                    : 'text-sukem-text-muted hover:bg-sukem-card/50'
+                                                ? 'bg-sukem-card text-sukem-primary shadow-sm'
+                                                : 'text-sukem-text-muted hover:bg-sukem-card/50'
                                                 }`}
                                             title={opt.label}
                                         >
@@ -275,7 +344,7 @@ const ReaderControls: React.FC<ReaderControlsProps> = ({ preferences, setPrefere
                 </div>
 
                 <div className="relative">
-                    <button onClick={() => { setShowDesktopTheme(!showDesktopTheme); setShowDesktopLayout(false); }} className={sidebarBtnClass(showDesktopTheme)} title="Màu nền">
+                    <button onClick={() => { setShowDesktopTheme(!showDesktopTheme); setShowDesktopLayout(false); setShowDesktopAudio(false); }} className={sidebarBtnClass(showDesktopTheme)} title="Màu nền">
                         <SwatchIcon className="h-5 w-5" />
                         <span className={`absolute bottom-2 right-2 w-2 h-2 rounded-full border border-black/10 shadow-sm`} style={{ backgroundColor: themeOptions.find(t => t.key === preferences.theme)?.bg.replace('bg-', '').replace('[', '').replace(']', '') || '#fff' }}></span>
                     </button>
@@ -299,19 +368,65 @@ const ReaderControls: React.FC<ReaderControlsProps> = ({ preferences, setPrefere
 
     return (
         <>
+            {/* MOBILE */}
             <div className="md:hidden">
                 {isControlsOpen && (<div className="fixed inset-0 bg-black/30 dark:bg-black/50 z-40 backdrop-blur-sm" onClick={() => setIsControlsOpen(false)} aria-hidden="true" />)}
-                <div className="fixed bottom-5 right-5 z-50">
-                    <div data-control-button className={`absolute bottom-20 right-0 w-80 bg-sukem-card/90 backdrop-blur-md shadow-2xl rounded-2xl p-5 border border-sukem-border transition-all duration-300 ease-out origin-bottom-right ${isControlsOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-2 pointer-events-none'}`}>
-                        <MobileControlPanel />
+                <div className="fixed bottom-4 right-4 z-50">
+                    {/* Panel */}
+                    <div data-control-button className={`absolute bottom-14 right-0 w-72 bg-sukem-card/90 backdrop-blur-md shadow-2xl rounded-2xl border border-sukem-border transition-all duration-300 ease-out origin-bottom-right ${isControlsOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-2 pointer-events-none'}`}>
+                        {/* Tabs */}
+                        <div className="flex border-b border-sukem-border">
+                            <button
+                                data-control-button
+                                onClick={() => setMobileTab('display')}
+                                className={`flex-1 py-2.5 text-xs font-semibold transition-colors rounded-tl-2xl ${mobileTab === 'display' ? 'bg-sukem-primary/10 text-sukem-primary border-b-2 border-sukem-primary' : 'text-sukem-text-muted hover:bg-sukem-bg/50'}`}
+                            >
+                                Hiển thị
+                            </button>
+                            <button
+                                data-control-button
+                                onClick={() => setMobileTab('audio')}
+                                className={`flex-1 py-2.5 text-xs font-semibold transition-colors rounded-tr-2xl flex items-center justify-center gap-1.5 ${mobileTab === 'audio' ? 'bg-sukem-primary/10 text-sukem-primary border-b-2 border-sukem-primary' : 'text-sukem-text-muted hover:bg-sukem-bg/50'}`}
+                            >
+                                <SpeakerWaveIcon className="h-3.5 w-3.5" />
+                                Audio
+                                {(audioIsPlaying || audioIsPaused) && (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-sukem-primary animate-pulse" />
+                                )}
+                            </button>
+                        </div>
+                        <div className="p-4">
+                            {mobileTab === 'display' ? (
+                                <MobileDisplayPanel />
+                            ) : (
+                                <AudioPlayer
+                                    isPlaying={audioIsPlaying}
+                                    isPaused={audioIsPaused}
+                                    rate={audioRate}
+                                    pitch={audioPitch}
+                                    highlightColor={audioHighlightColor}
+                                    voiceURI={audioVoiceURI}
+                                    onPlay={onAudioPlay}
+                                    onPause={onAudioPause}
+                                    onResume={onAudioResume}
+                                    onStop={onAudioStop}
+                                    onRateChange={onAudioRateChange}
+                                    onPitchChange={onAudioPitchChange}
+                                    onHighlightColorChange={onAudioHighlightColorChange}
+                                    onVoiceChange={onAudioVoiceChange}
+                                />
+                            )}
+                        </div>
                     </div>
+                    {/* FAB - smaller */}
                     <button data-control-button onClick={() => setIsControlsOpen(p => !p)}
-                        className={`h-14 w-14 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 ease-out transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-stone-900 focus:ring-sukem-primary ${isControlsOpen ? 'bg-slate-600 text-white hover:bg-slate-700 rotate-90' : 'bg-sukem-primary text-white hover:opacity-90'}`}
+                        className={`h-11 w-11 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 ease-out transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-stone-900 focus:ring-sukem-primary ${isControlsOpen ? 'bg-slate-600 text-white hover:bg-slate-700 rotate-90' : 'bg-sukem-primary text-white hover:opacity-90'}`}
                     >
-                        {isControlsOpen ? <XMarkIcon className="h-7 w-7 transition-transform duration-300" /> : <AdjustmentsHorizontalIcon className="h-7 w-7 transition-transform duration-300" />}
+                        {isControlsOpen ? <XMarkIcon className="h-5 w-5 transition-transform duration-300" /> : <AdjustmentsHorizontalIcon className="h-5 w-5 transition-transform duration-300" />}
                     </button>
                 </div>
             </div>
+            {/* DESKTOP */}
             <div className="hidden md:block fixed right-6 top-1/2 -translate-y-1/2 z-50">
                 <DesktopVerticalSidebar />
             </div>
