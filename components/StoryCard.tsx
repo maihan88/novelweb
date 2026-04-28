@@ -22,7 +22,7 @@ const StoryCard: React.FC<StoryCardProps> = ({ story }) => {
   return (
     <Link 
       to={`/story/${story.id}`} 
-      className="group relative flex flex-col h-full bg-sukem-card rounded-xl overflow-hidden border border-sukem-border transition-all duration-300 ease-in-out hover:-translate-y-1.5 hover:shadow-xl hover:shadow-sukem-primary/20 hover:border-sukem-primary/50"
+      className="group relative flex flex-col h-full bg-sukem-card rounded-xl overflow-hidden border border-sukem-border transition-all duration-300 ease-in-out md:hover:-translate-y-1.5 md:hover:shadow-xl md:hover:shadow-sukem-primary/20 md:hover:border-sukem-primary/50"
     >
       {/* --- PHẦN 1: ẢNH BÌA & BADGES --- */}
       <div className="relative aspect-[2/3] overflow-hidden">
@@ -31,6 +31,7 @@ const StoryCard: React.FC<StoryCardProps> = ({ story }) => {
           alt={`Bìa truyện ${story.title}`}
           className="w-full h-full object-cover"
           loading="lazy"
+          decoding="async"
         />
         
         {/* Lớp Overlay Gradient */}

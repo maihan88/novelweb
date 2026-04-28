@@ -110,6 +110,11 @@ const ReaderPage: React.FC = () => {
     const [isFloatingNavVisible, setIsFloatingNavVisible] = useState(false);
     const lastTap = useRef(0);
 
+    // ✅ FIX BUG #1: Dùng ref để track trạng thái auto-play, tránh race condition với location.state
+    // Lý do: Nếu dùng location.state, khi navigate() được gọi để clear state bên trong effect,
+    // nó sẽ kích hoạt effect chạy lại và cleanup function sẽ hủy timer trước khi audio.start được gọi.
+    const autoPlayNextRef = useRef(false);
+
     const updateBookmarkRef = useRef(updateBookmark);
     const currentUserRef = useRef(currentUser);
     const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -142,7 +147,6 @@ const ReaderPage: React.FC = () => {
     const isRawChapter = useMemo(() => Boolean(currentChapterWithContent?.isRaw), [currentChapterWithContent]);
 
     // --- Audio: pre-process HTML to inject spans (done once per chapter, in memo) ---
-    // This runs in browser so we can use DOMParser
     const audioHtml = useMemo(() => {
         if (!currentChapterWithContent || isRawChapter) {
             return { titleSentences: [], contentSentences: [], wrappedHtml: cleanedContent, totalSentences: 0 };
@@ -153,10 +157,14 @@ const ReaderPage: React.FC = () => {
     // --- Audio voice state ---
     const [audioVoiceURI, setAudioVoiceURI] = useState('');
 
+    // ✅ FIX BUG #1: handleAudioChapterEnd không còn truyền state vào navigate
+    // Thay vào đó, set ref trước khi navigate để báo hiệu cần auto-play ở trang mới
     const handleAudioChapterEnd = useCallback(() => {
         const next = nextChapterRef.current;
         if (next && storyId) {
-            navigate(`/story/${storyId}/chapter/${next.id}`, { state: { autoPlayNext: true } });
+            // Đánh dấu cần auto-play trước khi navigate, tránh mất state do React batching
+            autoPlayNextRef.current = true;
+            navigate(`/story/${storyId}/chapter/${next.id}`);
         }
     }, [navigate, storyId]);
 
@@ -168,28 +176,33 @@ const ReaderPage: React.FC = () => {
         onChapterEnd: handleAudioChapterEnd,
     });
 
-    // Stop audio when chapter changes
+    // Dừng audio khi chuyển chương
     useEffect(() => {
         audio.stop();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [chapterId]);
 
-    // Auto-play audio when transitioning to next chapter via audio ending
+    // ✅ FIX BUG #1: Effect auto-play được viết lại hoàn toàn
+    // - Không còn phụ thuộc vào location.state (tránh race condition)
+    // - Sử dụng autoPlayNextRef để track intent
+    // - navigate() để clear state KHÔNG còn ở đây nữa → không gây re-run effect
     useEffect(() => {
-        const isAutoPlay = location.state?.autoPlayNext;
+        // Chỉ chạy nếu có yêu cầu auto-play từ chương trước
+        if (!autoPlayNextRef.current) return;
 
-        if (isAutoPlay && currentChapterWithContent && audioHtml.totalSentences > 0 && !isRawChapter) {
-            // Clear the state so it doesn't auto-play again on refresh
-            navigate(location.pathname, { replace: true, state: {} });
+        // Chờ content và audio sentences load xong mới play
+        if (!currentChapterWithContent || audioHtml.totalSentences === 0 || isRawChapter) return;
 
-            // Timeout ensures DOM is fully updated with the injected span tags
-            const timer = setTimeout(() => {
-                audio.start(0);
-            }, 800);
+        // Reset ref ngay lập tức để tránh play nhiều lần nếu effect re-run
+        autoPlayNextRef.current = false;
 
-            return () => clearTimeout(timer);
-        }
-    }, [location.state, location.pathname, currentChapterWithContent, audioHtml.totalSentences, isRawChapter, navigate, audio.start]);
+        // Delay 800ms để đảm bảo DOM đã được update với data-aidx spans
+        const timer = setTimeout(() => {
+            audio.start(0);
+        }, 800);
+
+        return () => clearTimeout(timer);
+    }, [currentChapterWithContent, audioHtml.totalSentences, isRawChapter, audio.start]);
 
     // 1. Fetch Story
     useEffect(() => {
@@ -371,7 +384,6 @@ const ReaderPage: React.FC = () => {
                     </h1>
                 </div>
 
-                {/* Content: use audioHtml.wrappedHtml when audio is active/preprocessed, otherwise cleanedContent */}
                 <div
                     ref={readerContentRef}
                     className={`max-w-none transition-all duration-300 ${preferences.fontFamily} ${preferences.textAlign} chapter-content prevent-copy ${themeStyle.content}`}
